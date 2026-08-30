@@ -1,6 +1,12 @@
 # pi-worker-agent
 
-A prototype Pi extension for durable detached worker tasks.
+Use the Pi harness as a managing agent that can delegate coding, planning, and investigation tasks to detached workers running in other harnesses, initially:
+
+- Cursor Agent
+- Codex CLI
+- Pi
+
+We use a prototype Pi extension for durable detached worker tasks.
 
 The first vertical slice intentionally uses a model-free demo worker. It validates:
 
