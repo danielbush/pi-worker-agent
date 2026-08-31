@@ -9,6 +9,7 @@ export interface CreateTaskFiles {
 }
 
 /**
+ * INFRASTRUCTURE_WRAPPER.
  * Stores the architecture's file-based task data under `tasks/<task-id>/`:
  * optional `intent.md`, optional `outcomes.md`, and `background.md`.
  * Database metadata for the `tasks` table belongs to `Registry`, not here.

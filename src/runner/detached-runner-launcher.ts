@@ -1,4 +1,4 @@
-/** Starts the durable runner in a detached Bun process. */
+/** INFRASTRUCTURE_WRAPPER: starts the durable runner in a detached Bun process. */
 export class DetachedRunnerLauncher {
   constructor(
     private readonly entryPoint: string,

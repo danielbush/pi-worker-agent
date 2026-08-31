@@ -5,7 +5,7 @@ import type { TaskStore } from "../storage/task-store.ts";
 export type UserCompletionNotifier = (message: string, level: "info" | "error") => void;
 export type AgentCompletionNotifier = (message: string) => void | Promise<void>;
 
-/** Polls durable job state and delivers settled worker results to their managing Pi session. */
+/** INFRASTRUCTURE_CONSUMER: delivers durable worker results to their managing Pi session. */
 export class WorkerCompletionMonitor {
   private timer: ReturnType<typeof setInterval> | undefined;
   private polling = false;

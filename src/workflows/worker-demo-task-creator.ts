@@ -12,6 +12,7 @@ export interface CreatedWorkerDemoTask {
 }
 
 /**
+ * INFRASTRUCTURE_CONSUMER.
  * Creates `/worker-demo`'s real project and task constructs by composing the
  * fixture, file store, ID generator, and metadata registry bricks.
  */

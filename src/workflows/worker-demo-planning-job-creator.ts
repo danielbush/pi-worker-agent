@@ -24,7 +24,7 @@ export interface CreatedWorkerDemoPlanningJob {
   workerSession: WorkerSession;
 }
 
-/** Creates the real planning job and worker session for `/worker-demo`. */
+/** INFRASTRUCTURE_CONSUMER: creates `/worker-demo`'s planning job and session. */
 export class WorkerDemoPlanningJobCreator {
   constructor(
     private readonly taskStore: TaskStore,

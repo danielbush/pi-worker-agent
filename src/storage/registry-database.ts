@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-/** Owns the SQLite connection, architecture schema, and transaction boundary. */
+/** INFRASTRUCTURE_WRAPPER: owns SQLite connection, schema, and transactions. */
 export class RegistryDatabase {
   readonly db: Database;
 

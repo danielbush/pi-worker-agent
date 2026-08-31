@@ -11,7 +11,7 @@ import { WorkerDemoPlanningJobCreator } from "../workflows/worker-demo-planning-
 import { WorkerDemoTaskCreator } from "../workflows/worker-demo-task-creator.ts";
 import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
 
-/** Owns Pi registration and the lifecycle of the real worker-agent services. */
+/** INFRASTRUCTURE_WRAPPER: owns Pi registration and worker-agent service lifecycle. */
 export class WorkerAgentExtension {
   private readonly root = getDataRoot();
   private readonly runner = new DetachedRunnerLauncher(

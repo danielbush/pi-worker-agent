@@ -1,6 +1,4 @@
 import { PiWorkerRunner } from "./pi-worker-runner.ts";
-import { Registry } from "../storage/registry.ts";
-import { TaskStore } from "../storage/task-store.ts";
 
 export async function main(args: string[]): Promise<number> {
   const [root, taskId, jobId, workerSessionId] = args;
@@ -9,15 +7,11 @@ export async function main(args: string[]): Promise<number> {
     return 2;
   }
 
-  const registry = new Registry(root);
+  const runner = PiWorkerRunner.create(root);
   try {
-    return await new PiWorkerRunner(registry, new TaskStore(root)).execute({
-      taskId,
-      jobId,
-      workerSessionId,
-    });
+    return await runner.execute({ taskId, jobId, workerSessionId });
   } finally {
-    registry.close();
+    runner.close();
   }
 }
 

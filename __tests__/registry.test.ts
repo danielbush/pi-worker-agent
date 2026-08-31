@@ -129,11 +129,11 @@ test("removes the obsolete prototype database schema", () => {
   legacy.close();
 
   const registry = new Registry(root);
-  const columns = registry.database.db.query("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
+  const columns = registry.database!.db.query("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
 
   expect(columns.map((column) => column.name)).toContain("taskId");
-  expect(registry.database.db.query("SELECT COUNT(*) AS count FROM jobs").get()).toEqual({ count: 0 });
-  expect(registry.database.db.query("PRAGMA user_version").get()).toEqual({ user_version: 1 });
+  expect(registry.database!.db.query("SELECT COUNT(*) AS count FROM jobs").get()).toEqual({ count: 0 });
+  expect(registry.database!.db.query("PRAGMA user_version").get()).toEqual({ user_version: 1 });
   registry.close();
 });
 

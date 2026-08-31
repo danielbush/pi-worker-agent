@@ -1,4 +1,4 @@
-/** Owns Git operations used to prepare projects and isolated worktrees. */
+/** INFRASTRUCTURE_WRAPPER: owns Git operations for projects and worktrees. */
 export class GitRepository {
   constructor(readonly rootDir: string) {}
 

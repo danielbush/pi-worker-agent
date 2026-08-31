@@ -9,6 +9,7 @@ export interface GreetingProject {
 }
 
 /**
+ * INFRASTRUCTURE_WRAPPER.
  * Generates the deterministic Bun project used as input to `/worker-demo`.
  * The resulting directory is an ordinary project that can be registered in
  * `projects`; this fixture does not create task metadata or launch workers.
