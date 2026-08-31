@@ -48,39 +48,29 @@ The command:
 
 For v0, the review job inspects the implementation job's existing worktree. Commit capture, applying changes to the main checkout, review fixes, follow-ups, Cursor support, and dispatch profiles come later.
 
-### Build plan
+### Walking vertical slice (1): one real planning job
 
-- [x] **Migrate the foundation to `ARCHITECTURE.md`**
-  - [x] Add `projects`, `tasks`, `jobs`, `workerSessions`, and `jobDependencies` metadata bricks.
-  - [x] Use the first-pass task and job statuses documented in `ARCHITECTURE.md`.
-  - [x] Add OOP path and file-storage bricks for optional `intent.md`, optional `outcomes.md`, `background.md`, `request.md`, and session `events.jsonl`.
-  - [x] Add database, path, and event-log tests.
-- [x] **Generate the hardcoded demo project**
-  - [x] Create `.examples/worker-demo-<task-id>/` from deterministic starter files.
-  - [x] Initialize it as a git repository with a baseline commit.
-  - [x] Register it as the task's project and create matching task files.
-- [ ] **Add the Pi worker adapter**
-  - Spawn `pi --mode json --print` in the project or implementation worktree.
-  - Restrict planning and review to read-only tools.
-  - Allow coding tools only in the implementation worktree.
-  - Disable extension discovery so workers cannot recursively invoke this extension.
-  - [x] Normalize representative Pi JSON output into canonical `WorkerEvent` records for `events.jsonl`.
-  - Capture the Pi session ID and session file in `workerSessions`.
-  - [x] Test normalization with a JSONL fixture; automated tests do not invoke a model.
-- [ ] **Add dependency scheduling**
-  - Start planning immediately.
-  - Start implementation after planning succeeds, including the plan result as context.
-  - Start review after implementation succeeds, pointing it at the implementation worktree.
-  - Mark downstream jobs `skipped` when a dependency fails or is cancelled.
-- [ ] **Implement `/worker-demo` and acceptance-test it**
-  - Create the task and three jobs from the command.
-  - Verify detached Pi execution, widget updates, notifications, and stored files.
-  - Verify the generated project satisfies the hardcoded outcomes.
-  - Verify the review addresses the task's intent and outcomes.
-  - Run `bun test` and `bun run typecheck`.
+Before adding scheduling, implementation, or review, make `/worker-demo` execute one real Pi planning worker end-to-end:
 
-### Settled decisions
+1. Generate the greeting project and task.
+2. Create one `plan` job and worker session.
+3. Write the job's canonical `request.md`.
+4. Launch a detached runner and return the task and job IDs immediately.
+5. Have the runner spawn `pi --mode json --print` with read-only tools and extension discovery disabled.
+6. Feed each Pi stdout line through `normalizePiJsonLine()`.
+7. Append normalized events to the worker session's `events.jsonl`.
+8. Store the Pi-native session ID in `workerSessions.harnessSessionId`.
+9. Mark the job `completed` or `failed` in SQLite.
 
-- `/worker-demo` is hardcoded and uses real Pi workers.
-- `request.md` is the canonical job prompt; `jobs` does not store full instructions.
-- The first implementation targets Pi/Pi only while keeping harness boundaries reusable.
+Definition of working:
+
+```text
+/worker-demo
+→ real Pi process starts
+→ job reaches completed
+→ events.jsonl contains its response and tool activity
+→ SQLite contains the project, task, job, and worker session
+```
+
+Do not add dependency scheduling, the implementation job, the review job, widgets, dispatch profiles, or Cursor support in this slice. Once this path works, extend it rather than creating another execution path.
+
