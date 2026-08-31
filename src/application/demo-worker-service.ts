@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { Job } from "../domain/jobs.ts";
+import type { Job } from "../domain/job.ts";
 import { getTaskBundle } from "../storage/paths.ts";
 import type { Registry } from "../storage/registry.ts";
 

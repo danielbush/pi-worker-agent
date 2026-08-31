@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { Job } from "../domain/jobs.ts";
+import type { Job } from "../domain/job.ts";
 import type { Registry } from "../storage/registry.ts";
 
 const POLL_MS = 1_000;

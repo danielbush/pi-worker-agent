@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Job } from "../src/domain/jobs.ts";
+import type { Job } from "../src/domain/job.ts";
 import { Registry } from "../src/storage/registry.ts";
 
 const roots: string[] = [];
