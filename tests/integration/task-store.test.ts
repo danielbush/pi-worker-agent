@@ -2,8 +2,8 @@ import { afterEach, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TaskStore } from "../src/storage/task-store.ts";
-import { removeTestDirectory } from "./test-directory.ts";
+import { TaskStore } from "../../src/storage/task-store.ts";
+import { removeTestDirectory } from "../../__tests__/test-directory.ts";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -13,7 +13,7 @@ afterEach(() => {
 test("composes task, job, and worker-session storage", async () => {
   const root = mkdtempSync(join(tmpdir(), "pi-worker-store-"));
   roots.push(root);
-  const store = new TaskStore(root);
+  const store = TaskStore.create(root);
 
   await store.tasks.create({
     taskId: "task_test",

@@ -27,7 +27,7 @@ test("registers the generated project and creates matching task data", async () 
   roots.push(root);
   const dataRoot = join(root, "data");
   const registry = new Registry(dataRoot);
-  const taskStore = new TaskStore(dataRoot);
+  const taskStore = TaskStore.create(dataRoot);
   const creator = new WorkerDemoTaskCreator(
     new GreetingProjectFixture(join(root, ".examples")),
     taskStore,

@@ -2,8 +2,9 @@ import type { WorkerEvent } from "../domain/events.ts";
 import { HarnessSessionFiles } from "../infrastructure/filesystem/harness-session-files.ts";
 import { JobFiles } from "../infrastructure/filesystem/job-files.ts";
 import { TaskFiles } from "../infrastructure/filesystem/task-files.ts";
-import { WorkerSessionEvents } from "../infrastructure/filesystem/worker-session-events.ts";
+import type { WorkerSessionEvents } from "../infrastructure/filesystem/worker-session-events.ts";
 import { WorkerAgentPaths } from "./paths.ts";
+import { WorkerSessionEventLogs } from "./task-store/worker-session-event-logs.ts";
 
 export interface NullTaskStoreState {
   requests?: Array<{ taskId: string; jobId: string; text: string }>;
@@ -17,48 +18,38 @@ export interface NullTaskStoreState {
  * hierarchy. Structured metadata remains the registry's concern.
  */
 export class TaskStore {
-  readonly paths: WorkerAgentPaths;
-  readonly tasks: TaskFiles;
-  readonly jobs: JobFiles;
-  private readonly harnessSessions: HarnessSessionFiles;
-  private readonly eventLogs: Map<string, WorkerEvent[]> | undefined;
-
-  constructor(root: string, nullState?: NullTaskStoreState) {
-    this.paths = new WorkerAgentPaths(root);
-    this.tasks = nullState ? TaskFiles.createNull(this.paths) : TaskFiles.create(this.paths);
-    this.jobs = nullState
-      ? JobFiles.createNull(this.paths, nullState.requests)
-      : JobFiles.create(this.paths);
-    this.harnessSessions = nullState
-      ? HarnessSessionFiles.createNull(nullState.harnessSessionPaths)
-      : HarnessSessionFiles.create();
-    this.eventLogs = nullState
-      ? new Map((nullState.eventLogs ?? []).map((log) => [
-        eventKey(log.taskId, log.jobId, log.workerSessionId),
-        structuredClone(log.events ?? []),
-      ]))
-      : undefined;
-  }
+  constructor(
+    readonly paths: WorkerAgentPaths,
+    readonly tasks: TaskFiles,
+    readonly jobs: JobFiles,
+    private readonly harnessSessions: HarnessSessionFiles,
+    private readonly eventLogs: WorkerSessionEventLogs,
+  ) {}
 
   static create(root: string): TaskStore {
-    return new TaskStore(root);
+    const paths = new WorkerAgentPaths(root);
+    return new TaskStore(
+      paths,
+      TaskFiles.create(paths),
+      JobFiles.create(paths),
+      HarnessSessionFiles.create(),
+      WorkerSessionEventLogs.create(paths),
+    );
   }
 
   static createNull(state: NullTaskStoreState = {}): TaskStore {
-    return new TaskStore("/null-worker-agent", state);
+    const paths = new WorkerAgentPaths("/null-worker-agent");
+    return new TaskStore(
+      paths,
+      TaskFiles.createNull(paths),
+      JobFiles.createNull(paths, state.requests),
+      HarnessSessionFiles.createNull(state.harnessSessionPaths),
+      WorkerSessionEventLogs.createNull(state.eventLogs),
+    );
   }
 
   events(taskId: string, jobId: string, workerSessionId: string): WorkerSessionEvents {
-    if (this.eventLogs) {
-      const key = eventKey(taskId, jobId, workerSessionId);
-      let records = this.eventLogs.get(key);
-      if (!records) {
-        records = [];
-        this.eventLogs.set(key, records);
-      }
-      return WorkerSessionEvents.createNull(taskId, jobId, workerSessionId, records);
-    }
-    return WorkerSessionEvents.create(this.paths, taskId, jobId, workerSessionId);
+    return this.eventLogs.events(taskId, jobId, workerSessionId);
   }
 
   async readRequest(taskId: string, jobId: string): Promise<string> {
@@ -72,8 +63,4 @@ export class TaskStore {
   async findHarnessSessionPath(directory: string, sessionId: string): Promise<string | null> {
     return this.harnessSessions.find(directory, sessionId);
   }
-}
-
-function eventKey(taskId: string, jobId: string, workerSessionId: string): string {
-  return `${taskId}\0${jobId}\0${workerSessionId}`;
 }

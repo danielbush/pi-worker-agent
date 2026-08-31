@@ -28,7 +28,7 @@ export class WorkerAgentExtension {
       this.completionMonitor?.stop();
       this.completionMonitor = new WorkerCompletionMonitor(
         registry,
-        new TaskStore(this.root),
+        TaskStore.create(this.root),
         (message, level) => ctx.ui.notify(message, level),
         (message) => this.pi.sendMessage({
           customType: "worker-agent-result",
@@ -60,7 +60,7 @@ export class WorkerAgentExtension {
 
         try {
           const registry = this.registry ??= new Registry(this.root);
-          const taskStore = new TaskStore(this.root);
+          const taskStore = TaskStore.create(this.root);
           const ids = Id.create();
           const demo = await new WorkerDemoTaskCreator(
             GreetingProjectFixture.create(join(ctx.cwd, ".examples")),

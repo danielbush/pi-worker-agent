@@ -16,7 +16,7 @@ export interface CreateJobFiles {
 export class JobFiles {
   private constructor(
     private readonly paths: WorkerAgentPaths,
-    private readonly requests: Map<string, string> | undefined,
+    private readonly requests: Map<string, CreateJobFiles> | undefined,
   ) {}
 
   static create(paths: WorkerAgentPaths): JobFiles {
@@ -27,13 +27,20 @@ export class JobFiles {
     paths: WorkerAgentPaths,
     requests: Array<{ taskId: string; jobId: string; text: string }> = [],
   ): JobFiles {
-    return new JobFiles(paths, new Map(requests.map((request) => [key(request.taskId, request.jobId), request.text])));
+    return new JobFiles(paths, new Map(requests.map((request) => [
+      key(request.taskId, request.jobId),
+      { taskId: request.taskId, jobId: request.jobId, request: request.text },
+    ])));
+  }
+
+  get state(): CreateJobFiles[] {
+    return this.requests ? [...this.requests.values()].map((request) => structuredClone(request)) : [];
   }
 
   async create(input: CreateJobFiles): Promise<string> {
     const directory = this.paths.job(input.taskId, input.jobId);
     if (this.requests) {
-      this.requests.set(key(input.taskId, input.jobId), input.request);
+      this.requests.set(key(input.taskId, input.jobId), structuredClone(input));
       return directory;
     }
     await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -47,7 +54,7 @@ export class JobFiles {
     if (this.requests) {
       const request = this.requests.get(key(taskId, jobId));
       if (request === undefined) throw new Error(`Unknown request: ${taskId}/${jobId}`);
-      return request;
+      return request.request;
     }
     return Bun.file(this.paths.request(taskId, jobId)).text();
   }

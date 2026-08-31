@@ -28,6 +28,10 @@ export class TaskFiles {
     return new TaskFiles(paths, new Map());
   }
 
+  get state(): CreateTaskFiles[] {
+    return this.records ? [...this.records.values()].map((record) => structuredClone(record)) : [];
+  }
+
   async create(input: CreateTaskFiles): Promise<string> {
     const directory = this.paths.task(input.taskId);
     if (this.records) {
