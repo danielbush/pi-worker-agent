@@ -33,6 +33,8 @@ The hardcoded task is to implement and test a tiny greeting CLI:
   - `bun test` passes.
 - **Background:** the generated project contains a minimal package and starter source files, but not the finished behavior.
 
+The command first generates `taskId` in the application. It uses that same ID for the demo directory, the SQLite task record, and `tasks/<task-id>/`; neither SQLite nor the filesystem generates it. The generated directory is then registered as the task's project.
+
 The command:
 
 1. Creates the project, task, and three dependent Pi-worker jobs:

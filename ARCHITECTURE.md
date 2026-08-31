@@ -8,7 +8,8 @@ flowchart LR
         Manager["Manager agent<br/>ongoing Pi conversation"]
         Translation["Translate conversation into a task<br/><br/>projectId<br/>intent?<br/>outcomes?<br/>background"]
         PlanJobs["Define each job<br/><br/>jobType<br/>instructions"]
-        Create["Create durable task,<br/>jobs, and isolated worktrees"]
+        AssignIds["Generate stable IDs<br/><br/>taskId<br/>jobId<br/>workerSessionId"]
+        Create["Create database rows,<br/>task files, and isolated worktrees"]
         Runner["Detached worker<br/>executes the request"]
         Observe["Manager observes completion<br/>and retrieves the result"]
 
@@ -16,7 +17,8 @@ flowchart LR
         Manager -->|responses and questions| User
         Manager --> Translation
         Translation --> PlanJobs
-        PlanJobs --> Create
+        PlanJobs --> AssignIds
+        AssignIds --> Create
         Runner --> Observe
         Observe --> Manager
     end
@@ -127,6 +129,18 @@ The manager decomposes the task into jobs. Each job has:
 
 - **`jobType`** — the purpose of the job.
 - **`instructions`** — what that specific worker should do and return.
+
+## Identity and creation order
+
+The application generates stable IDs before creating database rows or filesystem records. SQLite and the filesystem do not assign these IDs.
+
+- Generate `taskId`, then use it for both `tasks.id` and `tasks/<task-id>/`.
+- Generate each `jobId`, then use it for `jobs.id`, `jobs/<job-id>/`, and the derived `worktrees/<job-id>/` path.
+- Generate each `workerSessionId`, then use it for `workerSessions.id` and `worker-sessions/<session-id>/`.
+
+For an existing codebase, the manager first selects an existing `projectId`; the application loads its `rootDir` and then creates the task. The `/worker-demo` fixture differs only in setup: it generates `taskId`, creates `.examples/worker-demo-<task-id>/`, registers that directory as a project, and then persists the task using the same `taskId`.
+
+After project registration, generated demo projects and existing codebases follow the same task, job, worker-session, and worktree flow.
 
 ## Metadata (database)
 
