@@ -6,7 +6,7 @@ import type { WorkerSession } from "../domain/worker-session.ts";
 import { JobDependencyRepository } from "./job-dependency-repository.ts";
 import { JobRepository } from "./job-repository.ts";
 import { ProjectRepository } from "./project-repository.ts";
-import { RegistryDatabase } from "./registry-database.ts";
+import { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 import { TaskRepository } from "./task-repository.ts";
 import { WorkerSessionRepository } from "./worker-session-repository.ts";
 

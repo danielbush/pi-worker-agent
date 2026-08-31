@@ -1,5 +1,5 @@
 import type { Project } from "../domain/project.ts";
-import type { RegistryDatabase } from "./registry-database.ts";
+import type { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 
 /** INFRASTRUCTURE_CONSUMER: persists metadata in the `projects` table. */
 export class ProjectRepository {

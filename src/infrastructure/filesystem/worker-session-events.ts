@@ -1,6 +1,6 @@
 import { appendFile, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
-import type { WorkerEvent } from "../domain/events.ts";
-import type { WorkerAgentPaths } from "./paths.ts";
+import type { WorkerEvent } from "../../domain/events.ts";
+import type { WorkerAgentPaths } from "../../storage/paths.ts";
 
 /**
  * INFRASTRUCTURE_WRAPPER.
@@ -19,6 +19,15 @@ export class WorkerSessionEvents {
     private readonly records: WorkerEvent[] | undefined = undefined,
   ) {
     this.path = paths?.events(taskId, jobId, workerSessionId) ?? `null://${taskId}/${jobId}/${workerSessionId}/events.jsonl`;
+  }
+
+  static create(
+    paths: WorkerAgentPaths,
+    taskId: string,
+    jobId: string,
+    workerSessionId: string,
+  ): WorkerSessionEvents {
+    return new WorkerSessionEvents(paths, taskId, jobId, workerSessionId);
   }
 
   static createNull(

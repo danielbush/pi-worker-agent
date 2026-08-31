@@ -1,5 +1,5 @@
 import type { WorkerSession } from "../domain/worker-session.ts";
-import type { RegistryDatabase } from "./registry-database.ts";
+import type { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 
 /** INFRASTRUCTURE_CONSUMER: persists metadata and `workerSessions` harness pointers. */
 export class WorkerSessionRepository {

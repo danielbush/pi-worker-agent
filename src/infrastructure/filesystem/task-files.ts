@@ -1,5 +1,5 @@
 import { chmod, mkdir, writeFile } from "node:fs/promises";
-import type { WorkerAgentPaths } from "./paths.ts";
+import type { WorkerAgentPaths } from "../../storage/paths.ts";
 
 export interface CreateTaskFiles {
   taskId: string;
@@ -15,10 +15,25 @@ export interface CreateTaskFiles {
  * Database metadata for the `tasks` table belongs to `Registry`, not here.
  */
 export class TaskFiles {
-  constructor(private readonly paths: WorkerAgentPaths) {}
+  private constructor(
+    private readonly paths: WorkerAgentPaths,
+    private readonly records: Map<string, CreateTaskFiles> | undefined,
+  ) {}
+
+  static create(paths: WorkerAgentPaths): TaskFiles {
+    return new TaskFiles(paths, undefined);
+  }
+
+  static createNull(paths: WorkerAgentPaths): TaskFiles {
+    return new TaskFiles(paths, new Map());
+  }
 
   async create(input: CreateTaskFiles): Promise<string> {
     const directory = this.paths.task(input.taskId);
+    if (this.records) {
+      this.records.set(input.taskId, structuredClone(input));
+      return directory;
+    }
     await mkdir(directory, { recursive: true, mode: 0o700 });
     await this.write(this.paths.background(input.taskId), input.background);
     if (input.intent !== undefined) await this.write(this.paths.intent(input.taskId), input.intent);

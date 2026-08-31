@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import type { Job } from "../../domain/job.ts";
-import { PiHarness } from "../../harnesses/pi/pi-harness.ts";
+import { PiHarness } from "../../infrastructure/pi/pi-harness.ts";
 import { Registry } from "../../storage/registry.ts";
 import { TaskStore } from "../../storage/task-store.ts";
-import { Clock } from "../clock.ts";
+import { Clock } from "../../infrastructure/system/clock.ts";
 import { PiWorkerRunner } from "../pi-worker-runner.ts";
 
 const TIMESTAMP = "2026-08-30T12:00:00Z";

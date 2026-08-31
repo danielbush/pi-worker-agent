@@ -1,5 +1,5 @@
 import type { Job, JobStatus } from "../domain/job.ts";
-import type { RegistryDatabase } from "./registry-database.ts";
+import type { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 
 interface JobRow extends Omit<Job, "userNotified" | "agentNotified"> {
   userNotified: number;

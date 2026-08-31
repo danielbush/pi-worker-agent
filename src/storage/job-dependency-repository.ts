@@ -1,5 +1,5 @@
 import type { JobDependency } from "../domain/job-dependency.ts";
-import type { RegistryDatabase } from "./registry-database.ts";
+import type { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 
 /** INFRASTRUCTURE_CONSUMER: persists edges in the `jobDependencies` table. */
 export class JobDependencyRepository {

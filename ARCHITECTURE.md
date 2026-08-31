@@ -358,9 +358,10 @@ src/
 ├── workflows/         # task/job orchestration and dependency scheduling
 ├── demo/              # hardcoded `/worker-demo` project fixtures
 ├── domain/            # data types, IDs, statuses, and dependency rules; no I/O
-├── storage/           # SQLite registry, task files, event log, and paths
-├── harnesses/         # normalized adapters for Pi and later harnesses
-└── runner/            # detached process entry point and launcher
+├── infrastructure/    # nullable wrappers grouped by filesystem, git, Pi, process, SQLite, and system
+├── storage/           # metadata and file-storage consumers, repositories, and paths
+├── harnesses/         # pure normalization for Pi and later harnesses
+└── runner/            # detached worker orchestration and process entry point
 ```
 
-Tests live in the repository-level `__tests__/` directory. Keep pure formatting and conversion logic as functions; use classes for stateful services and lifecycle ownership.
+Code tests live in `__tests__/` directories collocated with the module under test; live integration tests live under `tests/integration/`. Keep pure formatting and conversion logic as functions; use classes for stateful services and lifecycle ownership.

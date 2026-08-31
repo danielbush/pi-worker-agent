@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GreetingProjectFixture } from "../src/demo/greeting-project-fixture.ts";
-import { GitRepository } from "../src/storage/git-repository.ts";
+import { GitRepository } from "../src/infrastructure/git/git-repository.ts";
 import { removeTestDirectory } from "./test-directory.ts";
 
 const roots: string[] = [];
@@ -27,7 +27,7 @@ test("creates a committed Bun greeting project with unfinished behavior", async 
   });
   expect(readFileSync(join(project.rootDir, "src", "index.ts"), "utf8")).toContain("Not implemented");
   expect(readFileSync(join(project.rootDir, "src", "index.test.ts"), "utf8")).toContain("Hello, Ada!");
-  expect(new GitRepository(project.rootDir).status()).toBe("");
+  expect(GitRepository.create(project.rootDir).status()).toBe("");
   await expect(fixture.create("task_test")).rejects.toThrow();
 });
 

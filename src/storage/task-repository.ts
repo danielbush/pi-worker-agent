@@ -1,5 +1,5 @@
 import type { Task, TaskStatus } from "../domain/task.ts";
-import type { RegistryDatabase } from "./registry-database.ts";
+import type { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 
 /** INFRASTRUCTURE_CONSUMER: persists projections in the `tasks` table. */
 export class TaskRepository {

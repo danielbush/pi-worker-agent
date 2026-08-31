@@ -1,8 +1,20 @@
 /** INFRASTRUCTURE_WRAPPER: owns Git operations for projects and worktrees. */
 export class GitRepository {
-  constructor(readonly rootDir: string) {}
+  constructor(
+    readonly rootDir: string,
+    private readonly nullCommit: string | undefined = undefined,
+  ) {}
+
+  static create(rootDir: string): GitRepository {
+    return new GitRepository(rootDir);
+  }
+
+  static createNull(rootDir: string, commit = "0".repeat(40)): GitRepository {
+    return new GitRepository(rootDir, commit);
+  }
 
   initializeWithBaseline(message: string): string {
+    if (this.nullCommit) return this.nullCommit;
     this.run(["init", "--quiet", "--initial-branch=main"]);
     this.run(["add", "--all"]);
     this.run([
@@ -14,7 +26,7 @@ export class GitRepository {
   }
 
   status(): string {
-    return this.run(["status", "--porcelain"]);
+    return this.nullCommit ? "" : this.run(["status", "--porcelain"]);
   }
 
   private run(args: string[]): string {

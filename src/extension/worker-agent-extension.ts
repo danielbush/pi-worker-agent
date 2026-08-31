@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GreetingProjectFixture } from "../demo/greeting-project-fixture.ts";
 import { Id } from "../domain/id.ts";
-import { DetachedRunnerLauncher } from "../runner/detached-runner-launcher.ts";
+import { DetachedRunnerLauncher } from "../infrastructure/process/detached-runner-launcher.ts";
 import { getDataRoot } from "../storage/paths.ts";
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
@@ -63,7 +63,7 @@ export class WorkerAgentExtension {
           const taskStore = new TaskStore(this.root);
           const ids = Id.create();
           const demo = await new WorkerDemoTaskCreator(
-            new GreetingProjectFixture(join(ctx.cwd, ".examples")),
+            GreetingProjectFixture.create(join(ctx.cwd, ".examples")),
             taskStore,
             registry,
             ids,

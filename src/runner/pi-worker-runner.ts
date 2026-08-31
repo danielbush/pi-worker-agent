@@ -1,8 +1,8 @@
-import { PiHarness, type NullPiHarnessOutput } from "../harnesses/pi/pi-harness.ts";
+import { PiHarness, type NullPiHarnessOutput } from "../infrastructure/pi/pi-harness.ts";
 import { normalizePiJsonLine, parsePiJsonLine } from "../harnesses/pi/pi-json-line.ts";
 import { Registry, type NullRegistryState } from "../storage/registry.ts";
 import { TaskStore, type NullTaskStoreState } from "../storage/task-store.ts";
-import { Clock } from "./clock.ts";
+import { Clock } from "../infrastructure/system/clock.ts";
 
 export interface PiWorkerRunnerInput {
   taskId: string;

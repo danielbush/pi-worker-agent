@@ -1,6 +1,5 @@
-import { mkdir } from "node:fs/promises";
-import { join } from "node:path";
-import { GitRepository } from "../storage/git-repository.ts";
+import { GreetingProjectFiles } from "../infrastructure/filesystem/greeting-project-files.ts";
+import { GitRepository } from "../infrastructure/git/git-repository.ts";
 
 export interface GreetingProject {
   name: string;
@@ -9,34 +8,47 @@ export interface GreetingProject {
 }
 
 /**
- * INFRASTRUCTURE_WRAPPER.
+ * INFRASTRUCTURE_CONSUMER.
  * Generates the deterministic Bun project used as input to `/worker-demo`.
  * The resulting directory is an ordinary project that can be registered in
  * `projects`; this fixture does not create task metadata or launch workers.
  */
 export class GreetingProjectFixture {
-  constructor(private readonly examplesRoot: string) {}
+  constructor(
+    private readonly examplesRoot: string,
+    private readonly files: GreetingProjectFiles = GreetingProjectFiles.create(),
+    private readonly nullCommit: string | undefined = undefined,
+  ) {}
+
+  static create(examplesRoot: string): GreetingProjectFixture {
+    return new GreetingProjectFixture(examplesRoot, GreetingProjectFiles.create());
+  }
+
+  static createNull(
+    examplesRoot = "/examples",
+    baselineCommit = "0".repeat(40),
+  ): GreetingProjectFixture {
+    return new GreetingProjectFixture(examplesRoot, GreetingProjectFiles.createNull(), baselineCommit);
+  }
 
   async create(taskId: string): Promise<GreetingProject> {
     this.assertTaskId(taskId);
-    await mkdir(this.examplesRoot, { recursive: true });
     const name = `worker-demo-${taskId}`;
-    const rootDir = join(this.examplesRoot, name);
-    await mkdir(rootDir, { recursive: false });
-    await mkdir(join(rootDir, "src"));
-
-    await Promise.all([
-      Bun.write(join(rootDir, "package.json"), `${JSON.stringify({
+    const rootDir = await this.files.create({
+      examplesRoot: this.examplesRoot,
+      name,
+      packageJson: `${JSON.stringify({
         name,
         private: true,
         type: "module",
         scripts: { test: "bun test" },
-      }, null, 2)}\n`),
-      Bun.write(join(rootDir, "src", "index.ts"), STARTER_SOURCE),
-      Bun.write(join(rootDir, "src", "index.test.ts"), STARTER_TEST),
-    ]);
-
-    const git = new GitRepository(rootDir);
+      }, null, 2)}\n`,
+      source: STARTER_SOURCE,
+      test: STARTER_TEST,
+    });
+    const git = this.nullCommit
+      ? GitRepository.createNull(rootDir, this.nullCommit)
+      : GitRepository.create(rootDir);
     const baselineCommit = git.initializeWithBaseline("Create greeting CLI starter");
     return { name, rootDir, baselineCommit };
   }

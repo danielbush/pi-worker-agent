@@ -1,10 +1,9 @@
-import { mkdir, readdir } from "node:fs/promises";
-import { join } from "node:path";
 import type { WorkerEvent } from "../domain/events.ts";
-import { JobFiles } from "./job-files.ts";
+import { HarnessSessionFiles } from "../infrastructure/filesystem/harness-session-files.ts";
+import { JobFiles } from "../infrastructure/filesystem/job-files.ts";
+import { TaskFiles } from "../infrastructure/filesystem/task-files.ts";
+import { WorkerSessionEvents } from "../infrastructure/filesystem/worker-session-events.ts";
 import { WorkerAgentPaths } from "./paths.ts";
-import { TaskFiles } from "./task-files.ts";
-import { WorkerSessionEvents } from "./worker-session-events.ts";
 
 export interface NullTaskStoreState {
   requests?: Array<{ taskId: string; jobId: string; text: string }>;
@@ -13,33 +12,32 @@ export interface NullTaskStoreState {
 }
 
 /**
- * INFRASTRUCTURE_WRAPPER.
+ * INFRASTRUCTURE_CONSUMER.
  * File-based counterpart to the architecture's task → job → worker-session
- * hierarchy. It composes `TaskFiles`, `JobFiles`, `WorkerSessionEvents`, and
- * `WorkerAgentPaths`; structured metadata remains the registry's concern.
+ * hierarchy. Structured metadata remains the registry's concern.
  */
 export class TaskStore {
   readonly paths: WorkerAgentPaths;
   readonly tasks: TaskFiles;
   readonly jobs: JobFiles;
-  private readonly requests: Map<string, string> | undefined;
+  private readonly harnessSessions: HarnessSessionFiles;
   private readonly eventLogs: Map<string, WorkerEvent[]> | undefined;
-  private readonly harnessSessionPaths: Record<string, string | null> | undefined;
 
   constructor(root: string, nullState?: NullTaskStoreState) {
     this.paths = new WorkerAgentPaths(root);
-    this.tasks = new TaskFiles(this.paths);
-    this.jobs = new JobFiles(this.paths);
-    this.requests = nullState
-      ? new Map((nullState.requests ?? []).map((request) => [requestKey(request.taskId, request.jobId), request.text]))
-      : undefined;
+    this.tasks = nullState ? TaskFiles.createNull(this.paths) : TaskFiles.create(this.paths);
+    this.jobs = nullState
+      ? JobFiles.createNull(this.paths, nullState.requests)
+      : JobFiles.create(this.paths);
+    this.harnessSessions = nullState
+      ? HarnessSessionFiles.createNull(nullState.harnessSessionPaths)
+      : HarnessSessionFiles.create();
     this.eventLogs = nullState
       ? new Map((nullState.eventLogs ?? []).map((log) => [
         eventKey(log.taskId, log.jobId, log.workerSessionId),
         structuredClone(log.events ?? []),
       ]))
       : undefined;
-    this.harnessSessionPaths = nullState ? (nullState.harnessSessionPaths ?? {}) : undefined;
   }
 
   static create(root: string): TaskStore {
@@ -60,34 +58,20 @@ export class TaskStore {
       }
       return WorkerSessionEvents.createNull(taskId, jobId, workerSessionId, records);
     }
-    return new WorkerSessionEvents(this.paths, taskId, jobId, workerSessionId);
+    return WorkerSessionEvents.create(this.paths, taskId, jobId, workerSessionId);
   }
 
   async readRequest(taskId: string, jobId: string): Promise<string> {
-    if (this.requests) {
-      const request = this.requests.get(requestKey(taskId, jobId));
-      if (request === undefined) throw new Error(`Unknown request: ${taskId}/${jobId}`);
-      return request;
-    }
-    return Bun.file(this.paths.request(taskId, jobId)).text();
+    return this.jobs.readRequest(taskId, jobId);
   }
 
   async prepareHarnessSessionDirectory(storagePath: string): Promise<string> {
-    const directory = join(storagePath, "pi-session");
-    if (!this.requests) await mkdir(directory, { recursive: true, mode: 0o700 });
-    return directory;
+    return this.harnessSessions.prepare(storagePath);
   }
 
   async findHarnessSessionPath(directory: string, sessionId: string): Promise<string | null> {
-    if (this.harnessSessionPaths) return this.harnessSessionPaths[sessionId] ?? null;
-    const entries = await readdir(directory, { withFileTypes: true });
-    const sessionFile = entries.find((entry) => entry.isFile() && entry.name.includes(sessionId));
-    return sessionFile ? join(directory, sessionFile.name) : null;
+    return this.harnessSessions.find(directory, sessionId);
   }
-}
-
-function requestKey(taskId: string, jobId: string): string {
-  return `${taskId}\0${jobId}`;
 }
 
 function eventKey(taskId: string, jobId: string, workerSessionId: string): string {
