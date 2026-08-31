@@ -52,15 +52,15 @@ For v0, the review job inspects the implementation job's existing worktree. Comm
 
 Before adding scheduling, implementation, or review, make `/worker-demo` execute one real Pi planning worker end-to-end:
 
-1. Generate the greeting project and task.
-2. Create one `plan` job and worker session.
-3. Write the job's canonical `request.md`.
-4. Launch a detached runner and return the task and job IDs immediately.
-5. Have the runner spawn `pi --mode json --print` with read-only tools and extension discovery disabled.
-6. Feed each Pi stdout line through `normalizePiJsonLine()`.
-7. Append normalized events to the worker session's `events.jsonl`.
-8. Store the Pi-native session ID in `workerSessions.harnessSessionId`.
-9. Mark the job `completed` or `failed` in SQLite.
+- [x] Generate the greeting project and task.
+- [x] Create one `plan` job and worker session.
+- [x] Write the job's canonical `request.md`.
+- [x] Launch a detached runner and return the task and job IDs immediately.
+- [x] Have the runner spawn `pi --mode json --print` with read-only tools and extension discovery disabled.
+- [x] Feed each Pi stdout line through `normalizePiJsonLine()`.
+- [x] Append normalized events to the worker session's `events.jsonl`.
+- [x] Store the Pi-native session ID in `workerSessions.harnessSessionId`.
+- [x] Mark the job `completed` or `failed` in SQLite.
 
 Definition of working:
 
@@ -73,4 +73,6 @@ Definition of working:
 ```
 
 Do not add dependency scheduling, the implementation job, the review job, widgets, dispatch profiles, or Cursor support in this slice. Once this path works, extend it rather than creating another execution path.
+
+- [x] Manually invoke `/worker-demo` and verify the definition of working against a configured real Pi model.
 

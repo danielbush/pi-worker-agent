@@ -16,6 +16,9 @@ export type PiJsonLine = PiSessionHeader | JsonAgentSessionEvent;
 export interface NormalizedPiLine {
   events: WorkerEvent[];
   harnessSessionId?: string;
+  agentSettled?: true;
+  assistantCompleted?: true;
+  assistantFailure?: string;
 }
 
 /** Parses one JSONL record emitted by Pi's JSON output mode. */
@@ -29,16 +32,14 @@ export function normalizePiJsonLine(raw: PiJsonLine, receivedAt: string): Normal
 
   switch (raw.type) {
     case "session":
-      return {
-        harnessSessionId: raw.id,
-        events: [{ timestamp, type: "session.started" }],
-      };
+      // Capture the pi harness session id:
+      return { harnessSessionId: raw.id, events: [] };
     case "message_start":
       return { events: normalizeMessageStart(raw.message, timestamp) };
     case "message_update":
       return { events: normalizeMessageUpdate(raw.assistantMessageEvent, timestamp) };
     case "message_end":
-      return { events: normalizeMessageEnd(raw.message, timestamp) };
+      return normalizeMessageEnd(raw.message, timestamp);
     case "tool_execution_start":
       return {
         events: [{
@@ -71,7 +72,7 @@ export function normalizePiJsonLine(raw: PiJsonLine, receivedAt: string): Normal
         }],
       };
     case "agent_settled":
-      return { events: [{ timestamp, type: "session.completed" }] };
+      return { events: [], agentSettled: true };
     default:
       return { events: [] };
   }
@@ -79,9 +80,7 @@ export function normalizePiJsonLine(raw: PiJsonLine, receivedAt: string): Normal
 
 function normalizeMessageStart(raw: unknown, timestamp: string): WorkerEvent[] {
   const message = object(raw);
-  if (message.role === "assistant") return [{ timestamp, type: "assistant.started" }];
-  if (message.role === "user") return [{ timestamp, type: "prompt", text: messageText(message) }];
-  return [];
+  return message.role === "assistant" ? [{ timestamp, type: "assistant.started" }] : [];
 }
 
 function normalizeMessageUpdate(raw: unknown, timestamp: string): WorkerEvent[] {
@@ -95,10 +94,22 @@ function normalizeMessageUpdate(raw: unknown, timestamp: string): WorkerEvent[] 
   return [];
 }
 
-function normalizeMessageEnd(raw: unknown, timestamp: string): WorkerEvent[] {
+function normalizeMessageEnd(raw: unknown, timestamp: string): NormalizedPiLine {
   const message = object(raw);
-  if (message.role !== "assistant") return [];
-  return [{ timestamp, type: "assistant.completed", text: messageText(message) }];
+  if (message.role !== "assistant") return { events: [] };
+
+  const events: WorkerEvent[] = [
+    { timestamp, type: "assistant.completed", text: messageText(message) },
+  ];
+  if (message.stopReason !== "error" && message.stopReason !== "aborted") {
+    return { events, assistantCompleted: true };
+  }
+
+  const assistantFailure = typeof message.errorMessage === "string"
+    ? message.errorMessage
+    : `Pi assistant ${message.stopReason}`;
+  events.push({ timestamp, type: "error", error: assistantFailure });
+  return { events, assistantCompleted: true, assistantFailure };
 }
 
 function messageText(message: JsonObject): string {

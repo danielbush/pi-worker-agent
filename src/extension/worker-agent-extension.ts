@@ -1,10 +1,21 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { GreetingProjectFixture } from "../demo/greeting-project-fixture.ts";
+import { Id } from "../domain/id.ts";
+import { DetachedRunnerLauncher } from "../runner/detached-runner-launcher.ts";
 import { getDataRoot } from "../storage/paths.ts";
 import { Registry } from "../storage/registry.ts";
+import { TaskStore } from "../storage/task-store.ts";
+import { WorkerDemoPlanningJobCreator } from "../workflows/worker-demo-planning-job-creator.ts";
+import { WorkerDemoTaskCreator } from "../workflows/worker-demo-task-creator.ts";
 
 /** Owns Pi registration and the lifecycle of the real worker-agent services. */
 export class WorkerAgentExtension {
   private readonly root = getDataRoot();
+  private readonly runner = new DetachedRunnerLauncher(
+    fileURLToPath(new URL("../runner/main.ts", import.meta.url)),
+  );
   private registry: Registry | undefined;
 
   constructor(private readonly pi: ExtensionAPI) {}
@@ -22,7 +33,48 @@ export class WorkerAgentExtension {
     this.pi.registerCommand("worker-demo", {
       description: "Run the hardcoded Pi/Pi worker demonstration",
       handler: async (_args, ctx) => {
-        ctx.ui.notify("The Pi/Pi worker demo is under construction.", "info");
+        const model = ctx.model;
+        if (!model) {
+          ctx.ui.notify("Cannot start worker demo without an active model.", "error");
+          return;
+        }
+
+        try {
+          const registry = this.registry ??= new Registry(this.root);
+          const taskStore = new TaskStore(this.root);
+          const ids = Id.create();
+          const demo = await new WorkerDemoTaskCreator(
+            new GreetingProjectFixture(join(ctx.cwd, ".examples")),
+            taskStore,
+            registry,
+            ids,
+          ).create();
+          const planning = await new WorkerDemoPlanningJobCreator(
+            taskStore,
+            registry,
+            ids,
+          ).create(demo, {
+            parentSessionId: ctx.sessionManager.getSessionId(),
+            parentSessionFile: ctx.sessionManager.getSessionFile() ?? null,
+            model: `${model.provider}/${model.id}`,
+            modelName: model.name,
+            modelVersion: model.id,
+            effortLevel: ctx.thinkingLevel ?? "medium",
+          });
+          const pid = this.runner.launch(
+            this.root,
+            demo.task.id,
+            planning.job.id,
+            planning.workerSession.id,
+          );
+          ctx.ui.notify(
+            `Started planning worker ${planning.job.id} (pid ${pid}) for task ${demo.task.id}.`,
+            "info",
+          );
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          ctx.ui.notify(`Unable to start worker demo: ${detail}`, "error");
+        }
       },
     });
   }

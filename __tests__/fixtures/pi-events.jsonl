@@ -1,8 +1,6 @@
 {"type":"session","version":3,"id":"pi-session-123","timestamp":"2026-08-30T12:00:00Z","cwd":"/tmp/greeting"}
 {"type":"agent_start"}
 {"type":"turn_start"}
-{"type":"message_start","message":{"role":"user","content":"Plan the greeting CLI."}}
-{"type":"message_end","message":{"role":"user","content":"Plan the greeting CLI."}}
 {"type":"message_start","message":{"role":"assistant","content":[]}}
 {"type":"message_update","usage":{},"assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":"I should inspect the files."}}
 {"type":"message_update","usage":{},"assistantMessageEvent":{"type":"text_delta","contentIndex":1,"delta":"I’ll inspect the project."}}

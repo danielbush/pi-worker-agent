@@ -9,10 +9,17 @@ export class RegistryDatabase {
   constructor(readonly root: string) {
     mkdirSync(root, { recursive: true });
     this.db = new Database(join(root, "registry.sqlite"), { create: true, strict: true });
-    this.db.exec("PRAGMA journal_mode = WAL");
-    this.db.exec("PRAGMA busy_timeout = 5000");
-    this.db.exec("PRAGMA foreign_keys = ON");
-    this.createSchema();
+    try {
+      this.db.exec("PRAGMA journal_mode = WAL");
+      this.db.exec("PRAGMA busy_timeout = 5000");
+      this.db.exec("PRAGMA foreign_keys = ON");
+      this.removeObsoletePrototypeSchema();
+      this.createSchema();
+      this.db.exec("PRAGMA user_version = 1");
+    } catch (error) {
+      this.db.close();
+      throw error;
+    }
   }
 
   transaction<T>(work: () => T): T {
@@ -21,6 +28,20 @@ export class RegistryDatabase {
 
   close(): void {
     this.db.close();
+  }
+
+  /** Removes the unreleased prototype schema rather than maintaining compatibility with it. */
+  private removeObsoletePrototypeSchema(): void {
+    const jobs = this.db.query("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
+    if (jobs.length === 0 || jobs.some((column) => column.name === "taskId")) return;
+
+    this.db.exec(`
+      DROP TABLE IF EXISTS jobDependencies;
+      DROP TABLE IF EXISTS workerSessions;
+      DROP TABLE IF EXISTS jobs;
+      DROP TABLE IF EXISTS tasks;
+      DROP TABLE IF EXISTS projects;
+    `);
   }
 
   private createSchema(): void {

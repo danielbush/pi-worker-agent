@@ -16,9 +16,8 @@ test("normalizes recorded Pi JSON events", async () => {
   const events = normalized.flatMap((result) => result.events);
 
   expect(normalized.find((result) => result.harnessSessionId)?.harnessSessionId).toBe("pi-session-123");
+  expect(normalized.some((result) => result.agentSettled)).toBe(true);
   expect(events.map((event) => event.type)).toEqual([
-    "session.started",
-    "prompt",
     "assistant.started",
     "assistant.thinking",
     "assistant.text",
@@ -27,10 +26,8 @@ test("normalizes recorded Pi JSON events", async () => {
     "tool.completed",
     "assistant.text",
     "assistant.completed",
-    "session.completed",
   ]);
-  expect(events[0]).toEqual({ timestamp: "2026-08-30T12:00:00Z", type: "session.started" });
-  expect(events.find((event) => event.type === "prompt")?.text).toBe("Plan the greeting CLI.");
+  expect(events[0]).toEqual({ timestamp: RECEIVED_AT, type: "assistant.started" });
   expect(events.find((event) => event.type === "assistant.thinking")?.text).toBe("I should inspect the files.");
   expect(events.find((event) => event.type === "tool.started")).toEqual({
     timestamp: RECEIVED_AT,
@@ -46,6 +43,21 @@ test("normalizes recorded Pi JSON events", async () => {
   });
   expect(events.find((event) => event.type === "assistant.completed")?.text)
     .toBe("I’ll inspect the project. The implementation needs two greeting cases.");
+});
+
+test("exposes assistant failures from a completed Pi message", () => {
+  const result = normalizePiJsonLine(parsePiJsonLine(JSON.stringify({
+    type: "message_end",
+    message: {
+      role: "assistant",
+      content: [],
+      stopReason: "error",
+      errorMessage: "Provider failed",
+    },
+  })), RECEIVED_AT);
+
+  expect(result.assistantFailure).toBe("Provider failed");
+  expect(result.events.map((event) => event.type)).toEqual(["assistant.completed", "error"]);
 });
 
 test("ignores typed Pi events without a canonical equivalent", () => {

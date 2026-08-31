@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import { Database } from "bun:sqlite";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -110,6 +111,29 @@ test("composes project, task, job, session, and dependency repositories", () => 
   registry.tasks.updateStatus("task_test", "running");
   expect(registry.jobs.get("job_plan")).toMatchObject({ status: "completed", progress: "done" });
   expect(registry.tasks.get("task_test")?.status).toBe("running");
+  registry.close();
+});
+
+test("removes the obsolete prototype database schema", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-worker-registry-"));
+  roots.push(root);
+  const legacy = new Database(join(root, "registry.sqlite"), { create: true });
+  legacy.exec(`
+    CREATE TABLE jobs (
+      id TEXT PRIMARY KEY,
+      parent_session_id TEXT NOT NULL,
+      task TEXT NOT NULL
+    );
+    INSERT INTO jobs VALUES ('legacy-job', 'legacy-session', 'legacy task');
+  `);
+  legacy.close();
+
+  const registry = new Registry(root);
+  const columns = registry.database.db.query("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
+
+  expect(columns.map((column) => column.name)).toContain("taskId");
+  expect(registry.database.db.query("SELECT COUNT(*) AS count FROM jobs").get()).toEqual({ count: 0 });
+  expect(registry.database.db.query("PRAGMA user_version").get()).toEqual({ user_version: 1 });
   registry.close();
 });
 
