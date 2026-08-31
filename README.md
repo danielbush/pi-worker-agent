@@ -98,4 +98,4 @@ bun run workers
 
 ## Next slice
 
-After evaluating the lifecycle and UI, replace the demo implementation in `src/runner.ts` with one real structured-output adapter, preferably Codex read-only mode. The registry, task bundle, monitoring, and notification paths remain unchanged.
+After evaluating the lifecycle and UI, replace the demo implementation in `src/runner/main.ts` with the real Pi structured-output adapter. The registry, task bundle, monitoring, and notification paths remain unchanged.

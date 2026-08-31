@@ -348,4 +348,4 @@ src/
 └── runner/            # detached process entry point and launcher
 ```
 
-Tests are colocated with the code they cover. Keep pure formatting and conversion logic as functions; use classes for stateful services and lifecycle ownership.
+Tests live in the repository-level `__tests__/` directory. Keep pure formatting and conversion logic as functions; use classes for stateful services and lifecycle ownership.

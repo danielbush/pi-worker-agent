@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import type { Job, JobStatus } from "./types.ts";
+import type { Job, JobStatus } from "../domain/jobs.ts";
 
 interface JobRow {
   id: string;

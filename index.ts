@@ -1,5 +1,5 @@
-import { getDataRoot } from "./src/paths.ts";
-import { Registry } from "./src/db.ts";
+import { getDataRoot } from "./src/storage/paths.ts";
+import { Registry } from "./src/storage/registry.ts";
 
 const registry = new Registry(getDataRoot());
 const sessionId = process.env.PI_SESSION_ID;

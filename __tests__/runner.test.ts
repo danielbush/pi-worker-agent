@@ -2,8 +2,8 @@ import { afterEach, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Registry } from "./db.ts";
-import type { Job } from "./types.ts";
+import type { Job } from "../src/domain/jobs.ts";
+import { Registry } from "../src/storage/registry.ts";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -41,7 +41,7 @@ test("runner writes progress, events, and a final artifact", async () => {
 
   const process = Bun.spawn([
     "bun",
-    join(import.meta.dir, "runner.ts"),
+    join(import.meta.dir, "../src/runner/main.ts"),
     "--root",
     root,
     "--job",

@@ -2,8 +2,8 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Registry } from "./db.ts";
-import type { Job } from "./types.ts";
+import type { Job } from "../src/domain/jobs.ts";
+import { Registry } from "../src/storage/registry.ts";
 
 const roots: string[] = [];
 afterEach(() => {

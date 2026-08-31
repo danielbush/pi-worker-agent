@@ -1,6 +1,6 @@
 import { appendFile, mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Registry } from "./db.ts";
+import { Registry } from "../storage/registry.ts";
 
 function getArg(name: string): string | undefined {
   const index = process.argv.indexOf(name);
