@@ -2,9 +2,7 @@
 
 ## Outcomes - do not edit
 
-- /worker-example - use a real agent; manager agent is pi; worker agent is pi
-- /worker-fake - uses fake agent; having a fake agent might help automated and interactive testing
-- pi/pi works for real (not just `/worker-example`)
+- /worker-demo - use a real agent; manager agent is pi; worker agent is pi
 - add pi/cursor-agent
 - we probably need some sort of dispatch profile;
   - example: I might want sol 5.6 high for planning; grok 4.5 high for work or qwen 3.8 etc; sol 5.6 medium for review, or claude even
@@ -12,20 +10,19 @@
 
 ## Intent - do not edit
 
-Let's build /worker-example ensuring it conforms to ARCHITECURE.md (if we need to adjust ARCHITECTURE.md we can also do that).  Get a simple coding task working.  Include planning, coding, reviewing as 3 jobs within the task.
+Let's build /worker-demo ensuring it conforms to ARCHITECURE.md (if we need to adjust ARCHITECTURE.md we can also do that).  Get a simple coding task working.  Include planning, coding, reviewing as 3 jobs within the task.
 The system should capture not just OUTCOMES but the user's intent.
-Then we can look at replacing /worker-demo with /worker-fake which can act as a live integration test.
 
 ---
 
 You can edit from this point down...
 
 
-## /worker-example
+## /worker-demo
 
-### Proposed behavior
+### Behavior
 
-`/worker-example` is a hardcoded, repeatable real-agent example. It creates a fresh small Bun project under `.examples/worker-example-<task-id>/`, initializes it as a git repository, and runs the workflow against that project. Generated example directories are ignored by git; `.examples/.gitignore` and `.examples/.gitkeep` keep the parent directory in the repository.
+`/worker-demo` is a hardcoded, repeatable Pi-manager/Pi-worker demonstration. It creates a fresh small Bun project under `.examples/worker-demo-<task-id>/`, initializes it as a git repository, and runs the workflow against that project. Generated demo directories are ignored by git.
 
 The hardcoded task is to implement and test a tiny greeting CLI:
 
@@ -36,53 +33,52 @@ The hardcoded task is to implement and test a tiny greeting CLI:
   - `bun test` passes.
 - **Background:** the generated project contains a minimal package and starter source files, but not the finished behavior.
 
-The command then:
+The command:
 
-1. Creates one task with three dependent Pi-worker jobs:
+1. Creates the project, task, and three dependent Pi-worker jobs:
    - `plan` — inspect the project read-only and produce a plan.
    - `implement` — use the plan to make the change in `worktrees/<job-id>/`.
    - `review` — inspect the implementation and report findings without modifying it.
-2. Starts each job only after its dependency completes successfully.
-3. Returns immediately and shows task and job progress in the existing widget.
+2. Starts each job after its dependency completes successfully.
+3. Returns immediately and shows task and job progress in the widget.
 4. Notifies the user and managing agent when the task settles.
-5. Uses `events.jsonl` to retrieve each job's conversation, tool activity, and final response.
+5. Stores each worker session in the database and its observable activity in `events.jsonl`.
 
-For v0, the review job can inspect the implementation job's existing worktree. Commit capture, applying changes to the main checkout, review fixes, and follow-up prompts can come later.
+For v0, the review job inspects the implementation job's existing worktree. Commit capture, applying changes to the main checkout, review fixes, follow-ups, Cursor support, and dispatch profiles come later.
 
 ### Build plan
 
-- [ ] **Freeze the v0 contract**
-  - Review the first-pass task and job status transitions in `ARCHITECTURE.md`.
-  - [x] Make `request.md` canonical; do not store `jobs.instructions`.
-  - Confirm the hardcoded greeting project and acceptance criteria.
 - [ ] **Migrate the foundation to `ARCHITECTURE.md`**
   - Add `projects`, `tasks`, `jobs`, `workerSessions`, and `jobDependencies` tables.
-  - Add paths and writers for `intent.md`, `outcomes.md`, `background.md`, `request.md`, and session `events.jsonl`.
-  - Preserve `/worker-demo` while the new path is being built.
+  - Use the first-pass task and job statuses documented in `ARCHITECTURE.md`.
+  - Add paths and writers for optional `intent.md`, optional `outcomes.md`, `background.md`, `request.md`, and session `events.jsonl`.
   - Add database, path, and event-log tests.
+- [ ] **Generate the hardcoded demo project**
+  - Create `.examples/worker-demo-<task-id>/` from deterministic starter files.
+  - Initialize it as a git repository with a baseline commit.
+  - Register it as the task's project.
 - [ ] **Add the Pi worker adapter**
-  - Spawn `pi --mode json --print` in the correct project or worktree directory.
-  - Restrict planning and review jobs to read-only tools; allow coding tools only in the implementation worktree.
-  - Disable project extension discovery for workers so they cannot recursively invoke this extension.
+  - Spawn `pi --mode json --print` in the project or implementation worktree.
+  - Restrict planning and review to read-only tools.
+  - Allow coding tools only in the implementation worktree.
+  - Disable extension discovery so workers cannot recursively invoke this extension.
   - Normalize Pi JSON output into `events.jsonl`.
   - Capture the Pi session ID and session file in `workerSessions`.
-  - Test parsing with recorded fixtures so automated tests do not call a model.
+  - Test parsing with recorded fixtures; automated tests must not invoke a model.
 - [ ] **Add dependency scheduling**
   - Start planning immediately.
-  - Start implementation after planning succeeds and include the plan result as context.
-  - Start review after implementation succeeds and point it at the implementation worktree.
-  - Mark blocked downstream jobs when a dependency fails or is cancelled.
-- [ ] **Wire `/worker-example` and acceptance-test it**
-  - Generate and initialize the ignored Bun project under `.examples/`.
-  - Create the task and three jobs.
-  - Verify detached execution, restart-safe polling, widget updates, notifications, and stored files.
+  - Start implementation after planning succeeds, including the plan result as context.
+  - Start review after implementation succeeds, pointing it at the implementation worktree.
+  - Mark downstream jobs `skipped` when a dependency fails or is cancelled.
+- [ ] **Replace the model-free `/worker-demo` and acceptance-test it**
+  - Create the task and three jobs from the command.
+  - Verify detached Pi execution, widget updates, notifications, and stored files.
+  - Verify the generated project satisfies the hardcoded outcomes.
+  - Verify the review addresses the task's intent and outcomes.
   - Run `bun test` and `bun run typecheck`.
-  - Manually inspect whether the final review addresses the task's intent and outcomes.
-- [ ] **Replace `/worker-demo` with `/worker-fake`**
-  - Make the fake adapter emit the same normalized events as a real harness.
-  - Use it for deterministic integration tests of scheduling, failure, cancellation, and notifications.
 
 ### Settled decisions
 
-- `request.md` is the canonical job prompt.
-- The `jobs` table stores query-friendly metadata such as the job title, but not full instructions.
+- `/worker-demo` is hardcoded and uses real Pi workers.
+- `request.md` is the canonical job prompt; `jobs` does not store full instructions.
+- The first implementation targets Pi/Pi only while keeping harness boundaries reusable.
