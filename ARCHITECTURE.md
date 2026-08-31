@@ -334,3 +334,18 @@ For a project job, the extension:
 - Executes the worker inside it.
 
 The worktree path is derived from the job `id`; it is not stored on the job. Jobs whose task has no project do not receive a project worktree.
+
+## Source layout
+
+```text
+src/
+├── extension.ts       # minimal Pi extension entry point
+├── extension/         # Pi tools, commands, lifecycle, widgets, notifications
+├── application/       # task/job use cases and dependency scheduling
+├── domain/            # data types, statuses, and dependency rules; no I/O
+├── storage/           # SQLite registry, task files, event log, and paths
+├── harnesses/         # normalized adapters for Pi and later harnesses
+└── runner/            # detached process entry point and launcher
+```
+
+Tests are colocated with the code they cover. Keep pure formatting and conversion logic as functions; use classes for stateful services and lifecycle ownership.
