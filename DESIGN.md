@@ -56,8 +56,8 @@ For v0, the review job inspects the implementation job's existing worktree. Comm
   - [x] Add OOP path and file-storage bricks for optional `intent.md`, optional `outcomes.md`, `background.md`, `request.md`, and session `events.jsonl`.
   - [x] Add database, path, and event-log tests.
 - [ ] **Generate the hardcoded demo project**
-  - Create `.examples/worker-demo-<task-id>/` from deterministic starter files.
-  - Initialize it as a git repository with a baseline commit.
+  - [x] Create `.examples/worker-demo-<task-id>/` from deterministic starter files.
+  - [x] Initialize it as a git repository with a baseline commit.
   - Register it as the task's project.
 - [ ] **Add the Pi worker adapter**
   - Spawn `pi --mode json --print` in the project or implementation worktree.
