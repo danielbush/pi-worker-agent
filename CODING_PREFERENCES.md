@@ -24,6 +24,8 @@
   - call any INFRASTRUCTURE_WRAPPER or INFRASTRUCTURE_CONSUMER that is used by a class an INFRASTRUCTRUE_DEPENDENCY
   - both types of INFRASTRUCTURE_CODE must support a static .create() that mirrors the .createNull ; aim to provide useful defaults to avoid having to specify too many parameters when calling .create()
   - in general: find the direct interface with the environment, extract it if not already and make this the INFRASTRUCTURE_WRAPPER and give it embedded stubbed behavior;  then all consumers of this wrapper become INFRASTRUCTURE_CONSUMER's; code tests use nulled versions of the code, see testing section below.
+  - IMPORTANT: calls to .createNull should NEVER show in the constructor or any part of the class except within the static .createNull of that class;
+  - IMPORTANT: constructor should not know anything about null state or whether a dependency is nulled; it receives instances of objects which may or may not be nulled;
 - Name source files after major domain constructs, such as `job.ts`, `task.ts`, and `worker-session.ts`; avoid generic names such as `types.ts` or `utils.ts`.
 - Group code by responsibility: `domain/`, `workflows/`, `demo/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
 - Add concise docstrings that map classes to the constructs and ownership boundaries in `ARCHITECTURE.md`.
