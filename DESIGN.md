@@ -64,9 +64,9 @@ For v0, the review job inspects the implementation job's existing worktree. Comm
   - Restrict planning and review to read-only tools.
   - Allow coding tools only in the implementation worktree.
   - Disable extension discovery so workers cannot recursively invoke this extension.
-  - Normalize Pi JSON output into `events.jsonl`.
+  - [x] Normalize representative Pi JSON output into canonical `WorkerEvent` records for `events.jsonl`.
   - Capture the Pi session ID and session file in `workerSessions`.
-  - Test parsing with recorded fixtures; automated tests must not invoke a model.
+  - [x] Test normalization with a JSONL fixture; automated tests do not invoke a model.
 - [ ] **Add dependency scheduling**
   - Start planning immediately.
   - Start implementation after planning succeeds, including the plan result as context.
