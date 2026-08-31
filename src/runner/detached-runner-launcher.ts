@@ -1,10 +1,13 @@
 /** Starts the durable runner in a detached Bun process. */
 export class DetachedRunnerLauncher {
-  constructor(private readonly entryPoint: string) {}
+  constructor(
+    private readonly entryPoint: string,
+    private readonly bunExecutable: string = Bun.which("bun") ?? "bun",
+  ) {}
 
   launch(root: string, taskId: string, jobId: string, workerSessionId: string): number {
     const child = Bun.spawn([
-      process.execPath,
+      this.bunExecutable,
       this.entryPoint,
       root,
       taskId,

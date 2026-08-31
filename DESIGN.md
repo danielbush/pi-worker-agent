@@ -76,3 +76,22 @@ Do not add dependency scheduling, the implementation job, the review job, widget
 
 - [x] Manually invoke `/worker-demo` and verify the definition of working against a configured real Pi model.
 
+### Walking vertical slice (2): planning completion feedback
+
+- [x] Monitor settled jobs owned by the current managing Pi session.
+- [x] Read the final assistant response or error from canonical `events.jsonl`.
+- [x] Notify the user when the detached planning job settles.
+- [x] Deliver the worker result into the managing Pi session without triggering an automatic turn.
+- [x] Mark `userNotified` and `agentNotified` after delivery to prevent repeated notifications.
+
+Definition of working:
+
+```text
+/worker-demo
+→ prompt remains usable
+→ detached planning worker completes
+→ Pi displays a completion notification
+→ managing session receives the implementation plan
+→ subsequent polling does not deliver it again
+```
+

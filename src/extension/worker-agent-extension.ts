@@ -9,6 +9,7 @@ import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 import { WorkerDemoPlanningJobCreator } from "../workflows/worker-demo-planning-job-creator.ts";
 import { WorkerDemoTaskCreator } from "../workflows/worker-demo-task-creator.ts";
+import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
 
 /** Owns Pi registration and the lifecycle of the real worker-agent services. */
 export class WorkerAgentExtension {
@@ -17,15 +18,33 @@ export class WorkerAgentExtension {
     fileURLToPath(new URL("../runner/main.ts", import.meta.url)),
   );
   private registry: Registry | undefined;
+  private completionMonitor: WorkerCompletionMonitor | undefined;
 
   constructor(private readonly pi: ExtensionAPI) {}
 
   register(): void {
-    this.pi.on("session_start", async () => {
-      this.registry ??= new Registry(this.root);
+    this.pi.on("session_start", async (_event, ctx) => {
+      const registry = this.registry ??= new Registry(this.root);
+      this.completionMonitor?.stop();
+      this.completionMonitor = new WorkerCompletionMonitor(
+        registry,
+        new TaskStore(this.root),
+        (message, level) => ctx.ui.notify(message, level),
+        (message) => this.pi.sendMessage({
+          customType: "worker-agent-result",
+          content: message,
+          display: false,
+        }, {
+          triggerTurn: false,
+          deliverAs: "followUp",
+        }),
+      );
+      this.completionMonitor.start(ctx.sessionManager.getSessionId());
     });
 
     this.pi.on("session_shutdown", async () => {
+      this.completionMonitor?.stop();
+      this.completionMonitor = undefined;
       this.registry?.close();
       this.registry = undefined;
     });

@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GreetingProjectFixture } from "../src/demo/greeting-project-fixture.ts";
+import { WorkerCompletionMonitor } from "../src/extension/worker-completion-monitor.ts";
 import type { PiInvocation, PiProcess } from "../src/runner/pi-worker-runner.ts";
 import { PiWorkerRunner } from "../src/runner/pi-worker-runner.ts";
 import { Registry } from "../src/storage/registry.ts";
@@ -76,6 +77,22 @@ test("executes a planning job through Pi JSON output without calling a model", a
       "assistant.completed",
       "session.completed",
     ]);
+
+  const userNotifications: string[] = [];
+  const agentNotifications: string[] = [];
+  const monitor = new WorkerCompletionMonitor(
+    registry,
+    taskStore,
+    (message) => userNotifications.push(message),
+    (message) => { agentNotifications.push(message); },
+  );
+  await monitor.pollOnce("manager-session");
+  await monitor.pollOnce("manager-session");
+
+  expect(userNotifications).toEqual(["Plan greeting CLI implementation completed for task task_demo."]);
+  expect(agentNotifications).toHaveLength(1);
+  expect(agentNotifications[0]).toContain("Change src/index.ts.");
+  expect(registry.jobs.get("job_plan")).toMatchObject({ userNotified: true, agentNotified: true });
 
   registry.close();
 });

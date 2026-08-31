@@ -40,6 +40,16 @@ export class JobRepository {
     `).all(taskId) as JobRow[]).map(mapJob);
   }
 
+  listUnnotifiedSettledForParent(parentSessionId: string): Job[] {
+    return (this.database.db.query(`
+      SELECT * FROM jobs
+      WHERE parentSessionId = ?
+        AND status IN ('completed', 'failed', 'cancelled', 'skipped')
+        AND (userNotified = 0 OR agentNotified = 0)
+      ORDER BY finishedAt, createdAt
+    `).all(parentSessionId) as JobRow[]).map(mapJob);
+  }
+
   updateStatus(id: string, status: JobStatus, progress: string | null, finishedAt: string | null = null): void {
     this.database.db.query(`
       UPDATE jobs SET status = ?, progress = ?, finishedAt = ? WHERE id = ?
