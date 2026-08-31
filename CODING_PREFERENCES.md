@@ -14,6 +14,15 @@
 - Prefer OOP composition: small stateful “Lego bricks” with clear ownership and injected dependencies.
 - Use classes for lifecycle, persistence, orchestration, and other stateful services.
 - Keep pure formatting and conversion logic as functions.
+- Use a system similar to James Shore's nullable architecture
+  - Classes that directly interact with the outside world (DOM, fs, network) are infrastructure-wrappers
+  - these should have a nullable version that pretends to interact with the environment
+  - the nullable version is created with a static .createNull(...)
+    - it should use an embedded stub to fake the interaction
+    - use .createNull to configure the stub
+  - Classes that directly use infrastructure-wrappers are "infrastructure-consumers"; these should also support .createNull(...) which should invoke the .createNull of nested infrastructure-wrappers or infrastructure-consumers
+  - call any infrastructure-wrapper or infrastructure-consumer that is used by a class an "infrastructrue-dependency"
+  - both types of infrastructure code must support a static .create() that mirrors the .createNull ; aim to provide useful defaults to avoid having to specify too many parameters when calling .create()
 - Name source files after major domain constructs, such as `job.ts`, `task.ts`, and `worker-session.ts`; avoid generic names such as `types.ts` or `utils.ts`.
 - Group code by responsibility: `domain/`, `workflows/`, `demo/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
 - Add concise docstrings that map classes to the constructs and ownership boundaries in `ARCHITECTURE.md`.
@@ -24,14 +33,22 @@
 
 ## Testing and safety
 
-- Put unit or non-live integration tests in the repository-level `__tests__/` directory.
-- Test state never behaviour.
-- Mark sections of the test as: `// arrange`, `// act`, `// assert`
-- Live integration tests (tests that interact with their environment, fs, network) should go in `tests/integration/`.
-- Use Bun's test runner and TypeScript checker.
-- Automated tests must not invoke a real model; use recorded fixtures or deterministic adapters.
-- Be cautious with destructive operations. Never use an unrestricted recursive delete in tests; validate that cleanup targets are known test directories under the OS temporary directory.
-- Run `bun test` and `bun run typecheck` after code changes.
+- fast unit and code-isolated integration tests
+  - COMMENT: as above, follow a pattern similar to James Shore's nullable architecture
+  - put in `__tests__/` subdirectory collocated with the module under test
+  - test must not invoke a real model but should NOT mock or monkey patch
+  - test state never behaviour or interactions within the code.  If the state change is hidden, add tracking and emission mechanisms.
+  - instantiate class-based code under test with `new`
+  - instantiate infrastructure-dependencies of class-based code under test with .createNull
+  - for value objects, a static .createTestInstance can be used
+  - mark sections of the test as: `// arrange`, `// act`, `// assert`
+  - use Bun's test runner and TypeScript checker.
+  - Be cautious with destructive operations. Never use an unrestricted recursive delete in tests; validate that cleanup targets are known test directories under the OS temporary directory.
+  - Run `bun test` and `bun run typecheck` after code changes.
+
+- Live integration tests (tests that interact with their environment, fs, network)
+  - should go in project-level `tests/integration/`
+  - infrastructure-wrappers should be narrowly tested in isolation against a real or close-to-real resource
 
 ## Technology
 
