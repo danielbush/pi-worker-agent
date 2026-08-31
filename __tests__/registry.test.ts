@@ -1,13 +1,14 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Job } from "../src/domain/job.ts";
 import { Registry } from "../src/storage/registry.ts";
+import { removeTestDirectory } from "./test-directory.ts";
 
 const roots: string[] = [];
 afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+  for (const root of roots.splice(0)) removeTestDirectory(root);
 });
 
 test("creates and transitions a durable job", () => {

@@ -5,6 +5,51 @@ export function getDataRoot(): string {
   return process.env.PI_WORKER_AGENT_DIR || join(homedir(), ".pi", "agent", "worker-agent");
 }
 
+/**
+ * Maps the architecture's task, job, worker-session, and worktree constructs
+ * to their derived locations under the worker-agent data root.
+ */
+export class WorkerAgentPaths {
+  constructor(readonly root: string) {}
+
+  task(taskId: string): string {
+    return join(this.root, "tasks", taskId);
+  }
+
+  intent(taskId: string): string {
+    return join(this.task(taskId), "intent.md");
+  }
+
+  outcomes(taskId: string): string {
+    return join(this.task(taskId), "outcomes.md");
+  }
+
+  background(taskId: string): string {
+    return join(this.task(taskId), "background.md");
+  }
+
+  job(taskId: string, jobId: string): string {
+    return join(this.task(taskId), "jobs", jobId);
+  }
+
+  request(taskId: string, jobId: string): string {
+    return join(this.job(taskId, jobId), "request.md");
+  }
+
+  workerSession(taskId: string, jobId: string, workerSessionId: string): string {
+    return join(this.job(taskId, jobId), "worker-sessions", workerSessionId);
+  }
+
+  events(taskId: string, jobId: string, workerSessionId: string): string {
+    return join(this.workerSession(taskId, jobId, workerSessionId), "events.jsonl");
+  }
+
+  worktree(jobId: string): string {
+    return join(this.root, "worktrees", jobId);
+  }
+}
+
+/** Legacy model-free demo path; replaced when `/worker-demo` uses TaskStore. */
 export function getTaskBundle(root: string, jobId: string): string {
   return join(root, "tasks", jobId);
 }

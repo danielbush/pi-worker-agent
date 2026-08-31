@@ -51,7 +51,7 @@ For v0, the review job inspects the implementation job's existing worktree. Comm
 - [ ] **Migrate the foundation to `ARCHITECTURE.md`**
   - Add `projects`, `tasks`, `jobs`, `workerSessions`, and `jobDependencies` tables.
   - Use the first-pass task and job statuses documented in `ARCHITECTURE.md`.
-  - Add paths and writers for optional `intent.md`, optional `outcomes.md`, `background.md`, `request.md`, and session `events.jsonl`.
+  - [x] Add OOP path and file-storage bricks for optional `intent.md`, optional `outcomes.md`, `background.md`, `request.md`, and session `events.jsonl`.
   - Add database, path, and event-log tests.
 - [ ] **Generate the hardcoded demo project**
   - Create `.examples/worker-demo-<task-id>/` from deterministic starter files.

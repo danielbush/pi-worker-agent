@@ -47,6 +47,14 @@ function mapJob(row: JobRow): Job {
   };
 }
 
+/**
+ * Owns the SQLite metadata registry and its query-friendly state projections.
+ *
+ * The current implementation still stores the model-free prototype's legacy
+ * `jobs` rows. It will migrate to the architecture's `projects`, `tasks`,
+ * `jobs`, `workerSessions`, and `jobDependencies` tables; canonical prompts
+ * and worker events remain owned by `TaskStore`.
+ */
 export class Registry {
   readonly db: Database;
 
