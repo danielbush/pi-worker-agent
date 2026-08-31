@@ -15,14 +15,15 @@
 - Use classes for lifecycle, persistence, orchestration, and other stateful services.
 - Keep pure formatting and conversion logic as functions.
 - Use a system similar to James Shore's nullable architecture
-  - Classes that directly interact with the outside world (DOM, fs, network) are infrastructure-wrappers
+  - Classes that directly interact with the outside world (DOM, fs, network) are INFRASTRUCTURE_WRAPPER's
   - these should have a nullable version that pretends to interact with the environment
   - the nullable version is created with a static .createNull(...)
     - it should use an embedded stub to fake the interaction
     - use .createNull to configure the stub
-  - Classes that directly use infrastructure-wrappers are "infrastructure-consumers"; these should also support .createNull(...) which should invoke the .createNull of nested infrastructure-wrappers or infrastructure-consumers
-  - call any infrastructure-wrapper or infrastructure-consumer that is used by a class an "infrastructrue-dependency"
-  - both types of infrastructure code must support a static .create() that mirrors the .createNull ; aim to provide useful defaults to avoid having to specify too many parameters when calling .create()
+  - Classes that directly use INFRASTRUCTURE_WRAPPER's are INFRASTRUCTURE_CONSUMER's; these should also support .createNull(...) which should invoke the .createNull of nested INFRASTRUCTURE_WRAPPER's or INFRASTRUCTURE_CONSUMER's
+  - call any INFRASTRUCTURE_WRAPPER or INFRASTRUCTURE_CONSUMER that is used by a class an INFRASTRUCTRUE_DEPENDENCY
+  - both types of INFRASTRUCTURE_CODE must support a static .create() that mirrors the .createNull ; aim to provide useful defaults to avoid having to specify too many parameters when calling .create()
+  - in general: find the direct interface with the environment, extract it if not already and make this the INFRASTRUCTURE_WRAPPER and give it embedded stubbed behavior;  then all consumers of this wrapper become INFRASTRUCTURE_CONSUMER's; code tests use nulled versions of the code, see testing section below.
 - Name source files after major domain constructs, such as `job.ts`, `task.ts`, and `worker-session.ts`; avoid generic names such as `types.ts` or `utils.ts`.
 - Group code by responsibility: `domain/`, `workflows/`, `demo/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
 - Add concise docstrings that map classes to the constructs and ownership boundaries in `ARCHITECTURE.md`.
@@ -30,16 +31,21 @@
 - Avoid duplicate sources of truth. For example, `request.md` is the canonical job prompt and is not duplicated as `jobs.instructions`.
 - Do not invent extra entities, IDs, or current-state fields without a concrete need. Event logs should record obvious observable harness activity using only IDs the harness provides or that correlation strictly requires.
 - In this project, “demo” means a hardcoded workflow through the real architecture, not a separate fake domain model, registry, or runner.
+- file system layout
+  - the filesystem should group subsystems and hide detail in subdirs
+  - use a "deep modules" approach
+  - important constructs (usually coordinators, managers, mediators) should get their own files and sit near the top of the directory hierarchy; lower-level implementation code should be pushed down into subdirectories
+  - introduce interfaces where more than one implementation of something may be needed
 
 ## Testing and safety
 
-- fast unit and code-isolated integration tests
+- code tests - (unit and isolated/non-live integration tests)
   - COMMENT: as above, follow a pattern similar to James Shore's nullable architecture
   - put in `__tests__/` subdirectory collocated with the module under test
   - test must not invoke a real model but should NOT mock or monkey patch
   - test state never behaviour or interactions within the code.  If the state change is hidden, add tracking and emission mechanisms.
   - instantiate class-based code under test with `new`
-  - instantiate infrastructure-dependencies of class-based code under test with .createNull
+  - instantiate INFRASTRUCTURE_DEPENDENCY's of class-based code under test with .createNull
   - for value objects, a static .createTestInstance can be used
   - mark sections of the test as: `// arrange`, `// act`, `// assert`
   - use Bun's test runner and TypeScript checker.
@@ -48,7 +54,7 @@
 
 - Live integration tests (tests that interact with their environment, fs, network)
   - should go in project-level `tests/integration/`
-  - infrastructure-wrappers should be narrowly tested in isolation against a real or close-to-real resource
+  - INFRASTRUCTURE_WRAPPER's should be narrowly tested in isolation against a real or close-to-real resource
 
 ## Technology
 
