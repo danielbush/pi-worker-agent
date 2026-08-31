@@ -35,6 +35,7 @@
   - the filesystem should group subsystems and hide detail in subdirs
   - use a "deep modules" approach
   - important constructs (usually coordinators, managers, mediators) should get their own files and sit near the top of the directory hierarchy; lower-level implementation code should be pushed down into subdirectories
+  - put INFRASTRUCTURE_WRAPPER's into src/infrastructure/ and group within that dir
   - introduce interfaces where more than one implementation of something may be needed
 
 ## Testing and safety
