@@ -50,15 +50,15 @@ For v0, the review job inspects the implementation job's existing worktree. Comm
 
 ### Build plan
 
-- [ ] **Migrate the foundation to `ARCHITECTURE.md`**
+- [x] **Migrate the foundation to `ARCHITECTURE.md`**
   - [x] Add `projects`, `tasks`, `jobs`, `workerSessions`, and `jobDependencies` metadata bricks.
   - [x] Use the first-pass task and job statuses documented in `ARCHITECTURE.md`.
   - [x] Add OOP path and file-storage bricks for optional `intent.md`, optional `outcomes.md`, `background.md`, `request.md`, and session `events.jsonl`.
   - [x] Add database, path, and event-log tests.
-- [ ] **Generate the hardcoded demo project**
+- [x] **Generate the hardcoded demo project**
   - [x] Create `.examples/worker-demo-<task-id>/` from deterministic starter files.
   - [x] Initialize it as a git repository with a baseline commit.
-  - Register it as the task's project.
+  - [x] Register it as the task's project and create matching task files.
 - [ ] **Add the Pi worker adapter**
   - Spawn `pi --mode json --print` in the project or implementation worktree.
   - Restrict planning and review to read-only tools.

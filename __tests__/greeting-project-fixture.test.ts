@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { GreetingProjectFixture } from "../src/application/greeting-project-fixture.ts";
+import { GreetingProjectFixture } from "../src/demo/greeting-project-fixture.ts";
 import { GitRepository } from "../src/storage/git-repository.ts";
 import { removeTestDirectory } from "./test-directory.ts";
 

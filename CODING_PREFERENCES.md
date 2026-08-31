@@ -15,7 +15,7 @@
 - Use classes for lifecycle, persistence, orchestration, and other stateful services.
 - Keep pure formatting and conversion logic as functions.
 - Name source files after major domain constructs, such as `job.ts`, `task.ts`, and `worker-session.ts`; avoid generic names such as `types.ts` or `utils.ts`.
-- Group code by responsibility: `domain/`, `application/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
+- Group code by responsibility: `domain/`, `workflows/`, `demo/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
 - Add concise docstrings that map classes to the constructs and ownership boundaries in `ARCHITECTURE.md`.
 - Keep database metadata separate from canonical file-based task data.
 - Avoid duplicate sources of truth. For example, `request.md` is the canonical job prompt and is not duplicated as `jobs.instructions`.

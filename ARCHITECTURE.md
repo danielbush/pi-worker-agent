@@ -355,8 +355,9 @@ The worktree path is derived from the job `id`; it is not stored on the job. Job
 src/
 ├── extension.ts       # minimal Pi extension entry point
 ├── extension/         # Pi tools, commands, lifecycle, widgets, notifications
-├── application/       # task/job use cases and dependency scheduling
-├── domain/            # data types, statuses, and dependency rules; no I/O
+├── workflows/         # task/job orchestration and dependency scheduling
+├── demo/              # hardcoded `/worker-demo` project fixtures
+├── domain/            # data types, IDs, statuses, and dependency rules; no I/O
 ├── storage/           # SQLite registry, task files, event log, and paths
 ├── harnesses/         # normalized adapters for Pi and later harnesses
 └── runner/            # detached process entry point and launcher
