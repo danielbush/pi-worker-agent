@@ -1,0 +1,89 @@
+import { Database } from "bun:sqlite";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
+
+/** Owns the SQLite connection, architecture schema, and transaction boundary. */
+export class RegistryDatabase {
+  readonly db: Database;
+
+  constructor(readonly root: string) {
+    mkdirSync(root, { recursive: true });
+    this.db = new Database(join(root, "registry.sqlite"), { create: true, strict: true });
+    this.db.exec("PRAGMA journal_mode = WAL");
+    this.db.exec("PRAGMA busy_timeout = 5000");
+    this.db.exec("PRAGMA foreign_keys = ON");
+    this.createSchema();
+  }
+
+  transaction<T>(work: () => T): T {
+    return this.db.transaction(work)();
+  }
+
+  close(): void {
+    this.db.close();
+  }
+
+  private createSchema(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        rootDir TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        lastUsedAt TEXT NOT NULL
+      ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        projectId TEXT REFERENCES projects(id),
+        title TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed', 'cancelled')),
+        createdAt TEXT NOT NULL,
+        finishedAt TEXT
+      ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS jobs (
+        id TEXT PRIMARY KEY,
+        taskId TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        jobType TEXT NOT NULL,
+        parentSessionId TEXT NOT NULL,
+        parentSessionFile TEXT,
+        harness TEXT NOT NULL,
+        model TEXT NOT NULL,
+        effortLevel TEXT NOT NULL,
+        modelName TEXT NOT NULL,
+        modelVersion TEXT NOT NULL,
+        title TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('blocked', 'queued', 'running', 'completed', 'failed', 'cancelled', 'skipped')),
+        progress TEXT,
+        createdAt TEXT NOT NULL,
+        finishedAt TEXT,
+        bundlePath TEXT NOT NULL,
+        userNotified INTEGER NOT NULL DEFAULT 0 CHECK (userNotified IN (0, 1)),
+        agentNotified INTEGER NOT NULL DEFAULT 0 CHECK (agentNotified IN (0, 1))
+      ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS workerSessions (
+        id TEXT PRIMARY KEY,
+        jobId TEXT NOT NULL UNIQUE REFERENCES jobs(id) ON DELETE CASCADE,
+        harnessSessionId TEXT,
+        harnessSessionPath TEXT,
+        storagePath TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS jobDependencies (
+        jobId TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+        dependsOnJobId TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+        relationship TEXT NOT NULL,
+        PRIMARY KEY (jobId, dependsOnJobId),
+        CHECK (jobId <> dependsOnJobId)
+      ) STRICT;
+
+      CREATE INDEX IF NOT EXISTS tasks_project_created ON tasks(projectId, createdAt DESC);
+      CREATE INDEX IF NOT EXISTS jobs_task_created ON jobs(taskId, createdAt);
+      CREATE INDEX IF NOT EXISTS jobs_parent_created ON jobs(parentSessionId, createdAt DESC);
+      CREATE INDEX IF NOT EXISTS dependencies_parent ON jobDependencies(dependsOnJobId);
+    `);
+  }
+}

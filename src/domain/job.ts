@@ -1,22 +1,26 @@
-export type JobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+export const JOB_TYPES = ["investigate", "plan", "implement", "review", "test", "fix"] as const;
+export type JobType = (typeof JOB_TYPES)[number];
 
+export type JobStatus = "blocked" | "queued" | "running" | "completed" | "failed" | "cancelled" | "skipped";
+
+/** Queryable metadata and current status for one delegated execution in `jobs`. */
 export interface Job {
   id: string;
+  taskId: string;
+  jobType: JobType;
   parentSessionId: string;
   parentSessionFile: string | null;
-  harness: "demo";
-  task: string;
-  cwd: string;
+  harness: string;
+  model: string;
+  effortLevel: string;
+  modelName: string;
+  modelVersion: string;
+  title: string;
   status: JobStatus;
-  pid: number | null;
   progress: string | null;
   createdAt: string;
-  startedAt: string | null;
   finishedAt: string | null;
-  exitCode: number | null;
   bundlePath: string;
-  resultPath: string | null;
-  error: string | null;
   userNotified: boolean;
   agentNotified: boolean;
 }

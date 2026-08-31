@@ -48,8 +48,3 @@ export class WorkerAgentPaths {
     return join(this.root, "worktrees", jobId);
   }
 }
-
-/** Legacy model-free demo path; replaced when `/worker-demo` uses TaskStore. */
-export function getTaskBundle(root: string, jobId: string): string {
-  return join(root, "tasks", jobId);
-}

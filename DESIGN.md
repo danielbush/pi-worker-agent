@@ -49,10 +49,10 @@ For v0, the review job inspects the implementation job's existing worktree. Comm
 ### Build plan
 
 - [ ] **Migrate the foundation to `ARCHITECTURE.md`**
-  - Add `projects`, `tasks`, `jobs`, `workerSessions`, and `jobDependencies` tables.
-  - Use the first-pass task and job statuses documented in `ARCHITECTURE.md`.
+  - [x] Add `projects`, `tasks`, `jobs`, `workerSessions`, and `jobDependencies` metadata bricks.
+  - [x] Use the first-pass task and job statuses documented in `ARCHITECTURE.md`.
   - [x] Add OOP path and file-storage bricks for optional `intent.md`, optional `outcomes.md`, `background.md`, `request.md`, and session `events.jsonl`.
-  - Add database, path, and event-log tests.
+  - [x] Add database, path, and event-log tests.
 - [ ] **Generate the hardcoded demo project**
   - Create `.examples/worker-demo-<task-id>/` from deterministic starter files.
   - Initialize it as a git repository with a baseline commit.
@@ -70,7 +70,7 @@ For v0, the review job inspects the implementation job's existing worktree. Comm
   - Start implementation after planning succeeds, including the plan result as context.
   - Start review after implementation succeeds, pointing it at the implementation worktree.
   - Mark downstream jobs `skipped` when a dependency fails or is cancelled.
-- [ ] **Replace the model-free `/worker-demo` and acceptance-test it**
+- [ ] **Implement `/worker-demo` and acceptance-test it**
   - Create the task and three jobs from the command.
   - Verify detached Pi execution, widget updates, notifications, and stored files.
   - Verify the generated project satisfies the hardcoded outcomes.
