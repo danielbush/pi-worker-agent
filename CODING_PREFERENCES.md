@@ -16,16 +16,21 @@
 - Keep pure formatting and conversion logic as functions.
 - Use a system similar to James Shore's nullable architecture
   - Classes that directly interact with the outside world (DOM, fs, network) are INFRASTRUCTURE_WRAPPER's
-  - these should have a nullable version that pretends to interact with the environment
-  - the nullable version is created with a static .createNull(...)
-    - it should use an embedded stub to fake the interaction
-    - use .createNull to configure the stub
+    - code that talks to the outside world (DRIVER_CODE) should be injected into the INFRASTRUCTURE_WRAPPER via .create
+      - Example: if an INFRASTRUCTURE_WRAPPER uses Math.random(), then `Math` is the DRIVER_CODE and .create will inject `Math` into the class instance, but the instance will call Math.random() OR define the code that calls Math.random().
+    - the NULL_VARIANT is created with a static .createNull(...)
+      - it should use EMBEDDED_STUB's to fake the interaction eg fake `Math` and `Math.random` using the above example
+    - use .createNull to configure the EMBEDDED_STUB's
   - Classes that directly use INFRASTRUCTURE_WRAPPER's are INFRASTRUCTURE_CONSUMER's; these should also support .createNull(...) which should invoke the .createNull of nested INFRASTRUCTURE_WRAPPER's or INFRASTRUCTURE_CONSUMER's
   - call any INFRASTRUCTURE_WRAPPER or INFRASTRUCTURE_CONSUMER that is used by a class an INFRASTRUCTRUE_DEPENDENCY
-  - both types of INFRASTRUCTURE_CODE must support a static .create() that mirrors the .createNull ; aim to provide useful defaults to avoid having to specify too many parameters when calling .create()
-  - in general: find the direct interface with the environment, extract it if not already and make this the INFRASTRUCTURE_WRAPPER and give it embedded stubbed behavior;  then all consumers of this wrapper become INFRASTRUCTURE_CONSUMER's; code tests use nulled versions of the code, see testing section below.
-  - IMPORTANT: calls to .createNull should NEVER show in the constructor or any part of the class except within the static .createNull of that class;
-  - IMPORTANT: constructor should not know anything about null state or whether a dependency is nulled; it receives instances of objects which may or may not be nulled;
+  - both types of INFRASTRUCTURE_CODE must support a static .create() that creates production instances and .createNull() that creates NULL_VARIANT's;
+  - aim to provide useful defaults for .create and .createNull to avoid having to specify too many parameters
+  - in general: find the direct interface with the environment, extract it if not already and make this the INFRASTRUCTURE_WRAPPER and give it EMBEDDED_STUB's ;  then all consumers of this wrapper become INFRASTRUCTURE_CONSUMER's; code tests use nulled versions of the code, see testing section below.
+  - Constructors should NOT receive null flags, nullable backends, or null-specific state.  The class instance should NEVER know it is using a NULL_VARIANT or not.
+  - createNull() configuration is confined to each class’s static createNull().
+  - Production driver code is injected by create().
+  - DRIVER_CODE invocation and coordination remain in instance methods and constructors.
+  - NULL_VARIANT's use EMBEDDED_STUB's implementing the same driver interfaces.
 - Name source files after major domain constructs, such as `job.ts`, `task.ts`, and `worker-session.ts`; avoid generic names such as `types.ts` or `utils.ts`.
 - Group code by responsibility: `domain/`, `workflows/`, `demo/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
 - Add concise docstrings that map classes to the constructs and ownership boundaries in `ARCHITECTURE.md`.
@@ -57,7 +62,8 @@
 
 - Live integration tests (tests that interact with their environment, fs, network)
   - should go in project-level `tests/integration/`
-  - INFRASTRUCTURE_WRAPPER's should be narrowly tested in isolation against a real or close-to-real resource
+  - INFRASTRUCTURE_WRAPPER's should be narrowly tested in isolation against a real or close-to-real resource to verify the contract with the outside world
+  - .create should be exercised for INFRASTRUCTURE_CODE in general
 
 ## Technology
 
