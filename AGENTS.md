@@ -17,6 +17,7 @@ The user and manager agent should decide on policies for how to do work.  We can
   - how to structure/sequence project work to get outcomes
   - `$DATA_ROOT/projects/` is the source of truth for managed projects.
     - Do not assume `./projects/` in this repository is the project registry unless `$DATA_ROOT` points here or the user explicitly says so.
+    - By default this repository uses gitignored `work/worker-agent`; consumers can set `DATA_ROOT` or `PI_WORKER_AGENT_DATA_ROOT` to use another location.
   - Use `bun run projects` to list projects and `$DATA_ROOT`
   - ALWAYS read `PROJECT_MANAGEMENT.md` before answering project-structure or project-status questions, because it defines the current layout and meaning of `$DATA_ROOT/projects/`
     - you can organise any system the user want in `$DATA_ROOT/projects/`; aways update PROJECT_MANAGEMENT.md to reflect the new layout

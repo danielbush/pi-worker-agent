@@ -56,7 +56,7 @@ flowchart LR
 
             FilesTitle["Important files and directories"]:::groupTitle
 
-            DataRoot["DATA_ROOT<br/><br/>default: ~/.pi/agent/worker-agent<br/>override: PI_WORKER_AGENT_DATA_ROOT, DATA_ROOT"]
+            DataRoot["DATA_ROOT<br/><br/>default: work/worker-agent<br/>override: DATA_ROOT, PI_WORKER_AGENT_DATA_ROOT"]
 
             ProjectFiles["projects/project/<br/><br/>governed by PROJECT_MANAGEMENT.md"]
 
@@ -147,15 +147,17 @@ Users can revise these policies while the task, job, persistence, and execution 
 
 ## Data root
 
-`DATA_ROOT` is the configured root for worker-agent SQLite metadata, project-management files, canonical task files, and worktrees. It defaults to:
+`DATA_ROOT` is the configured root for worker-agent SQLite metadata, project-management files, canonical task files, and worktrees. It defaults to the project-local, gitignored directory:
 
 ```text
-~/.pi/agent/worker-agent
+work/worker-agent
 ```
 
-Set `PI_WORKER_AGENT_DATA_ROOT` in the environment or a Bun-loaded `.env` file to override it. `DATA_ROOT` is also accepted as a convenience fallback, but `PI_WORKER_AGENT_DATA_ROOT` takes precedence when both are set:
+Consumers can set `DATA_ROOT` in the environment or a Bun-loaded `.env` file to choose another location. `PI_WORKER_AGENT_DATA_ROOT` is also accepted and takes precedence when both are set:
 
 ```dotenv
+DATA_ROOT=/path/to/worker-agent-data
+# or, with precedence over DATA_ROOT:
 PI_WORKER_AGENT_DATA_ROOT=/path/to/worker-agent-data
 ```
 

@@ -1,7 +1,9 @@
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-export const DEFAULT_DATA_ROOT = join(homedir(), ".pi", "agent", "worker-agent");
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+export const DEFAULT_DATA_ROOT = join(repoRoot, "work", "worker-agent");
 
 /** Resolve the root for worker-agent metadata, canonical files, and worktrees. */
 export function resolveDataRoot(env: NodeJS.ProcessEnv = process.env): string {

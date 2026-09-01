@@ -17,11 +17,14 @@ bun test
 bun run typecheck
 ```
 
-Worker-agent data defaults to `~/.pi/agent/worker-agent`. Override it with
-`PI_WORKER_AGENT_DATA_ROOT` in the environment or a Bun-loaded `.env` file when
-needed. `DATA_ROOT` is also accepted as a convenience fallback.
+Worker-agent data defaults to the project-local, gitignored `work/worker-agent`
+directory. Consumers can choose another data root by setting `DATA_ROOT`, or set
+`PI_WORKER_AGENT_DATA_ROOT` when they need the worker-agent-specific variable to
+take precedence.
 
 ```dotenv
+DATA_ROOT=/path/to/worker-agent-data
+# or, with precedence over DATA_ROOT:
 PI_WORKER_AGENT_DATA_ROOT=/path/to/worker-agent-data
 ```
 
