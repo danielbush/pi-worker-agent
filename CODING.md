@@ -1,4 +1,4 @@
-# Coding preferences
+# Coding
 
 ## Working style
 

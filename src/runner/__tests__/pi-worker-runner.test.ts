@@ -28,7 +28,10 @@ test("completes a planning job from Pi output", async () => {
   // assert
   expect(exitCode).toBe(0);
   expect(registry.jobs.get("job_plan")).toMatchObject({ status: "completed", progress: "Planning completed" });
-  expect(registry.tasks.get("task_demo")?.status).toBe("running");
+  expect(registry.tasks.get("task_demo")).toMatchObject({
+    status: "completed",
+    finishedAt: TIMESTAMP,
+  });
   expect(registry.workerSessions.get("session_plan")).toMatchObject({
     harnessSessionId: "pi-native-session",
     harnessSessionPath: null,

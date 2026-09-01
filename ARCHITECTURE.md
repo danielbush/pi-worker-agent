@@ -3,6 +3,17 @@
 ```mermaid
 %%{init: {"flowchart": {"useMaxWidth": false, "nodeSpacing": 70, "rankSpacing": 90, "diagramPadding": 24, "subGraphTitleMargin": {"top": 8, "bottom": 20}}}}%%
 flowchart LR
+    subgraph PolicyKernel[Agentic policy kernel]
+        Agents["AGENTS.md<br/><br/>manager role and policy entry point"]
+        ProjectManagement["PROJECT_MANAGEMENT.md<br/><br/>project structure and sequencing"]
+        Workflow["WORKFLOW.md<br/><br/>task, job, dependency, and review policy"]
+        Coding["CODING.md<br/><br/>coding and codebase policy"]
+
+        Agents --> ProjectManagement
+        Agents --> Workflow
+        Agents --> Coding
+    end
+
     subgraph Arrival[How the data arrives]
         User([User])
         Manager["Manager agent<br/>ongoing Pi conversation"]
@@ -45,6 +56,10 @@ flowchart LR
 
             FilesTitle["Important files and directories"]:::groupTitle
 
+            DataRoot["DATA_ROOT<br/><br/>default: ~/.pi/agent/worker-agent<br/>override: PI_WORKER_AGENT_DATA_ROOT, DATA_ROOT"]
+
+            ProjectFiles["projects/project/<br/><br/>governed by PROJECT_MANAGEMENT.md"]
+
             Worktree["worktrees/job_id/<br/><br/>isolated git checkout"]
 
             subgraph TaskFiles[" "]
@@ -73,9 +88,18 @@ flowchart LR
                 TaskFilesTitle ~~~ Intent
             end
 
-            FilesTitle ~~~ Worktree
+            FilesTitle ~~~ DataRoot
+            DataRoot --> ProjectFiles
+            DataRoot --> Worktree
+            DataRoot --> TaskFilesTitle
         end
     end
+
+    Agents --> Manager
+    ProjectManagement -->|governs project path| ProjectFiles
+    ProjectManagement -->|guides delivery| Manager
+    Workflow -->|guides task and job decisions| Manager
+    Coding -->|guides coding requests| Manager
 
     Project -->|id and rootDir| Manager
     Project -->|rootDir for projectId| Create
@@ -109,6 +133,33 @@ flowchart LR
 
     classDef groupTitle fill:transparent,stroke:transparent,font-weight:bold
 ```
+
+## Agentic policy kernel
+
+The core Markdown files act as an agentic policy kernel: they define how the manager interprets work and uses the system without hardcoding one organization's process into application code.
+
+- `AGENTS.md` is the entry point for the manager role and policy set.
+- `PROJECT_MANAGEMENT.md` governs project structure, sequencing, and feedback cycles under `DATA_ROOT/projects/`.
+- `WORKFLOW.md` governs how tasks, jobs, dependencies, results, revisions, and approvals are managed.
+- `CODING.md` governs coding and codebase practices used when preparing and evaluating coding work.
+
+Users can revise these policies while the task, job, persistence, and execution mechanisms remain general.
+
+## Data root
+
+`DATA_ROOT` is the configured root for worker-agent SQLite metadata, project-management files, canonical task files, and worktrees. It defaults to:
+
+```text
+~/.pi/agent/worker-agent
+```
+
+Set `PI_WORKER_AGENT_DATA_ROOT` in the environment or a Bun-loaded `.env` file to override it. `DATA_ROOT` is also accepted as a convenience fallback, but `PI_WORKER_AGENT_DATA_ROOT` takes precedence when both are set:
+
+```dotenv
+PI_WORKER_AGENT_DATA_ROOT=/path/to/worker-agent-data
+```
+
+All paths in the storage layout below are relative to `DATA_ROOT`.
 
 ## Initial inputs
 
@@ -225,7 +276,9 @@ One job owns one resumable worker session.
 Task, job, and worker-session content is stored under the task directory. Worktrees are stored separately because they are temporary operational checkouts.
 
 ```text
-worker-agent/
+DATA_ROOT/
+├── projects/
+│   └── <project>/           # structure governed by PROJECT_MANAGEMENT.md
 ├── tasks/
 │   └── <task-id>/
 │       ├── intent.md        # optional

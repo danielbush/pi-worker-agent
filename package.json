@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "projects": "bun src/cli/projects.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

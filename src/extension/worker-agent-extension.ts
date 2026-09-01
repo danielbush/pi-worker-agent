@@ -1,18 +1,19 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DATA_ROOT } from "../config.ts";
 import { GreetingProjectFixture } from "../demo/greeting-project-fixture.ts";
 import { Id } from "../domain/id.ts";
 import {
   DetachedRunnerLauncher,
   type DetachedRunnerLaunch,
 } from "../infrastructure/process/detached-runner-launcher.ts";
-import { getDataRoot } from "../storage/paths.ts";
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 import { WorkerDemoPlanningJobCreator } from "../workflows/worker-demo-planning-job-creator.ts";
 import { WorkerDemoTaskCreator } from "../workflows/worker-demo-task-creator.ts";
 import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
+import { formatWorkerStatus, WorkerStatusReporter } from "./worker-status-reporter.ts";
 
 type WorkerAgentPi = Pick<ExtensionAPI, "on" | "registerCommand" | "sendMessage">;
 
@@ -39,6 +40,7 @@ export interface NullWorkerAgentExtensionState {
 export class WorkerAgentExtension {
   private registry: Registry | undefined;
   private completionMonitor: WorkerCompletionMonitor | undefined;
+  private lastTaskId: string | undefined;
   private registered = false;
 
   constructor(
@@ -49,7 +51,7 @@ export class WorkerAgentExtension {
   ) {}
 
   static create(pi: ExtensionAPI): WorkerAgentExtension {
-    const root = getDataRoot();
+    const root = DATA_ROOT;
     return new WorkerAgentExtension(
       pi,
       root,
@@ -113,6 +115,32 @@ export class WorkerAgentExtension {
       this.registry = undefined;
     });
 
+    this.pi.registerCommand("worker-status", {
+      description: "Show task, job, worker-session, and result status",
+      handler: async (args, ctx) => {
+        const taskId = args.trim().split(/\s+/)[0] || this.lastTaskId;
+        if (!taskId) {
+          ctx.ui.notify("No worker tasks have been started in this session.", "info");
+          return;
+        }
+        try {
+          const registry = this.registry ??= this.services.registry();
+          const status = await WorkerStatusReporter.create(
+            registry,
+            this.services.taskStore(),
+          ).inspect(taskId);
+          if (!status) {
+            ctx.ui.notify(`Unknown worker task: ${taskId}`, "error");
+            return;
+          }
+          ctx.ui.notify(formatWorkerStatus(status), "info");
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          ctx.ui.notify(`Unable to read worker status: ${detail}`, "error");
+        }
+      },
+    });
+
     this.pi.registerCommand("worker-demo", {
       description: "Run the hardcoded Pi/Pi worker demonstration",
       handler: async (_args, ctx) => {
@@ -132,6 +160,7 @@ export class WorkerAgentExtension {
             registry,
             ids,
           ).create();
+          this.lastTaskId = demo.task.id;
           const planning = await WorkerDemoPlanningJobCreator.create(taskStore, registry, ids).create(demo, {
             parentSessionId: ctx.sessionManager.getSessionId(),
             parentSessionFile: ctx.sessionManager.getSessionFile() ?? null,

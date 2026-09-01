@@ -1,9 +1,4 @@
-import { homedir } from "node:os";
 import { join } from "node:path";
-
-export function getDataRoot(): string {
-  return process.env.PI_WORKER_AGENT_DIR || join(homedir(), ".pi", "agent", "worker-agent");
-}
 
 /**
  * Maps the architecture's task, job, worker-session, and worktree constructs

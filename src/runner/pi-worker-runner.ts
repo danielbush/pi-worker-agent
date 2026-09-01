@@ -118,7 +118,12 @@ export class PiWorkerRunner {
       const finishedAt = this.clock.now();
       const succeeded = exitCode === 0 && agentSettled && assistantCompleted && !assistantFailure;
       if (succeeded) {
-        this.registry.jobs.updateStatus(job.id, "completed", "Planning completed", finishedAt);
+        this.registry.transaction(() => {
+          this.registry.jobs.updateStatus(job.id, "completed", "Planning completed", finishedAt);
+          const allJobsCompleted = this.registry.jobs.listForTask(task.id)
+            .every((taskJob) => taskJob.status === "completed");
+          if (allJobsCompleted) this.registry.tasks.updateStatus(task.id, "completed", finishedAt);
+        });
         return 0;
       }
 
