@@ -2,24 +2,88 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
+interface RegistryStatement {
+  run(...parameters: unknown[]): unknown;
+  get(...parameters: unknown[]): unknown;
+  all(...parameters: unknown[]): unknown[];
+}
+
+interface RegistryDatabaseConnection {
+  exec(sql: string): unknown;
+  query(sql: string): RegistryStatement;
+  transaction<T>(work: () => T): () => T;
+  close(): void;
+}
+
+type RegistryDatabaseConstructor = new (
+  path: string,
+  options: { create: boolean; strict: boolean },
+) => RegistryDatabaseConnection;
+
+interface RegistryFileDriver {
+  mkdirSync(path: string, options: { recursive: boolean }): unknown;
+}
+
+export interface RegistryDatabaseState {
+  statements: string[];
+  closed: boolean;
+}
+
 /** INFRASTRUCTURE_WRAPPER: owns SQLite connection, schema, and transactions. */
 export class RegistryDatabase {
-  readonly db: Database;
+  readonly db: RegistryDatabaseConnection;
+  private readonly trackedState: RegistryDatabaseState = { statements: [], closed: false };
 
-  constructor(readonly root: string) {
-    mkdirSync(root, { recursive: true });
-    this.db = new Database(join(root, "registry.sqlite"), { create: true, strict: true });
+  constructor(
+    readonly root: string,
+    private readonly fileDriver: RegistryFileDriver,
+    DatabaseDriver: RegistryDatabaseConstructor,
+  ) {
+    this.fileDriver.mkdirSync(root, { recursive: true });
+    this.db = new DatabaseDriver(join(root, "registry.sqlite"), { create: true, strict: true });
     try {
-      this.db.exec("PRAGMA journal_mode = WAL");
-      this.db.exec("PRAGMA busy_timeout = 5000");
-      this.db.exec("PRAGMA foreign_keys = ON");
+      this.exec("PRAGMA journal_mode = WAL");
+      this.exec("PRAGMA busy_timeout = 5000");
+      this.exec("PRAGMA foreign_keys = ON");
       this.removeObsoletePrototypeSchema();
       this.createSchema();
-      this.db.exec("PRAGMA user_version = 1");
+      this.exec("PRAGMA user_version = 1");
     } catch (error) {
       this.db.close();
       throw error;
     }
+  }
+
+  static create(root: string): RegistryDatabase {
+    return new RegistryDatabase(
+      root,
+      { mkdirSync },
+      Database as unknown as RegistryDatabaseConstructor,
+    );
+  }
+
+  static createNull(root = "/null/worker-agent"): RegistryDatabase {
+    class EmbeddedDatabaseStub implements RegistryDatabaseConnection {
+      exec(_sql: string): void {}
+      query(_sql: string): RegistryStatement {
+        return {
+          run: () => {},
+          get: () => undefined,
+          all: () => [],
+        };
+      }
+      transaction<T>(work: () => T): () => T { return work; }
+      close(): void {}
+    }
+    return new RegistryDatabase(
+      root,
+      { mkdirSync: () => {} },
+      EmbeddedDatabaseStub,
+    );
+  }
+
+  get state(): RegistryDatabaseState {
+    return structuredClone(this.trackedState);
   }
 
   transaction<T>(work: () => T): T {
@@ -28,6 +92,12 @@ export class RegistryDatabase {
 
   close(): void {
     this.db.close();
+    this.trackedState.closed = true;
+  }
+
+  private exec(sql: string): void {
+    this.trackedState.statements.push(sql);
+    this.db.exec(sql);
   }
 
   /** Removes the unreleased prototype schema rather than maintaining compatibility with it. */
@@ -35,7 +105,7 @@ export class RegistryDatabase {
     const jobs = this.db.query("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
     if (jobs.length === 0 || jobs.some((column) => column.name === "taskId")) return;
 
-    this.db.exec(`
+    this.exec(`
       DROP TABLE IF EXISTS jobDependencies;
       DROP TABLE IF EXISTS workerSessions;
       DROP TABLE IF EXISTS jobs;
@@ -45,7 +115,7 @@ export class RegistryDatabase {
   }
 
   private createSchema(): void {
-    this.db.exec(`
+    this.exec(`
       CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,

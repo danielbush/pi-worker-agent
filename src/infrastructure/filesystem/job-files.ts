@@ -7,6 +7,13 @@ export interface CreateJobFiles {
   request: string;
 }
 
+interface JobFileDriver {
+  mkdir(path: string, options: { recursive: boolean; mode: number }): Promise<unknown>;
+  writeFile(path: string, content: string, options: { encoding: "utf8"; mode: number }): Promise<unknown>;
+  chmod(path: string, mode: number): Promise<unknown>;
+  file(path: string): { text(): Promise<string> };
+}
+
 /**
  * INFRASTRUCTURE_WRAPPER.
  * Stores the architecture's file-based job data under
@@ -14,52 +21,62 @@ export interface CreateJobFiles {
  * query-friendly metadata belongs to the `jobs` database table.
  */
 export class JobFiles {
-  private constructor(
+  constructor(
     private readonly paths: WorkerAgentPaths,
-    private readonly requests: Map<string, CreateJobFiles> | undefined,
+    private readonly driver: JobFileDriver,
+    private readonly records: CreateJobFiles[],
   ) {}
 
   static create(paths: WorkerAgentPaths): JobFiles {
-    return new JobFiles(paths, undefined);
+    return new JobFiles(paths, {
+      mkdir,
+      writeFile,
+      chmod,
+      file: Bun.file,
+    }, []);
   }
 
   static createNull(
     paths: WorkerAgentPaths,
     requests: Array<{ taskId: string; jobId: string; text: string }> = [],
   ): JobFiles {
-    return new JobFiles(paths, new Map(requests.map((request) => [
-      key(request.taskId, request.jobId),
-      { taskId: request.taskId, jobId: request.jobId, request: request.text },
-    ])));
+    const content = new Map(requests.map((request) => [
+      paths.request(request.taskId, request.jobId),
+      request.text,
+    ]));
+    return new JobFiles(paths, {
+      mkdir: async () => {},
+      writeFile: async (path, text) => { content.set(path, text); },
+      chmod: async () => {},
+      file: (path) => ({
+        text: async () => {
+          const text = content.get(path);
+          if (text === undefined) throw new Error(`Unknown request path: ${path}`);
+          return text;
+        },
+      }),
+    }, requests.map((request) => ({
+      taskId: request.taskId,
+      jobId: request.jobId,
+      request: request.text,
+    })));
   }
 
   get state(): CreateJobFiles[] {
-    return this.requests ? [...this.requests.values()].map((request) => structuredClone(request)) : [];
+    return structuredClone(this.records);
   }
 
   async create(input: CreateJobFiles): Promise<string> {
     const directory = this.paths.job(input.taskId, input.jobId);
-    if (this.requests) {
-      this.requests.set(key(input.taskId, input.jobId), structuredClone(input));
-      return directory;
-    }
-    await mkdir(directory, { recursive: true, mode: 0o700 });
+    await this.driver.mkdir(directory, { recursive: true, mode: 0o700 });
     const requestPath = this.paths.request(input.taskId, input.jobId);
-    await writeFile(requestPath, input.request, { encoding: "utf8", mode: 0o600 });
-    await chmod(requestPath, 0o600);
+    await this.driver.writeFile(requestPath, input.request, { encoding: "utf8", mode: 0o600 });
+    await this.driver.chmod(requestPath, 0o600);
+    this.records.push(structuredClone(input));
     return directory;
   }
 
   async readRequest(taskId: string, jobId: string): Promise<string> {
-    if (this.requests) {
-      const request = this.requests.get(key(taskId, jobId));
-      if (request === undefined) throw new Error(`Unknown request: ${taskId}/${jobId}`);
-      return request.request;
-    }
-    return Bun.file(this.paths.request(taskId, jobId)).text();
+    return this.driver.file(this.paths.request(taskId, jobId)).text();
   }
-}
-
-function key(taskId: string, jobId: string): string {
-  return `${taskId}\0${jobId}`;
 }

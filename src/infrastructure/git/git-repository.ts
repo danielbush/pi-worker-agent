@@ -1,20 +1,35 @@
+interface GitProcessResult {
+  exitCode: number;
+  stdout: { toString(): string };
+  stderr: { toString(): string };
+}
+
+interface GitDriver {
+  spawnSync(command: string[], options: { cwd: string; stdout: "pipe"; stderr: "pipe" }): GitProcessResult;
+}
+
 /** INFRASTRUCTURE_WRAPPER: owns Git operations for projects and worktrees. */
 export class GitRepository {
   constructor(
     readonly rootDir: string,
-    private readonly nullCommit: string | undefined = undefined,
+    private readonly driver: GitDriver,
   ) {}
 
   static create(rootDir: string): GitRepository {
-    return new GitRepository(rootDir);
+    return new GitRepository(rootDir, Bun as unknown as GitDriver);
   }
 
   static createNull(rootDir: string, commit = "0".repeat(40)): GitRepository {
-    return new GitRepository(rootDir, commit);
+    return new GitRepository(rootDir, {
+      spawnSync: (command) => ({
+        exitCode: 0,
+        stdout: { toString: () => command.includes("rev-parse") ? commit : "" },
+        stderr: { toString: () => "" },
+      }),
+    });
   }
 
   initializeWithBaseline(message: string): string {
-    if (this.nullCommit) return this.nullCommit;
     this.run(["init", "--quiet", "--initial-branch=main"]);
     this.run(["add", "--all"]);
     this.run([
@@ -26,11 +41,11 @@ export class GitRepository {
   }
 
   status(): string {
-    return this.nullCommit ? "" : this.run(["status", "--porcelain"]);
+    return this.run(["status", "--porcelain"]);
   }
 
   private run(args: string[]): string {
-    const result = Bun.spawnSync(["git", ...args], {
+    const result = this.driver.spawnSync(["git", ...args], {
       cwd: this.rootDir,
       stdout: "pipe",
       stderr: "pipe",

@@ -1,16 +1,24 @@
+interface DateValue {
+  toISOString(): string;
+}
+
+type DateDriver = new () => DateValue;
+
 /** INFRASTRUCTURE_WRAPPER: supplies production or deterministic timestamps. */
 export class Clock {
-  private constructor(private readonly timestamp: string | undefined) {}
+  constructor(private readonly DateDriver: DateDriver) {}
 
   static create(): Clock {
-    return new Clock(undefined);
+    return new Clock(Date);
   }
 
   static createNull(timestamp = "2026-08-30T12:00:00Z"): Clock {
-    return new Clock(timestamp);
+    return new Clock(class EmbeddedDateStub {
+      toISOString(): string { return timestamp; }
+    });
   }
 
   now(): string {
-    return this.timestamp ?? new Date().toISOString();
+    return new this.DateDriver().toISOString();
   }
 }

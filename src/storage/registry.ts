@@ -33,7 +33,7 @@ export class Registry {
 
   constructor(root: string | undefined, nullState: NullRegistryState = {}) {
     if (root) {
-      this.database = new RegistryDatabase(root);
+      this.database = RegistryDatabase.create(root);
       this.projects = ProjectRepository.create(this.database);
       this.tasks = TaskRepository.create(this.database);
       this.jobs = JobRepository.create(this.database);

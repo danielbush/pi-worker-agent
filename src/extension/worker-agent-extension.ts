@@ -14,7 +14,7 @@ import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
 /** INFRASTRUCTURE_WRAPPER: owns Pi registration and worker-agent service lifecycle. */
 export class WorkerAgentExtension {
   private readonly root = getDataRoot();
-  private readonly runner = new DetachedRunnerLauncher(
+  private readonly runner = DetachedRunnerLauncher.create(
     fileURLToPath(new URL("../runner/main.ts", import.meta.url)),
   );
   private registry: Registry | undefined;

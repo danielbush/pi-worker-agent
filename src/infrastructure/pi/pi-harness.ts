@@ -34,19 +34,36 @@ interface PiProcess {
   kill(): void;
 }
 
+interface PiProcessDriver {
+  spawn(command: string[], options: {
+    cwd: string;
+    stdin: "ignore";
+    stdout: "pipe";
+    stderr: "pipe";
+  }): PiProcess;
+}
+
 /** INFRASTRUCTURE_WRAPPER: owns Pi process creation and its JSONL/stdout boundary. */
 export class PiHarness {
   private readonly invocations: PiInvocation[] = [];
   private killed = false;
 
-  private constructor(private readonly nullOutput: NullPiHarnessOutput | undefined) {}
+  constructor(private readonly driver: PiProcessDriver) {}
 
   static create(): PiHarness {
-    return new PiHarness(undefined);
+    return new PiHarness(Bun as unknown as PiProcessDriver);
   }
 
   static createNull(output: NullPiHarnessOutput = {}): PiHarness {
-    return new PiHarness(output);
+    return new PiHarness({
+      spawn: () => ({
+        pid: output.pid ?? 1234,
+        stdout: textStream(`${(output.stdoutLines ?? []).join("\n")}\n`),
+        stderr: textStream(output.stderr ?? ""),
+        exited: Promise.resolve(output.exitCode ?? 0),
+        kill: () => {},
+      }),
+    });
   }
 
   get state(): PiHarnessState {
@@ -55,9 +72,7 @@ export class PiHarness {
 
   start(invocation: PiInvocation): PiHarnessProcess {
     this.invocations.push(structuredClone(invocation));
-    if (this.nullOutput) return this.startNull();
-
-    const process = Bun.spawn([
+    const process = this.driver.spawn([
       "pi",
       "--mode", "json",
       "--print",
@@ -78,7 +93,7 @@ export class PiHarness {
       stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
-    }) as PiProcess;
+    });
 
     return {
       pid: process.pid,
@@ -91,19 +106,15 @@ export class PiHarness {
       },
     };
   }
+}
 
-  private startNull(): PiHarnessProcess {
-    const output = this.nullOutput!;
-    return {
-      pid: output.pid ?? 1234,
-      consumeLines: async (consume) => {
-        for (const line of output.stdoutLines ?? []) await consume(line);
-      },
-      stderr: async () => output.stderr ?? "",
-      exited: async () => output.exitCode ?? 0,
-      kill: () => { this.killed = true; },
-    };
-  }
+function textStream(text: string): ReadableStream<Uint8Array> {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(text));
+      controller.close();
+    },
+  });
 }
 
 async function consumeJsonLines(

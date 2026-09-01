@@ -2,6 +2,19 @@ import { appendFile, chmod, mkdir, readFile, writeFile } from "node:fs/promises"
 import type { WorkerEvent } from "../../domain/events.ts";
 import type { WorkerAgentPaths } from "../../storage/paths.ts";
 
+interface WorkerSessionEventPaths {
+  workerSession(taskId: string, jobId: string, workerSessionId: string): string;
+  events(taskId: string, jobId: string, workerSessionId: string): string;
+}
+
+interface WorkerSessionEventFileDriver {
+  mkdir(path: string, options: { recursive: boolean; mode: number }): Promise<unknown>;
+  writeFile(path: string, content: string, options: { encoding: "utf8"; flag: "a"; mode: number }): Promise<unknown>;
+  chmod(path: string, mode: number): Promise<unknown>;
+  appendFile(path: string, content: string, options: { encoding: "utf8"; mode: number }): Promise<unknown>;
+  readFile(path: string, encoding: "utf8"): Promise<string>;
+}
+
 /**
  * INFRASTRUCTURE_WRAPPER.
  * Stores the architecture's canonical `events.jsonl` for one `workerSessions`
@@ -12,13 +25,13 @@ export class WorkerSessionEvents {
   readonly path: string;
 
   constructor(
-    private readonly paths: WorkerAgentPaths | undefined,
+    private readonly paths: WorkerSessionEventPaths,
+    private readonly driver: WorkerSessionEventFileDriver,
     readonly taskId: string,
     readonly jobId: string,
     readonly workerSessionId: string,
-    private readonly records: WorkerEvent[] | undefined = undefined,
   ) {
-    this.path = paths?.events(taskId, jobId, workerSessionId) ?? `null://${taskId}/${jobId}/${workerSessionId}/events.jsonl`;
+    this.path = paths.events(taskId, jobId, workerSessionId);
   }
 
   static create(
@@ -27,7 +40,13 @@ export class WorkerSessionEvents {
     jobId: string,
     workerSessionId: string,
   ): WorkerSessionEvents {
-    return new WorkerSessionEvents(paths, taskId, jobId, workerSessionId);
+    return new WorkerSessionEvents(
+      paths,
+      { mkdir, writeFile, chmod, appendFile, readFile },
+      taskId,
+      jobId,
+      workerSessionId,
+    );
   }
 
   static createNull(
@@ -36,30 +55,41 @@ export class WorkerSessionEvents {
     workerSessionId: string,
     records: WorkerEvent[] = [],
   ): WorkerSessionEvents {
-    return new WorkerSessionEvents(undefined, taskId, jobId, workerSessionId, records);
+    return new WorkerSessionEvents(
+      {
+        workerSession: (task, job, session) => `null://${task}/${job}/${session}`,
+        events: (task, job, session) => `null://${task}/${job}/${session}/events.jsonl`,
+      },
+      {
+        mkdir: async () => {},
+        writeFile: async () => {},
+        chmod: async () => {},
+        appendFile: async (_path, text) => {
+          records.push(JSON.parse(text) as WorkerEvent);
+        },
+        readFile: async () => records.map((event) => `${JSON.stringify(event)}\n`).join(""),
+      },
+      taskId,
+      jobId,
+      workerSessionId,
+    );
   }
 
   async create(): Promise<void> {
-    if (this.records) return;
-    await mkdir(this.paths!.workerSession(this.taskId, this.jobId, this.workerSessionId), {
+    await this.driver.mkdir(this.paths.workerSession(this.taskId, this.jobId, this.workerSessionId), {
       recursive: true,
       mode: 0o700,
     });
-    await writeFile(this.path, "", { encoding: "utf8", flag: "a", mode: 0o600 });
-    await chmod(this.path, 0o600);
+    await this.driver.writeFile(this.path, "", { encoding: "utf8", flag: "a", mode: 0o600 });
+    await this.driver.chmod(this.path, 0o600);
   }
 
   async append(event: WorkerEvent): Promise<void> {
-    if (this.records) {
-      this.records.push(structuredClone(event));
-      return;
-    }
-    await appendFile(this.path, `${JSON.stringify(event)}\n`, { encoding: "utf8", mode: 0o600 });
+    await this.driver.appendFile(this.path, `${JSON.stringify(event)}\n`, { encoding: "utf8", mode: 0o600 });
   }
 
   async readAll(): Promise<WorkerEvent[]> {
-    if (this.records) return structuredClone(this.records);
-    const content = await readFile(this.path, "utf8");
+    const content = await this.driver.readFile(this.path, "utf8");
     return content
       .split("\n")
       .filter(Boolean)
