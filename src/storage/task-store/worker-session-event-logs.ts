@@ -9,20 +9,20 @@ export interface NullWorkerSessionEventLog {
   events?: WorkerEvent[];
 }
 
-type EventLogLocator = (
-  taskId: string,
-  jobId: string,
-  workerSessionId: string,
-) => WorkerSessionEvents;
+interface EventLogLocator {
+  events(taskId: string, jobId: string, workerSessionId: string): WorkerSessionEvents;
+}
 
 /** INFRASTRUCTURE_CONSUMER: locates canonical event logs for worker sessions. */
 export class WorkerSessionEventLogs {
   constructor(private readonly locate: EventLogLocator) {}
 
   static create(paths: WorkerAgentPaths): WorkerSessionEventLogs {
-    return new WorkerSessionEventLogs((taskId, jobId, workerSessionId) => (
-      WorkerSessionEvents.create(paths, taskId, jobId, workerSessionId)
-    ));
+    return new WorkerSessionEventLogs({
+      events: (taskId, jobId, workerSessionId) => (
+        WorkerSessionEvents.create(paths, taskId, jobId, workerSessionId)
+      ),
+    });
   }
 
   static createNull(logs: NullWorkerSessionEventLog[] = []): WorkerSessionEventLogs {
@@ -30,19 +30,21 @@ export class WorkerSessionEventLogs {
       key(log.taskId, log.jobId, log.workerSessionId),
       structuredClone(log.events ?? []),
     ]));
-    return new WorkerSessionEventLogs((taskId, jobId, workerSessionId) => {
-      const logKey = key(taskId, jobId, workerSessionId);
-      let events = records.get(logKey);
-      if (!events) {
-        events = [];
-        records.set(logKey, events);
-      }
-      return WorkerSessionEvents.createNull(taskId, jobId, workerSessionId, events);
+    return new WorkerSessionEventLogs({
+      events: (taskId, jobId, workerSessionId) => {
+        const logKey = key(taskId, jobId, workerSessionId);
+        let events = records.get(logKey);
+        if (!events) {
+          events = [];
+          records.set(logKey, events);
+        }
+        return WorkerSessionEvents.createNull(taskId, jobId, workerSessionId, events);
+      },
     });
   }
 
   events(taskId: string, jobId: string, workerSessionId: string): WorkerSessionEvents {
-    return this.locate(taskId, jobId, workerSessionId);
+    return this.locate.events(taskId, jobId, workerSessionId);
   }
 }
 

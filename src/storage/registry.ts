@@ -3,10 +3,10 @@ import type { Job } from "../domain/job.ts";
 import type { Project } from "../domain/project.ts";
 import type { Task } from "../domain/task.ts";
 import type { WorkerSession } from "../domain/worker-session.ts";
+import { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 import { JobDependencyRepository } from "./job-dependency-repository.ts";
 import { JobRepository } from "./job-repository.ts";
 import { ProjectRepository } from "./project-repository.ts";
-import { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 import { TaskRepository } from "./task-repository.ts";
 import { WorkerSessionRepository } from "./worker-session-repository.ts";
 
@@ -18,51 +18,54 @@ export interface NullRegistryState {
   jobDependencies?: JobDependency[];
 }
 
+interface RegistryLifecycle {
+  transaction<T>(work: () => T): T;
+  close(): void;
+}
+
 /**
  * INFRASTRUCTURE_CONSUMER.
  * Composes the architecture's SQLite metadata bricks behind one lifecycle.
  * File-based task data and canonical events remain owned by `TaskStore`.
  */
 export class Registry {
-  readonly database: RegistryDatabase | undefined;
-  readonly projects: ProjectRepository;
-  readonly tasks: TaskRepository;
-  readonly jobs: JobRepository;
-  readonly workerSessions: WorkerSessionRepository;
-  readonly jobDependencies: JobDependencyRepository;
-
-  constructor(root: string | undefined, nullState: NullRegistryState = {}) {
-    if (root) {
-      this.database = RegistryDatabase.create(root);
-      this.projects = ProjectRepository.create(this.database);
-      this.tasks = TaskRepository.create(this.database);
-      this.jobs = JobRepository.create(this.database);
-      this.workerSessions = WorkerSessionRepository.create(this.database);
-      this.jobDependencies = JobDependencyRepository.create(this.database);
-      return;
-    }
-
-    this.database = undefined;
-    this.projects = ProjectRepository.createNull(nullState.projects);
-    this.tasks = TaskRepository.createNull(nullState.tasks);
-    this.jobs = JobRepository.createNull(nullState.jobs);
-    this.workerSessions = WorkerSessionRepository.createNull(nullState.workerSessions);
-    this.jobDependencies = JobDependencyRepository.createNull(nullState.jobDependencies);
-  }
+  constructor(
+    readonly projects: ProjectRepository,
+    readonly tasks: TaskRepository,
+    readonly jobs: JobRepository,
+    readonly workerSessions: WorkerSessionRepository,
+    readonly jobDependencies: JobDependencyRepository,
+    private readonly lifecycle: RegistryLifecycle,
+  ) {}
 
   static create(root: string): Registry {
-    return new Registry(root);
+    const database = RegistryDatabase.create(root);
+    return new Registry(
+      ProjectRepository.create(database),
+      TaskRepository.create(database),
+      JobRepository.create(database),
+      WorkerSessionRepository.create(database),
+      JobDependencyRepository.create(database),
+      database,
+    );
   }
 
   static createNull(state: NullRegistryState = {}): Registry {
-    return new Registry(undefined, state);
+    return new Registry(
+      ProjectRepository.createNull(state.projects),
+      TaskRepository.createNull(state.tasks),
+      JobRepository.createNull(state.jobs),
+      WorkerSessionRepository.createNull(state.workerSessions),
+      JobDependencyRepository.createNull(state.jobDependencies),
+      { transaction: (work) => work(), close: () => {} },
+    );
   }
 
   transaction<T>(work: () => T): T {
-    return this.database ? this.database.transaction(work) : work();
+    return this.lifecycle.transaction(work);
   }
 
   close(): void {
-    this.database?.close();
+    this.lifecycle.close();
   }
 }

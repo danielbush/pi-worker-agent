@@ -1,9 +1,18 @@
 import type { Project } from "../domain/project.ts";
 import type { Task } from "../domain/task.ts";
-import type { Registry } from "../storage/registry.ts";
-import type { TaskStore } from "../storage/task-store.ts";
 import type { Id } from "../domain/id.ts";
-import type { GreetingProject, GreetingProjectFixture } from "../demo/greeting-project-fixture.ts";
+import { GreetingProjectFixture, type GreetingProject } from "../demo/greeting-project-fixture.ts";
+import { Clock } from "../infrastructure/system/clock.ts";
+import { Registry, type NullRegistryState } from "../storage/registry.ts";
+import { TaskStore, type NullTaskStoreState } from "../storage/task-store.ts";
+
+export interface NullWorkerDemoTaskCreatorState {
+  fixtureRoot?: string;
+  baselineCommit?: string;
+  registry?: NullRegistryState;
+  taskStore?: NullTaskStoreState;
+  timestamp?: string;
+}
 
 export interface CreatedWorkerDemoTask {
   project: Project;
@@ -22,13 +31,35 @@ export class WorkerDemoTaskCreator {
     private readonly taskStore: TaskStore,
     private readonly registry: Registry,
     private readonly ids: Pick<Id, "createProjectId" | "createTaskId">,
-    private readonly now: () => string = () => new Date().toISOString(),
+    private readonly clock: Clock,
   ) {}
+
+  static create(
+    fixture: GreetingProjectFixture,
+    taskStore: TaskStore,
+    registry: Registry,
+    ids: Pick<Id, "createProjectId" | "createTaskId">,
+  ): WorkerDemoTaskCreator {
+    return new WorkerDemoTaskCreator(fixture, taskStore, registry, ids, Clock.create());
+  }
+
+  static createNull(
+    ids: Pick<Id, "createProjectId" | "createTaskId">,
+    state: NullWorkerDemoTaskCreatorState = {},
+  ): WorkerDemoTaskCreator {
+    return new WorkerDemoTaskCreator(
+      GreetingProjectFixture.createNull(state.fixtureRoot, state.baselineCommit),
+      TaskStore.createNull(state.taskStore),
+      Registry.createNull(state.registry),
+      ids,
+      Clock.createNull(state.timestamp),
+    );
+  }
 
   async create(): Promise<CreatedWorkerDemoTask> {
     const taskId = this.ids.createTaskId();
     const generated = await this.fixture.create(taskId);
-    const timestamp = this.now();
+    const timestamp = this.clock.now();
     const project: Project = {
       id: this.ids.createProjectId(),
       name: generated.name,

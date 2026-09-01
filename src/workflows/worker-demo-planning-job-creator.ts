@@ -1,14 +1,21 @@
 import type { Id } from "../domain/id.ts";
 import type { Job } from "../domain/job.ts";
 import type { WorkerSession } from "../domain/worker-session.ts";
-import type { Registry } from "../storage/registry.ts";
-import type { TaskStore } from "../storage/task-store.ts";
+import { Clock } from "../infrastructure/system/clock.ts";
+import { Registry, type NullRegistryState } from "../storage/registry.ts";
+import { TaskStore, type NullTaskStoreState } from "../storage/task-store.ts";
 import {
   DEMO_BACKGROUND,
   DEMO_INTENT,
   DEMO_OUTCOMES,
   type CreatedWorkerDemoTask,
 } from "./worker-demo-task-creator.ts";
+
+export interface NullWorkerDemoPlanningJobCreatorState {
+  registry?: NullRegistryState;
+  taskStore?: NullTaskStoreState;
+  timestamp?: string;
+}
 
 export interface PlanningWorkerConfiguration {
   parentSessionId: string;
@@ -30,8 +37,28 @@ export class WorkerDemoPlanningJobCreator {
     private readonly taskStore: TaskStore,
     private readonly registry: Registry,
     private readonly ids: Pick<Id, "createJobId" | "createWorkerSessionId">,
-    private readonly now: () => string = () => new Date().toISOString(),
+    private readonly clock: Clock,
   ) {}
+
+  static create(
+    taskStore: TaskStore,
+    registry: Registry,
+    ids: Pick<Id, "createJobId" | "createWorkerSessionId">,
+  ): WorkerDemoPlanningJobCreator {
+    return new WorkerDemoPlanningJobCreator(taskStore, registry, ids, Clock.create());
+  }
+
+  static createNull(
+    ids: Pick<Id, "createJobId" | "createWorkerSessionId">,
+    state: NullWorkerDemoPlanningJobCreatorState = {},
+  ): WorkerDemoPlanningJobCreator {
+    return new WorkerDemoPlanningJobCreator(
+      TaskStore.createNull(state.taskStore),
+      Registry.createNull(state.registry),
+      ids,
+      Clock.createNull(state.timestamp),
+    );
+  }
 
   async create(
     demo: CreatedWorkerDemoTask,
@@ -39,7 +66,7 @@ export class WorkerDemoPlanningJobCreator {
   ): Promise<CreatedWorkerDemoPlanningJob> {
     const jobId = this.ids.createJobId();
     const workerSessionId = this.ids.createWorkerSessionId();
-    const timestamp = this.now();
+    const timestamp = this.clock.now();
     const bundlePath = await this.taskStore.jobs.create({
       taskId: demo.task.id,
       jobId,

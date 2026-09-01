@@ -2,15 +2,16 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { GreetingProjectFixture } from "../src/demo/greeting-project-fixture.ts";
+import { GreetingProjectFixture } from "../../src/demo/greeting-project-fixture.ts";
+import { Clock } from "../../src/infrastructure/system/clock.ts";
 import {
   DEMO_INTENT,
   DEMO_OUTCOMES,
   WorkerDemoTaskCreator,
-} from "../src/workflows/worker-demo-task-creator.ts";
-import { Registry } from "../src/storage/registry.ts";
-import { TaskStore } from "../src/storage/task-store.ts";
-import { removeTestDirectory } from "./test-directory.ts";
+} from "../../src/workflows/worker-demo-task-creator.ts";
+import { Registry } from "../../src/storage/registry.ts";
+import { TaskStore } from "../../src/storage/task-store.ts";
+import { removeTestDirectory } from "../../__tests__/test-directory.ts";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -26,14 +27,14 @@ test("registers the generated project and creates matching task data", async () 
   const root = mkdtempSync(join(tmpdir(), "pi-worker-demo-"));
   roots.push(root);
   const dataRoot = join(root, "data");
-  const registry = new Registry(dataRoot);
+  const registry = Registry.create(dataRoot);
   const taskStore = TaskStore.create(dataRoot);
   const creator = new WorkerDemoTaskCreator(
-    new GreetingProjectFixture(join(root, ".examples")),
+    GreetingProjectFixture.create(join(root, ".examples")),
     taskStore,
     registry,
     new FixedIds(),
-    () => "2026-08-30T12:00:00Z",
+    Clock.createNull("2026-08-30T12:00:00Z"),
   );
 
   const created = await creator.create();

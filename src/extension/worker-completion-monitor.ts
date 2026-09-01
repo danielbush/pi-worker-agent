@@ -1,31 +1,80 @@
 import type { Job } from "../domain/job.ts";
-import type { Registry } from "../storage/registry.ts";
-import type { TaskStore } from "../storage/task-store.ts";
+import {
+  CompletionNotifications,
+  type CompletionNotificationState,
+} from "../infrastructure/pi/completion-notifications.ts";
+import { IntervalTimer, type IntervalTimerState } from "../infrastructure/system/interval-timer.ts";
+import { Registry, type NullRegistryState } from "../storage/registry.ts";
+import { TaskStore, type NullTaskStoreState } from "../storage/task-store.ts";
 
 export type UserCompletionNotifier = (message: string, level: "info" | "error") => void;
 export type AgentCompletionNotifier = (message: string) => void | Promise<void>;
 
+export interface WorkerCompletionMonitorState {
+  notifications: CompletionNotificationState;
+  timer: IntervalTimerState;
+}
+
+export interface NullWorkerCompletionMonitorState {
+  registry?: NullRegistryState;
+  taskStore?: NullTaskStoreState;
+  intervalMs?: number;
+}
+
 /** INFRASTRUCTURE_CONSUMER: delivers durable worker results to their managing Pi session. */
 export class WorkerCompletionMonitor {
-  private timer: ReturnType<typeof setInterval> | undefined;
+  private timer: unknown;
   private polling = false;
 
   constructor(
     private readonly registry: Registry,
     private readonly taskStore: TaskStore,
-    private readonly notifyUser: UserCompletionNotifier,
-    private readonly notifyAgent: AgentCompletionNotifier,
+    private readonly notifications: CompletionNotifications,
+    private readonly intervalTimer: IntervalTimer,
     private readonly intervalMs = 1_000,
   ) {}
+
+  static create(
+    registry: Registry,
+    taskStore: TaskStore,
+    notifyUser: UserCompletionNotifier,
+    notifyAgent: AgentCompletionNotifier,
+    intervalMs = 1_000,
+  ): WorkerCompletionMonitor {
+    return new WorkerCompletionMonitor(
+      registry,
+      taskStore,
+      CompletionNotifications.create(notifyUser, notifyAgent),
+      IntervalTimer.create(),
+      intervalMs,
+    );
+  }
+
+  static createNull(state: NullWorkerCompletionMonitorState = {}): WorkerCompletionMonitor {
+    return new WorkerCompletionMonitor(
+      Registry.createNull(state.registry),
+      TaskStore.createNull(state.taskStore),
+      CompletionNotifications.createNull(),
+      IntervalTimer.createNull(),
+      state.intervalMs,
+    );
+  }
+
+  get state(): WorkerCompletionMonitorState {
+    return {
+      notifications: this.notifications.state,
+      timer: this.intervalTimer.state,
+    };
+  }
 
   start(parentSessionId: string): void {
     this.stop();
     void this.poll(parentSessionId);
-    this.timer = setInterval(() => void this.poll(parentSessionId), this.intervalMs);
+    this.timer = this.intervalTimer.start(() => void this.poll(parentSessionId), this.intervalMs);
   }
 
   stop(): void {
-    if (this.timer) clearInterval(this.timer);
+    if (this.timer !== undefined) this.intervalTimer.stop(this.timer);
     this.timer = undefined;
   }
 
@@ -41,7 +90,7 @@ export class WorkerCompletionMonitor {
       await this.pollOnce(parentSessionId);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      this.notifyUser(`Worker completion monitor failed: ${detail}`, "error");
+      this.notifications.notifyUser(`Worker completion monitor failed: ${detail}`, "error");
     } finally {
       this.polling = false;
     }
@@ -51,14 +100,11 @@ export class WorkerCompletionMonitor {
     const result = await this.resultText(job);
     if (!job.userNotified) {
       const level = job.status === "completed" ? "info" : "error";
-      this.notifyUser(
-        `${job.title} ${job.status} for task ${job.taskId}.`,
-        level,
-      );
+      this.notifications.notifyUser(`${job.title} ${job.status} for task ${job.taskId}.`, level);
       this.registry.jobs.markUserNotified(job.id);
     }
     if (!job.agentNotified) {
-      await this.notifyAgent([
+      await this.notifications.notifyAgent([
         `Delegated ${job.jobType} job ${job.id} ${job.status} for task ${job.taskId}.`,
         "",
         "Worker result:",

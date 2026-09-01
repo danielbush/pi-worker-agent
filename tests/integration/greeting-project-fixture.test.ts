@@ -2,9 +2,9 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { GreetingProjectFixture } from "../src/demo/greeting-project-fixture.ts";
-import { GitRepository } from "../src/infrastructure/git/git-repository.ts";
-import { removeTestDirectory } from "./test-directory.ts";
+import { GreetingProjectFixture } from "../../src/demo/greeting-project-fixture.ts";
+import { GitRepository } from "../../src/infrastructure/git/git-repository.ts";
+import { removeTestDirectory } from "../../__tests__/test-directory.ts";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -14,7 +14,7 @@ afterEach(() => {
 test("creates a committed Bun greeting project with unfinished behavior", async () => {
   const root = mkdtempSync(join(tmpdir(), "pi-worker-fixture-"));
   roots.push(root);
-  const fixture = new GreetingProjectFixture(join(root, ".examples"));
+  const fixture = GreetingProjectFixture.create(join(root, ".examples"));
 
   const project = await fixture.create("task_test");
 
@@ -34,7 +34,7 @@ test("creates a committed Bun greeting project with unfinished behavior", async 
 test("rejects task IDs that could escape the examples directory", async () => {
   const root = mkdtempSync(join(tmpdir(), "pi-worker-fixture-"));
   roots.push(root);
-  const fixture = new GreetingProjectFixture(join(root, ".examples"));
+  const fixture = GreetingProjectFixture.create(join(root, ".examples"));
 
   await expect(fixture.create("../outside")).rejects.toThrow("Invalid task ID");
 });

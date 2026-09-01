@@ -7,6 +7,10 @@ export interface GreetingProject {
   baselineCommit: string;
 }
 
+interface GitRepositories {
+  open(rootDir: string): GitRepository;
+}
+
 /**
  * INFRASTRUCTURE_CONSUMER.
  * Generates the deterministic Bun project used as input to `/worker-demo`.
@@ -16,19 +20,27 @@ export interface GreetingProject {
 export class GreetingProjectFixture {
   constructor(
     private readonly examplesRoot: string,
-    private readonly files: GreetingProjectFiles = GreetingProjectFiles.create(),
-    private readonly nullCommit: string | undefined = undefined,
+    private readonly files: GreetingProjectFiles,
+    private readonly gitRepositories: GitRepositories,
   ) {}
 
   static create(examplesRoot: string): GreetingProjectFixture {
-    return new GreetingProjectFixture(examplesRoot, GreetingProjectFiles.create());
+    return new GreetingProjectFixture(
+      examplesRoot,
+      GreetingProjectFiles.create(),
+      { open: (rootDir) => GitRepository.create(rootDir) },
+    );
   }
 
   static createNull(
     examplesRoot = "/examples",
     baselineCommit = "0".repeat(40),
   ): GreetingProjectFixture {
-    return new GreetingProjectFixture(examplesRoot, GreetingProjectFiles.createNull(), baselineCommit);
+    return new GreetingProjectFixture(
+      examplesRoot,
+      GreetingProjectFiles.createNull(),
+      { open: (rootDir) => GitRepository.createNull(rootDir, baselineCommit) },
+    );
   }
 
   async create(taskId: string): Promise<GreetingProject> {
@@ -46,10 +58,8 @@ export class GreetingProjectFixture {
       source: STARTER_SOURCE,
       test: STARTER_TEST,
     });
-    const git = this.nullCommit
-      ? GitRepository.createNull(rootDir, this.nullCommit)
-      : GitRepository.create(rootDir);
-    const baselineCommit = git.initializeWithBaseline("Create greeting CLI starter");
+    const baselineCommit = this.gitRepositories.open(rootDir)
+      .initializeWithBaseline("Create greeting CLI starter");
     return { name, rootDir, baselineCommit };
   }
 

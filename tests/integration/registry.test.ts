@@ -3,9 +3,9 @@ import { Database } from "bun:sqlite";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Job, JobType } from "../src/domain/job.ts";
-import { Registry } from "../src/storage/registry.ts";
-import { removeTestDirectory } from "./test-directory.ts";
+import type { Job, JobType } from "../../src/domain/job.ts";
+import { Registry } from "../../src/storage/registry.ts";
+import { removeTestDirectory } from "../../__tests__/test-directory.ts";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -38,7 +38,7 @@ function job(id: string, taskId: string, jobType: JobType, status: Job["status"]
 test("composes project, task, job, session, and dependency repositories", () => {
   const root = mkdtempSync(join(tmpdir(), "pi-worker-registry-"));
   roots.push(root);
-  const registry = new Registry(root);
+  const registry = Registry.create(root);
 
   registry.transaction(() => {
     registry.projects.create({
@@ -128,19 +128,21 @@ test("removes the obsolete prototype database schema", () => {
   `);
   legacy.close();
 
-  const registry = new Registry(root);
-  const columns = registry.database!.db.query("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
+  const registry = Registry.create(root);
+  const inspection = new Database(join(root, "registry.sqlite"));
+  const columns = inspection.query("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
 
   expect(columns.map((column) => column.name)).toContain("taskId");
-  expect(registry.database!.db.query("SELECT COUNT(*) AS count FROM jobs").get()).toEqual({ count: 0 });
-  expect(registry.database!.db.query("PRAGMA user_version").get()).toEqual({ user_version: 1 });
+  expect(inspection.query("SELECT COUNT(*) AS count FROM jobs").get()).toEqual({ count: 0 });
+  expect(inspection.query("PRAGMA user_version").get()).toEqual({ user_version: 1 });
+  inspection.close();
   registry.close();
 });
 
 test("enforces metadata relationships", () => {
   const root = mkdtempSync(join(tmpdir(), "pi-worker-registry-"));
   roots.push(root);
-  const registry = new Registry(root);
+  const registry = Registry.create(root);
 
   expect(() => registry.tasks.create({
     id: "task_invalid",

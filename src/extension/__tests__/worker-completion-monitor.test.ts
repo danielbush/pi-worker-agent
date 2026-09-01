@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
 import type { Job } from "../../domain/job.ts";
+import { CompletionNotifications } from "../../infrastructure/pi/completion-notifications.ts";
+import { IntervalTimer } from "../../infrastructure/system/interval-timer.ts";
 import { Registry } from "../../storage/registry.ts";
 import { TaskStore } from "../../storage/task-store.ts";
 import { WorkerCompletionMonitor } from "../worker-completion-monitor.ts";
@@ -27,13 +29,12 @@ test("delivers a settled worker result once", async () => {
       events: [{ timestamp: TIMESTAMP, type: "assistant.completed", text: "Change src/index.ts." }],
     }],
   });
-  const userNotifications: string[] = [];
-  const agentNotifications: string[] = [];
+  const notifications = CompletionNotifications.createNull();
   const monitor = new WorkerCompletionMonitor(
     registry,
     taskStore,
-    (message) => { userNotifications.push(message); },
-    (message) => { agentNotifications.push(message); },
+    notifications,
+    IntervalTimer.createNull(),
   );
 
   // act
@@ -41,9 +42,12 @@ test("delivers a settled worker result once", async () => {
   await monitor.pollOnce("manager-session");
 
   // assert
-  expect(userNotifications).toEqual(["Plan greeting CLI implementation completed for task task_demo."]);
-  expect(agentNotifications).toHaveLength(1);
-  expect(agentNotifications[0]).toContain("Change src/index.ts.");
+  expect(notifications.state.user).toEqual([{
+    message: "Plan greeting CLI implementation completed for task task_demo.",
+    level: "info",
+  }]);
+  expect(notifications.state.agent).toHaveLength(1);
+  expect(notifications.state.agent[0]).toContain("Change src/index.ts.");
   expect(registry.jobs.get("job_plan")).toMatchObject({ userNotified: true, agentNotified: true });
 });
 
