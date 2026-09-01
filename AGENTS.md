@@ -2,7 +2,8 @@
 
 Before changing this repository, read and follow:
 
-- [`CODING_PREFERENCES.md`](CODING_PREFERENCES.md) for the user's coding and collaboration preferences.
+- [`CODING_PREFERENCES.md`](CODING_PREFERENCES.md) for the user's coding preferences.
+- [`MANAGER_PREFERENCES.md`](MANAGER_PREFERENCES.md) for the user's collaboration and project management preferences; how to structure work.
 - [`bun.md`](bun.md) for the project's Bun-specific conventions.
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) for the target data and source architecture.
 - [`DESIGN.md`](DESIGN.md) for current outcomes, intent, scope, and work plan.
