@@ -60,5 +60,5 @@ and `completed`. The status includes the canonical request and event-log paths a
 the worker's final response. After a reload, pass the reported ID explicitly:
 
 ```text
-/worker-status task_<id>
+/worker-status <task-uuid>
 ```

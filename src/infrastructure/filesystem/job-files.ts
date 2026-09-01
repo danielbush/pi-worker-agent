@@ -17,7 +17,7 @@ interface JobFileDriver {
 /**
  * INFRASTRUCTURE_WRAPPER.
  * Stores the architecture's file-based job data under
- * `tasks/<task-id>/jobs/<job-id>/`. `request.md` is the canonical job prompt;
+ * `tasks/<uuid-prefix>/<task-uuid>/jobs/<job-id>/`. `request.md` is the canonical job prompt;
  * query-friendly metadata belongs to the `jobs` database table.
  */
 export class JobFiles {

@@ -65,7 +65,7 @@ flowchart LR
             subgraph TaskFiles[" "]
                 direction TB
 
-                TaskFilesTitle["tasks/task_id/"]:::groupTitle
+                TaskFilesTitle["tasks/uuid_prefix/task_uuid/"]:::groupTitle
 
                 Intent["intent.md (optional)<br/><br/>user's intent, ideally in their own words"]
 
@@ -188,7 +188,7 @@ The manager decomposes the task into jobs. Each job has:
 
 The application generates stable IDs before creating database rows or filesystem records. SQLite and the filesystem do not assign these IDs.
 
-- Generate `taskId`, then use it for both `tasks.id` and `tasks/<task-id>/`.
+- Generate `taskId` as a bare UUID, then use it for `tasks.id` and `tasks/<first-two-hex-digits>/<task-uuid>/`. The single two-character prefix level distributes tasks across 256 directories without adding unnecessary traversal depth.
 - Generate each `jobId`, then use it for `jobs.id`, `jobs/<job-id>/`, and the derived `worktrees/<job-id>/` path.
 - Generate each `workerSessionId`, then use it for `workerSessions.id` and `worker-sessions/<session-id>/`.
 
@@ -288,21 +288,22 @@ DATA_ROOT/
 ├── projects/
 │   └── <project>/           # structure governed by PROJECT_MANAGEMENT.md
 ├── tasks/
-│   └── <task-id>/
-│       ├── intent.md        # optional
-│       ├── outcomes.md      # optional
-│       ├── background.md
-│       └── jobs/
-│           └── <job-id>/
-│               ├── request.md
-│               └── worker-sessions/
-│                   └── <session-id>/
-│                       └── events.jsonl
+│   └── <first-two-hex-digits>/
+│       └── <task-uuid>/
+│           ├── intent.md        # optional
+│           ├── outcomes.md      # optional
+│           ├── background.md
+│           └── jobs/
+│               └── <job-id>/
+│                   ├── request.md
+│                   └── worker-sessions/
+│                       └── <session-id>/
+│                           └── events.jsonl
 └── worktrees/
     └── <job-id>/
 ```
 
-### `tasks/<task-id>/`
+### `tasks/<first-two-hex-digits>/<task-uuid>/`
 
 Files owned by the task and shared by all of its jobs:
 
@@ -312,13 +313,13 @@ Files owned by the task and shared by all of its jobs:
 
 When present, use `intent.md` and the checklist in `outcomes.md` to review the completed task.
 
-### `tasks/<task-id>/jobs/<job-id>/`
+### `tasks/<first-two-hex-digits>/<task-uuid>/jobs/<job-id>/`
 
 Files owned by one job:
 
 - `request.md` — exact instructions for the worker.
 
-### `tasks/<task-id>/jobs/<job-id>/worker-sessions/<session-id>/`
+### `tasks/<first-two-hex-digits>/<task-uuid>/jobs/<job-id>/worker-sessions/<session-id>/`
 
 Files owned by one worker session:
 

@@ -11,7 +11,7 @@ export class Id {
   }
 
   createTaskId(): string {
-    return `task_${crypto.randomUUID()}`;
+    return crypto.randomUUID();
   }
 
   createJobId(): string {

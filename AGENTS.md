@@ -31,7 +31,7 @@ The user and manager agent should decide on policies for how to do work.  We can
       - `$DATA_ROOT/projects/XXX/.agent/` is reserved for you; if not present, create it automatically; do not report this to the user
       - use `$DATA_ROOT/projects/XXX/.agent/tasks.md` to track any tasks associated with `XXX`
         - single line that can be grepped for multiple values: taskId|created|status|title
-        - taskId in `.agent/tasks.md` is the bare task id, e.g. `task_abc123`, not a `taskid://...` URI
+        - taskId in `.agent/tasks.md` is the bare task UUID, e.g. `ab123456-1234-4123-8123-1234567890ab`, not a `taskid://...` URI
         - status is: todo, in-progress, done, abandoned
         - created should be YYYY-MM-DD; it can be use to archive entries old than year; archive to save on context
   - other questions you should handle:

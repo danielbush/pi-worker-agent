@@ -16,7 +16,7 @@ interface TaskFileDriver {
 
 /**
  * INFRASTRUCTURE_WRAPPER.
- * Stores the architecture's file-based task data under `tasks/<task-id>/`:
+ * Stores file-based task data under `tasks/<uuid-prefix>/<task-uuid>/`:
  * optional `intent.md`, optional `outcomes.md`, and `background.md`.
  * Database metadata for the `tasks` table belongs to `Registry`, not here.
  */

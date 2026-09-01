@@ -8,7 +8,7 @@ export class WorkerAgentPaths {
   constructor(readonly root: string) {}
 
   task(taskId: string): string {
-    return join(this.root, "tasks", taskId);
+    return join(this.root, "tasks", taskId.slice(0, 2), taskId);
   }
 
   intent(taskId: string): string {
