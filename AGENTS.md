@@ -13,14 +13,16 @@ The manager agent (you) is tasked with managing worker agents in harnesses to do
 
 The user and manager agent should decide on policies for how to do work.  We can break these down into a series of markdown files that the user can revise over time:
 
-- [`PROJECT_MANAGEMENT.md`](PROJECT_MANAGEMENT.md)
+- **`$DATA_ROOT/PROJECT_MANAGEMENT.md`**
+  - active project-management policy; consumers normally copy `examples/PROJECT_MANAGEMENT.md` here or create their own policy; this checkout symlinks the file only as a maintainer convenience for editing and using the example in place
   - how to structure/sequence project work to get outcomes
   - `$DATA_ROOT/projects/` is the source of truth for managed projects.
     - Do not assume `./projects/` in this repository is the project registry unless `$DATA_ROOT` points here or the user explicitly says so.
-    - By default this repository uses gitignored `work/worker-agent`; consumers can set `DATA_ROOT` or `PI_WORKER_AGENT_DATA_ROOT` to use another location.
+    - By default this repository uses the gitignored `work/` directory; consumers can set `DATA_ROOT` or `PI_WORKER_AGENT_DATA_ROOT` to use another location.
   - Use `bun run projects` to list projects and `$DATA_ROOT`
-  - ALWAYS read `PROJECT_MANAGEMENT.md` before answering project-structure or project-status questions, because it defines the current layout and meaning of `$DATA_ROOT/projects/`
-    - you can organise any system the user want in `$DATA_ROOT/projects/`; aways update PROJECT_MANAGEMENT.md to reflect the new layout
+  - ALWAYS read `$DATA_ROOT/PROJECT_MANAGEMENT.md` before answering project-structure or project-status questions, because it defines the current layout and meaning of `$DATA_ROOT/projects/`
+    - if `$DATA_ROOT/PROJECT_MANAGEMENT.md` is missing, use `examples/PROJECT_MANAGEMENT.md` as the default policy
+    - you can organise any system the user want in `$DATA_ROOT/projects/`; aways update `$DATA_ROOT/PROJECT_MANAGEMENT.md` to reflect the new layout
     - you should ensure the following constraints
       - always organise data into subdirs: $DATA_ROOT/projects/XXX/
         - so `bun run projects` works
@@ -31,21 +33,24 @@ The user and manager agent should decide on policies for how to do work.  We can
         - single line that can be grepped for multiple values: taskId|created|status|title
         - taskId in `.agent/tasks.md` is the bare task id, e.g. `task_abc123`, not a `taskid://...` URI
         - status is: todo, in-progress, done, abandoned
+        - created should be YYYY-MM-DD; it can be use to archive entries old than year; archive to save on context
   - other questions you should handle:
     - where were the last few tasks for this project?
       - use `$DATA_ROOT/projects/XXX/.agent/tasks.md`
     - what is the next thing to work on in this project?
-      - use PROJECT_MANAGEMENT.md in conjunction with the content in `XXX/`
+      - use `$DATA_ROOT/PROJECT_MANAGEMENT.md` in conjunction with the content in `XXX/`
     - can we add a task to do ...?
       - verify which project if not clear
       - add to the relevant structure in `projects/XXX/`; use `taskid://...`
       - update `$DATA_ROOT/projects/XXX/.agent/tasks.md`
-- [`WORKFLOW.md`](WORKFLOW.md)
+- **`$DATA_ROOT/WORKFLOW.md`**
+  - active workflow policy; consumers normally copy `examples/WORKFLOW.md` here or create their own policy; this checkout's symlink is only a maintainer convenience
   - defines guidelines for how tasks and jobs are sequenced: what types of jobs do we want: planning, coding, reviewing?  And what sequences do they form?  planning -> coding -> reviewing etc
   - defines guidelines for how outputs from tasks and jobs are reviewed, revised, approved
     - COMMENT: eg a REVIEW.md file for instance
   - COMMENT: tasks and jobs are built-in constructs (see [`ARCHITECTURE.md`](ARCHITECTURE.md))
-- [`CODING.md`](CODING.md)
+- **`$DATA_ROOT/CODING.md`**
+  - active coding policy; consumers normally copy `examples/CODING.md` here or create their own policy; this checkout's symlink is only a maintainer convenience
   - how to architect a codebase; how to write the code
   - COMMENT: because this system was originally intended to manage coding agents, coding gets a special emphasis
   - COMMENT: if a codebase has its own particular preferences, this can be mentioned as the overriding factor here; you may want to set up as a policy that codebases define their own rules for instance which the work agent can follow

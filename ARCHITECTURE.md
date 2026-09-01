@@ -5,9 +5,9 @@
 flowchart LR
     subgraph PolicyKernel[Agentic policy kernel]
         Agents["AGENTS.md<br/><br/>manager role and policy entry point"]
-        ProjectManagement["PROJECT_MANAGEMENT.md<br/><br/>project structure and sequencing"]
-        Workflow["WORKFLOW.md<br/><br/>task, job, dependency, and review policy"]
-        Coding["CODING.md<br/><br/>coding and codebase policy"]
+        ProjectManagement["DATA_ROOT/PROJECT_MANAGEMENT.md<br/><br/>project structure and sequencing"]
+        Workflow["DATA_ROOT/WORKFLOW.md<br/><br/>task, job, dependency, and review policy"]
+        Coding["DATA_ROOT/CODING.md<br/><br/>coding and codebase policy"]
 
         Agents --> ProjectManagement
         Agents --> Workflow
@@ -56,7 +56,7 @@ flowchart LR
 
             FilesTitle["Important files and directories"]:::groupTitle
 
-            DataRoot["DATA_ROOT<br/><br/>default: work/worker-agent<br/>override: DATA_ROOT, PI_WORKER_AGENT_DATA_ROOT"]
+            DataRoot["DATA_ROOT<br/><br/>default: work/<br/>override: DATA_ROOT, PI_WORKER_AGENT_DATA_ROOT"]
 
             ProjectFiles["projects/project/<br/><br/>governed by PROJECT_MANAGEMENT.md"]
 
@@ -139,9 +139,10 @@ flowchart LR
 The core Markdown files act as an agentic policy kernel: they define how the manager interprets work and uses the system without hardcoding one organization's process into application code.
 
 - `AGENTS.md` is the entry point for the manager role and policy set.
-- `PROJECT_MANAGEMENT.md` governs project structure, sequencing, and feedback cycles under `DATA_ROOT/projects/`.
-- `WORKFLOW.md` governs how tasks, jobs, dependencies, results, revisions, and approvals are managed.
-- `CODING.md` governs coding and codebase practices used when preparing and evaluating coding work.
+- `DATA_ROOT/PROJECT_MANAGEMENT.md` governs project structure, sequencing, and feedback cycles under `DATA_ROOT/projects/`.
+- `DATA_ROOT/WORKFLOW.md` governs how tasks, jobs, dependencies, results, revisions, and approvals are managed.
+- `DATA_ROOT/CODING.md` governs coding and codebase practices used when preparing and evaluating coding work.
+- `examples/` contains policy templates that consumers can copy and customize. This maintainer checkout's `work/` directory symlinks to them only so the examples can be maintained and used in place; symlinking is not a system feature or the expected consumer setup.
 
 Users can revise these policies while the task, job, persistence, and execution mechanisms remain general.
 
@@ -150,7 +151,7 @@ Users can revise these policies while the task, job, persistence, and execution 
 `DATA_ROOT` is the configured root for worker-agent SQLite metadata, project-management files, canonical task files, and worktrees. It defaults to the project-local, gitignored directory:
 
 ```text
-work/worker-agent
+work/
 ```
 
 Consumers can set `DATA_ROOT` in the environment or a Bun-loaded `.env` file to choose another location. `PI_WORKER_AGENT_DATA_ROOT` is also accepted and takes precedence when both are set:
@@ -161,7 +162,7 @@ DATA_ROOT=/path/to/worker-agent-data
 PI_WORKER_AGENT_DATA_ROOT=/path/to/worker-agent-data
 ```
 
-All paths in the storage layout below are relative to `DATA_ROOT`.
+All paths in the storage layout below are relative to `DATA_ROOT`. Consumers normally copy the policy templates from `examples/` into their chosen data root and customize them, or create their own policies.
 
 ## Initial inputs
 
@@ -279,6 +280,9 @@ Task, job, and worker-session content is stored under the task directory. Worktr
 
 ```text
 DATA_ROOT/
+├── PROJECT_MANAGEMENT.md    # project structure and sequencing policy
+├── WORKFLOW.md              # task, job, dependency, and review policy
+├── CODING.md                # coding policy
 ├── projects/
 │   └── <project>/           # structure governed by PROJECT_MANAGEMENT.md
 ├── tasks/

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-export const DEFAULT_DATA_ROOT = join(repoRoot, "work", "worker-agent");
+export const DEFAULT_DATA_ROOT = join(repoRoot, "work");
 
 /** Resolve the root for worker-agent metadata, canonical files, and worktrees. */
 export function resolveDataRoot(env: NodeJS.ProcessEnv = process.env): string {
