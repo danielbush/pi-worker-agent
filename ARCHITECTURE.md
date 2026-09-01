@@ -192,9 +192,7 @@ The application generates stable IDs before creating database rows or filesystem
 - Generate each `jobId`, then use it for `jobs.id`, `jobs/<job-id>/`, and the derived `worktrees/<job-id>/` path.
 - Generate each `workerSessionId`, then use it for `workerSessions.id` and `worker-sessions/<session-id>/`.
 
-For an existing codebase, the manager first selects an existing `projectId`; the application loads its `rootDir` and then creates the task. The `/worker-demo` fixture differs only in setup: it generates `taskId`, creates `.examples/worker-demo-<task-id>/`, registers that directory as a project, and then persists the task using the same `taskId`.
-
-After project registration, generated demo projects and existing codebases follow the same task, job, worker-session, and worktree flow.
+The manager selects an existing workspace for the managed project, loads its `rootDir`, generates `taskId`, and creates the task. Demonstrations use this same project, task, job, worker-session, and worktree flow rather than a hardcoded command or generated-project fixture.
 
 ## Metadata (database)
 
@@ -418,7 +416,6 @@ src/
 ├── extension.ts       # minimal Pi extension entry point
 ├── extension/         # Pi tools, commands, lifecycle, widgets, notifications
 ├── workflows/         # task/job orchestration and dependency scheduling
-├── demo/              # hardcoded `/worker-demo` project fixtures
 ├── domain/            # data types, IDs, statuses, and dependency rules; no I/O
 ├── infrastructure/    # nullable wrappers grouped by filesystem, git, Pi, process, SQLite, and system
 ├── storage/           # metadata and file-storage consumers, repositories, and paths

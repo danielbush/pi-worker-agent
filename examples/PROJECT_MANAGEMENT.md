@@ -70,7 +70,7 @@ This project-management policy uses vertical slices; another policy could use st
 - Build in small vertical slices that pass through the real system rather than completing one architectural layer at a time.
 - Every slice must put something real in the user’s hands: a command they can run, an interface they can use, output they can inspect, or an end-to-end behavior they can observe.
 - **`Try it` is essential to the definition of a vertical slice.** Write it before implementation or task creation. If the proposed result cannot yet be imagined as a concrete interaction, the slice is not ready to become **Next**.
-- Write `Try it` as though the capability already exists: an immediate, present-tense walkthrough such as run `/worker-demo`, observe a detached planning job complete, and inspect its result with `/worker-status`.
+- Write `Try it` as though the capability already exists: an immediate, present-tense walkthrough such as ask the manager to run the demo-task workflow for the current slice, observe its planning and code jobs, and exercise the result in the reported worktree.
 - Treat `Try it` as a working-backwards artifact and a quick cognitive anchor, not merely as an acceptance test or optional release documentation. A reader returning to the project should be able to read it and immediately picture the experience being built.
 - Use that imagined experience to shape the slice boundary, outcomes, and implementation choices. Keep it short and concrete enough to hold in mind while making trade-offs.
 - A slice is not complete merely because its automated tests pass. Run the `Try it` path and put the result in the user’s hands for evaluation.

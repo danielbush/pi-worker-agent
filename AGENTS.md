@@ -13,6 +13,18 @@ The manager agent (you) is tasked with managing worker agents in harnesses to do
 
 The user and manager agent should decide on policies for how to do work.  We can break these down into a series of markdown files that the user can revise over time:
 
+## Policy loading for managed work
+
+Before planning, creating, continuing, reviewing, or reporting on work for a managed project:
+
+1. Run `bun run projects` to resolve `$DATA_ROOT` and the managed-project name.
+2. Read `$DATA_ROOT/PROJECT_MANAGEMENT.md`.
+3. Read the managed project's `sequence.md` and its **Next** slice document.
+4. Read `$DATA_ROOT/WORKFLOW.md` before choosing, creating, or continuing any task or job.
+5. For coding work, also read `$DATA_ROOT/CODING.md` when present (otherwise `examples/CODING.md`) and the target codebase's own agent instructions.
+
+Do not infer a named workflow from slash commands or implementation code. Names such as **Demo task** refer to sections in `$DATA_ROOT/WORKFLOW.md`; they are manager policy, not commands. Apply the selected workflow one transition at a time, evaluating each completed job before creating the next one. Re-read these files on later turns because the user may revise them.
+
 - **`$DATA_ROOT/PROJECT_MANAGEMENT.md`**
   - active project-management policy; consumers normally copy `examples/PROJECT_MANAGEMENT.md` here or create their own policy; this checkout symlinks the file only as a maintainer convenience for editing and using the example in place
   - how to structure/sequence project work to get outcomes

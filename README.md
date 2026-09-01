@@ -1,8 +1,8 @@
 # pi-worker-agent
 
-A work-in-progress Pi extension for delegating durable tasks to detached worker agents.
+A work-in-progress Pi extension for managing durable tasks and detached worker agents from Pi.
 
-The first target is a hardcoded `/worker-demo` workflow with Pi as both manager and worker. It will create one task containing planning, implementation, and review jobs.
+Development is driven through the managed `pi-worker-agent` project under the configured data root. The current target is manager-orchestrated `plan → code` work against this repository, without a hardcoded demo command.
 
 See:
 
@@ -44,20 +44,23 @@ The project-local extension entry point is:
 .pi/extensions/worker-agent/index.ts
 ```
 
-## Try the current vertical slice
+## Managed-project development
 
-From Pi in this repository:
+The current project sequence and vertical-slice walkthrough are stored under:
 
 ```text
-/reload
-/worker-demo
-/worker-status
+$DATA_ROOT/projects/pi-worker-agent/
 ```
 
-`/worker-demo` starts a detached Pi planning worker and reports its task ID. Run
-`/worker-status` again to watch the planning job move through `queued`, `running`,
-and `completed`. The status includes the canonical request and event-log paths and
-the worker's final response. After a reload, pass the reported ID explicitly:
+`WORKFLOW.md` defines a policy-level **Demo task** flow for exercising real task handling and manager orchestration against the current project:
+
+```text
+plan → code (`implement` job)
+```
+
+The manager creates each job explicitly and stops after code so the user can exercise the result in its isolated worktree. This is a normal policy-driven task, not a `/worker-demo` command. A subsequent vertical slice will extend the flow with review.
+
+Inspect any created task from Pi with:
 
 ```text
 /worker-status <task-uuid>

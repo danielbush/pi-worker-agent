@@ -37,7 +37,7 @@
 - Keep database metadata separate from canonical file-based task data.
 - Avoid duplicate sources of truth. For example, `request.md` is the canonical job prompt and is not duplicated as `jobs.instructions`.
 - Do not invent extra entities, IDs, or current-state fields without a concrete need. Event logs should record obvious observable harness activity using only IDs the harness provides or that correlation strictly requires.
-- In this project, “demo” means a hardcoded workflow through the real architecture, not a separate fake domain model, registry, or runner.
+- In this project, “demo” means a policy-defined workflow through the real architecture against the managed project, not a hardcoded command or a separate fake domain model, registry, runner, or generated project.
 - file system layout
   - the filesystem should group subsystems and hide detail in subdirs
   - use a "deep modules" approach

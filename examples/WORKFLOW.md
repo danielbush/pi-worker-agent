@@ -28,6 +28,23 @@ Run focused verification against an existing worktree without making product cha
 
 The manager chooses one of these flows based on the size and uncertainty of the task, then creates each next job only after evaluating the previous result.
 
+### Demo task
+
+Use this workflow only when the user asks to demonstrate task handling and manager orchestration through the real system. Run it against the current managed project and keep the coding target isolated from product code, such as `demo/greeting-cli/` in an implementation worktree.
+
+```text
+plan → code (`implement` job)
+```
+
+1. Create a task with explicit intent, outcomes, and background, reference it from the current vertical slice with `taskid://<uuid>`, and update the project's `.agent/tasks.md` index.
+2. Create a read-only `plan` job against the project's registered workspace.
+3. When planning completes, stop. The manager evaluates the result; the runner does not create the next job automatically.
+4. If the plan is acceptable, create an `implement` job with an `implements-plan` dependency and include the accepted plan in its canonical `request.md`.
+5. Run implementation in an isolated worktree and expose its progress, worktree, and result through task status.
+6. Stop after the code job so the user can exercise the result. This demo deliberately omits review; the next vertical slice extends it to `plan → implement → review`.
+
+The workflow demonstrates policy-driven orchestration rather than a hardcoded demo command. The manager makes each transition explicitly and uses the same task, job, dependency, worktree, runner, and event-storage mechanisms intended for normal work.
+
 ### Small coding task
 
 Use when the change is narrow, well specified, and does not need investigation before implementation.
