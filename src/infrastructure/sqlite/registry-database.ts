@@ -46,8 +46,9 @@ export class RegistryDatabase {
       this.exec("PRAGMA busy_timeout = 5000");
       this.exec("PRAGMA foreign_keys = ON");
       this.removeObsoletePrototypeSchema();
+      this.renameProjectsTable();
       this.createSchema();
-      this.exec("PRAGMA user_version = 1");
+      this.exec("PRAGMA user_version = 2");
     } catch (error) {
       this.db.close();
       throw error;
@@ -111,12 +112,23 @@ export class RegistryDatabase {
       DROP TABLE IF EXISTS jobs;
       DROP TABLE IF EXISTS tasks;
       DROP TABLE IF EXISTS projects;
+      DROP TABLE IF EXISTS workspaces;
     `);
+  }
+
+  private renameProjectsTable(): void {
+    const projects = this.db.query(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'projects'",
+    ).get();
+    const workspaces = this.db.query(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'workspaces'",
+    ).get();
+    if (projects && !workspaces) this.exec("ALTER TABLE projects RENAME TO workspaces");
   }
 
   private createSchema(): void {
     this.exec(`
-      CREATE TABLE IF NOT EXISTS projects (
+      CREATE TABLE IF NOT EXISTS workspaces (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         rootDir TEXT NOT NULL,
@@ -126,7 +138,7 @@ export class RegistryDatabase {
 
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
-        projectId TEXT REFERENCES projects(id),
+        projectId TEXT REFERENCES workspaces(id),
         title TEXT NOT NULL,
         status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed', 'cancelled')),
         createdAt TEXT NOT NULL,

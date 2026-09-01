@@ -134,7 +134,42 @@ test("removes the obsolete prototype database schema", () => {
 
   expect(columns.map((column) => column.name)).toContain("taskId");
   expect(inspection.query("SELECT COUNT(*) AS count FROM jobs").get()).toEqual({ count: 0 });
-  expect(inspection.query("PRAGMA user_version").get()).toEqual({ user_version: 1 });
+  expect(inspection.query("PRAGMA user_version").get()).toEqual({ user_version: 2 });
+  inspection.close();
+  registry.close();
+});
+
+test("renames an existing projects table without losing workspace metadata", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-worker-registry-"));
+  roots.push(root);
+  const legacy = new Database(join(root, "registry.sqlite"), { create: true });
+  legacy.exec(`
+    CREATE TABLE projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      rootDir TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      lastUsedAt TEXT NOT NULL
+    ) STRICT;
+    INSERT INTO projects VALUES (
+      'project_existing',
+      'Existing project',
+      '/tmp/existing',
+      '2026-08-30T12:00:00Z',
+      '2026-08-30T12:00:00Z'
+    );
+    PRAGMA user_version = 1;
+  `);
+  legacy.close();
+
+  const registry = Registry.create(root);
+  const inspection = new Database(join(root, "registry.sqlite"));
+
+  expect(registry.projects.get("project_existing")?.rootDir).toBe("/tmp/existing");
+  expect(inspection.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'projects'").get()).toBeNull();
+  expect(inspection.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'workspaces'").get()).toEqual({ name: "workspaces" });
+  expect(inspection.query("PRAGMA foreign_key_list(tasks)").all()).toContainEqual(expect.objectContaining({ table: "workspaces", from: "projectId" }));
+  expect(inspection.query("PRAGMA user_version").get()).toEqual({ user_version: 2 });
   inspection.close();
   registry.close();
 });

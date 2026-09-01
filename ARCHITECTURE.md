@@ -40,7 +40,7 @@ flowchart LR
         subgraph Tables[Tables]
             direction LR
 
-            Project["projects<br/><br/>id<br/>name<br/>rootDir<br/>createdAt<br/>lastUsedAt"]
+            Project["workspaces<br/><br/>id<br/>name<br/>rootDir<br/>createdAt<br/>lastUsedAt"]
 
             Task["tasks<br/><br/>id<br/>projectId?<br/>title<br/>status<br/>createdAt<br/>finishedAt"]
 
@@ -168,7 +168,7 @@ All paths in the storage layout below are relative to `DATA_ROOT`. Consumers nor
 
 The user and manager agent discuss a piece of work. The manager translates the relevant parts of that conversation into:
 
-- **`projectId`** — the registered project selected by the manager.
+- **`projectId`** — the registered project workspace selected by the manager.
 - Optional **`intent`** — why the user wants the work and the shape they want it to take, ideally preserved in their own words.
 - Optional **`outcomes`** — a checklist of what should be observable when the task is complete.
 - **`background`** — relevant facts, decisions, constraints, or a conversation summary needed to understand the task.
@@ -200,7 +200,9 @@ After project registration, generated demo projects and existing codebases follo
 
 SQLite stores structured metadata and query-friendly current-state projections.
 
-### `projects`
+### `workspaces`
+
+Registered codebase checkouts are called workspaces in metadata to distinguish them from the managed project sequences under `DATA_ROOT/projects/`.
 
 - `id` — project identity used by tasks.
 - `name` — user-facing project name.
@@ -211,7 +213,7 @@ SQLite stores structured metadata and query-friendly current-state projections.
 ### `tasks`
 
 - `id` — task identity.
-- `projectId` — optional reference to `projects.id`.
+- `projectId` — optional reference to `workspaces.id`.
 - `title` — short, action-oriented summary derived by the manager from the available task files.
 - `status` — overall task state.
 - `createdAt` and `finishedAt` — task lifetime.

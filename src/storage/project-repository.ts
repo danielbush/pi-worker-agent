@@ -8,18 +8,18 @@ interface ProjectPersistence {
   touch(id: string, lastUsedAt: string): void;
 }
 
-/** INFRASTRUCTURE_CONSUMER: persists metadata in the `projects` table. */
+/** INFRASTRUCTURE_CONSUMER: persists registered-project metadata in `workspaces`. */
 export class ProjectRepository {
   constructor(private readonly persistence: ProjectPersistence) {}
 
   static create(database: RegistryDatabase): ProjectRepository {
     return new ProjectRepository({
       create: (project) => database.db.query(`
-        INSERT INTO projects (id, name, rootDir, createdAt, lastUsedAt) VALUES (?, ?, ?, ?, ?)
+        INSERT INTO workspaces (id, name, rootDir, createdAt, lastUsedAt) VALUES (?, ?, ?, ?, ?)
       `).run(project.id, project.name, project.rootDir, project.createdAt, project.lastUsedAt),
-      get: (id) => (database.db.query("SELECT * FROM projects WHERE id = ?").get(id) as Project | null) ?? undefined,
-      list: () => database.db.query("SELECT * FROM projects ORDER BY lastUsedAt DESC").all() as Project[],
-      touch: (id, lastUsedAt) => { database.db.query("UPDATE projects SET lastUsedAt = ? WHERE id = ?").run(lastUsedAt, id); },
+      get: (id) => (database.db.query("SELECT * FROM workspaces WHERE id = ?").get(id) as Project | null) ?? undefined,
+      list: () => database.db.query("SELECT * FROM workspaces ORDER BY lastUsedAt DESC").all() as Project[],
+      touch: (id, lastUsedAt) => { database.db.query("UPDATE workspaces SET lastUsedAt = ? WHERE id = ?").run(lastUsedAt, id); },
     });
   }
 
