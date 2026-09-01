@@ -54,6 +54,41 @@ Preserve the user's statement about why they want the project and the shape it s
 
 Only **Next** is committed enough to have a slice document. Freely revise, reorder, replace, or remove tentative later entries after learning from the next slice.
 
+## Backlog policy
+
+Use `docs/backlog.md` in the root of a managed codebase for concrete product or technical concerns that are worth retaining but are not part of the current vertical slice. The backlog complements project sequencing; it does not replace `sequence.md`, choose what happens next, or turn speculative ideas into commitments.
+
+Keep exactly these second-level sections, with bullet points beneath each:
+
+```markdown
+# Backlog
+
+## feat
+
+- **feat: Add a capability or user-visible behavior**
+  - Relevant context and a possible solution direction.
+  - COMMENT: A user comment preserved in their own words.
+
+## refactor
+
+- **refactor: Improve internal structure while preserving behavior**
+  - Relevant context and affected concepts.
+
+## fix
+
+- **fix: Correct existing behavior**
+  - Reproduction details, impact, and likely entry points.
+
+## chore
+
+- **chore: Perform maintenance, tooling, dependency, or documentation work**
+  - Relevant context and completion considerations.
+```
+
+Each top-level bullet must be a short, scannable, bold headline prefixed with the matching Conventional Commit type: `feat:`, `refactor:`, `fix:`, or `chore:`. A reader should get the gist from the headline alone. Put details in a small number of short nested bullets: usually the current problem, why it matters, and a promising direction. Include files or concepts only when they help someone resume the thread; avoid exhaustive design notes. Prefix nested user comments with `COMMENT: ` and preserve the user's wording where possible.
+
+Prefer two to four nested bullets per item. Each item should contain enough detail to resume later without becoming a specification. Do not create empty task records for backlog items. When an item becomes current work, refine it into the **Next** slice's intent, outcomes, and `Try it`, create tasks as needed, and remove or update the backlog bullet.
+
 ## Relationship to the product workflow
 
 [`WORKFLOW.md`](WORKFLOW.md) defines how the manager uses tasks, jobs, and dependencies to perform work. A project sequence sits above those constructs:
