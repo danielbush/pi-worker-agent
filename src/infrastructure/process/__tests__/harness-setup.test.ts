@@ -46,7 +46,21 @@ test("prepares each harness's native invocation without a universal effort mappi
   expect(pi.invocation.args).toContain("read,grep,find,ls");
   expect(cursor.invocation.args).toContain("cursor-grok-4.5-high");
   expect(cursor.invocation.args).toContain("--force");
+  expect(cursor.invocation.args).toContain("--workspace");
+  expect(cursor.invocation.args).toContain("/workspace");
+  expect(cursor.invocation.args).not.toContain("--worktree");
+  expect(cursor.invocation.args).not.toContain("-w");
   expect(cursor.invocation.args).not.toContain("--thinking");
+});
+
+test("pins Cursor --workspace to the launch path and never allocates -w/--worktree", () => {
+  const setup = HarnessSetup.createNull();
+  const cursor = setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace", "/worktrees/job");
+  expect(cursor.invocation.args).toContain("--workspace");
+  expect(cursor.invocation.args[cursor.invocation.args.indexOf("--workspace") + 1]).toBe("/worktrees/job");
+  expect(cursor.invocation.args).not.toContain("--worktree");
+  expect(cursor.invocation.args.includes("-w")).toBe(false);
+  expect(() => setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace", "relative")).toThrow("absolute");
 });
 
 test("fails closed with a precise diagnostic when Cursor's stream contract is unverified", () => {
@@ -69,7 +83,7 @@ test("matches Cursor catalog ids and rejects label tokens from the same listing"
     which: () => "/resolved/bin/cursor-agent",
     run: (command) => {
       if (command.includes("--version")) return { exitCode: 0, stdout: "1.0.0-test", stderr: "" };
-      if (command.includes("--help")) return { exitCode: 0, stdout: "--print --output-format --stream-partial-output --model --mode --force --trust --sandbox", stderr: "" };
+      if (command.includes("--help")) return { exitCode: 0, stdout: "--print --output-format --stream-partial-output --model --mode --force --trust --sandbox --workspace", stderr: "" };
       if (command.includes("status")) return { exitCode: 0, stdout: "Login successful", stderr: "" };
       if (command.includes("--list-models")) return { exitCode: 0, stdout: catalog, stderr: "" };
       return { exitCode: 1, stdout: "", stderr: "unexpected" };

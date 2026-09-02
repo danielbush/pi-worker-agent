@@ -72,8 +72,6 @@ export class JobDelegator {
     const capability = capabilityForPurpose(input.jobType);
     // Every executable identity and environment contract is resolved before persistence.
     const preparedRunner = this.runner.preflight();
-    const prepared = this.setup.verify(profile, capability, workspace.rootDir);
-
     const jobId = this.ids.createJobId();
     const workerSessionId = this.ids.createWorkerSessionId();
     const timestamp = this.clock.now();
@@ -81,6 +79,7 @@ export class JobDelegator {
       ? this.taskStore.paths.worktree(jobId)
       : dependency ? new JobWorktreeLocator(this.registry, this.taskStore).locate(dependency) : null;
     if (["review", "fix", "test"].includes(input.jobType) && !worktreePath) throw new Error(`A ${input.jobType} job requires a dependency with an implementation worktree`);
+    const prepared = this.setup.verify(profile, capability, workspace.rootDir, worktreePath ?? workspace.rootDir);
     if (input.jobType === "implement" && worktreePath) this.worktrees.create(workspace.rootDir, worktreePath);
 
     const bundlePath = await this.taskStore.jobs.create({ taskId: task.id, jobId, request: input.request });

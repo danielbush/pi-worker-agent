@@ -84,7 +84,13 @@ export class WorkerRunner {
       const fingerprint = profileFingerprint(baseProfile);
       if (fingerprint !== job.profileFingerprint) throw new Error(`Worker profile fingerprint mismatch for job ${job.id}`);
       const profile: WorkerProfile = { ...baseProfile, fingerprint };
-      const verified = this.setup.verify(profile, capability, workspace.rootDir);
+      const requiresWorktree = ["implement", "review", "fix", "test"].includes(job.jobType);
+      const worktreePath = requiresWorktree ? new JobWorktreeLocator(this.registry, this.taskStore).locate(job) : null;
+      if (requiresWorktree && !worktreePath) {
+        throw new Error(`${job.jobType} job has no implementation worktree: ${job.id}`);
+      }
+      const cwd = worktreePath ?? workspace.rootDir;
+      const verified = this.setup.verify(profile, capability, workspace.rootDir, cwd);
       if (verified.version !== job.harnessVersion || JSON.stringify(verified.invocation) !== JSON.stringify(snapshot)) {
         throw new Error(`Harness contract changed since job ${job.id} was snapshotted; refusing to launch`);
       }
@@ -94,13 +100,6 @@ export class WorkerRunner {
         this.registry.tasks.updateStatus(task.id, "running");
         this.registry.jobs.updateStatus(job.id, "running", `${job.harness} ${job.jobType} worker is running`);
       });
-
-      const requiresWorktree = ["implement", "review", "fix", "test"].includes(job.jobType);
-      const worktreePath = requiresWorktree ? new JobWorktreeLocator(this.registry, this.taskStore).locate(job) : null;
-      if (requiresWorktree && !worktreePath) {
-        throw new Error(`${job.jobType} job has no implementation worktree: ${job.id}`);
-      }
-      const cwd = worktreePath ?? workspace.rootDir;
       const temporaryDirectory = privateRuntimeDirectory;
       const process = await this.harness.start({
         cwd,

@@ -66,7 +66,7 @@ export class HarnessSetup {
         const executable = command[0]!.split("/").at(-1)!;
         const args = command.slice(1);
         if (args.includes("--version")) return ok(executable === "pi" ? piVersion : cursorVersion);
-        if (args.includes("--help")) return ok(executable === "pi" ? "--mode --print --model --thinking --tools" : "--print --output-format --stream-partial-output --model --mode --force --trust --sandbox");
+        if (args.includes("--help")) return ok(executable === "pi" ? "--mode --print --model --thinking --tools" : "--print --output-format --stream-partial-output --model --mode --force --trust --sandbox --workspace");
         if (executable === "pi" && args[0] === "auth") return authenticated ? ok("ready") : fail("not authenticated");
         if (executable === "pi" && args[0] === "--list-models") return ok((result.piModels ?? ["openai-codex/gpt-5.6-sol"]).join("\n"));
         if (executable === "cursor-agent" && args[0] === "status") return authenticated ? ok("Login successful") : fail("not logged in");
@@ -78,7 +78,7 @@ export class HarnessSetup {
     }, WorkerSandbox.createNull(), result.contracts ?? productionContracts(verifiedCursorVersions, authenticated));
   }
 
-  verify(profile: WorkerProfile, capability: CapabilityProfile, cwd: string): HarnessSetupResult {
+  verify(profile: WorkerProfile, capability: CapabilityProfile, cwd: string, workspacePath = cwd): HarnessSetupResult {
     this.sandbox.preflight();
     const contract = this.contracts.get(profile.harness);
     if (!contract) throw new Error(`Unknown harness: ${profile.harness}`);
@@ -90,7 +90,7 @@ export class HarnessSetup {
     for (const option of contract.requiredHelpOptions) {
       if (!help.includes(option)) throw new Error(`${contract.executableName} does not support required option ${option}`);
     }
-    return contract.finish({ profile, capability, cwd, executable: resolved, version, run: this.driver.run });
+    return contract.finish({ profile, capability, cwd, workspacePath, executable: resolved, version, run: this.driver.run });
   }
 }
 

@@ -11,6 +11,7 @@ export interface HarnessFinishInput {
   profile: WorkerProfile;
   capability: CapabilityProfile;
   cwd: string;
+  workspacePath: string;
   executable: string;
   version: string;
   run(command: string[], cwd: string): HarnessCommandResult;

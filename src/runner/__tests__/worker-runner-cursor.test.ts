@@ -7,7 +7,7 @@ import { TaskStore } from "../../storage/task-store.ts";
 import { WorkerRunner } from "../worker-runner.ts";
 
 const TIME = "2026-09-01T00:00:00Z";
-const invocation = { executable: "/null/bin/cursor-agent", args: ["--print", "--output-format", "stream-json", "--stream-partial-output", "--model", "cursor-grok-4.5-high", "--trust", "--sandbox", "disabled", "--force"] };
+const invocation = { executable: "/null/bin/cursor-agent", args: ["--print", "--output-format", "stream-json", "--stream-partial-output", "--model", "cursor-grok-4.5-high", "--trust", "--sandbox", "disabled", "--workspace", "/null-worker-agent/worktrees/job", "--force"] };
 
 test("runs Cursor in the implementation worktree and requires its terminal success event", async () => {
   // arrange
