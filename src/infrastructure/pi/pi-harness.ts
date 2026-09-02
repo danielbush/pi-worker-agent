@@ -1,3 +1,5 @@
+import { rm } from "node:fs/promises";
+import { join } from "node:path";
 import { WorkerSandbox } from "../process/worker-sandbox.ts";
 
 export interface PiInvocation {
@@ -49,6 +51,10 @@ interface PiProcessDriver {
   }): PiProcess;
 }
 
+interface PiPrivateConfigDriver {
+  remove(path: string): Promise<void>;
+}
+
 /** INFRASTRUCTURE_WRAPPER: owns Pi process creation and its JSONL/stdout boundary. */
 export class PiHarness {
   private readonly invocations: PiInvocation[] = [];
@@ -57,10 +63,15 @@ export class PiHarness {
   constructor(
     private readonly driver: PiProcessDriver,
     private readonly sandbox: WorkerSandbox,
+    private readonly privateConfig: PiPrivateConfigDriver,
   ) {}
 
   static create(): PiHarness {
-    return new PiHarness(Bun as unknown as PiProcessDriver, WorkerSandbox.create());
+    return new PiHarness(
+      Bun as unknown as PiProcessDriver,
+      WorkerSandbox.create(),
+      { remove: async (path) => { await rm(path, { recursive: true, force: true }); } },
+    );
   }
 
   static createNull(output: NullPiHarnessOutput = {}): PiHarness {
@@ -75,6 +86,7 @@ export class PiHarness {
         }),
       },
       WorkerSandbox.createNull(),
+      { remove: async () => {} },
     );
   }
 
@@ -84,6 +96,7 @@ export class PiHarness {
 
   async start(invocation: PiInvocation): Promise<PiHarnessProcess> {
     this.invocations.push(structuredClone(invocation));
+    const privateConfigDirectory = join(invocation.temporaryDirectory, "agent");
     const command = await this.sandbox.wrap([
       "pi",
       "--mode", "json",
@@ -112,14 +125,20 @@ export class PiHarness {
         stdin: "ignore",
         stdout: "pipe",
         stderr: "pipe",
-        env: { ...globalThis.process.env, TMPDIR: invocation.temporaryDirectory },
+        env: {
+          ...globalThis.process.env,
+          TMPDIR: invocation.temporaryDirectory,
+          PI_CODING_AGENT_DIR: privateConfigDirectory,
+        },
       });
     } catch (error) {
       await this.sandbox.reset();
+      await this.privateConfig.remove(privateConfigDirectory);
       throw error;
     }
     const exited = child.exited.then(async (exitCode) => {
       await this.sandbox.reset();
+      await this.privateConfig.remove(privateConfigDirectory);
       return exitCode;
     });
 
