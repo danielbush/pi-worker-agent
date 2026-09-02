@@ -37,6 +37,13 @@ export function capabilityForPurpose(purpose: string): CapabilityProfile {
   return capability;
 }
 
+export function toolsForCapability(capability: CapabilityProfile): string[] {
+  const read = ["read", "grep", "find", "ls"];
+  if (capability === "code") return [...read, "write", "edit", "bash"];
+  if (capability === "test") return [...read, "bash"];
+  return read;
+}
+
 export function profileFingerprint(value: Omit<WorkerProfile, "fingerprint">): string {
   const canonical = JSON.stringify({
     name: value.name,

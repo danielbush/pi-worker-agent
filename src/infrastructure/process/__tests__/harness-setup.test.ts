@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
 import { CURSOR_CONTRACT_DIAGNOSTIC, HarnessSetup } from "../harness-setup.ts";
+import { CursorHarnessContract } from "../../../harnesses/cursor/cursor-harness-contract.ts";
+import { PiHarnessContract } from "../../../harnesses/pi/pi-harness-contract.ts";
 import { profileFingerprint, type WorkerProfile } from "../../../domain/execution-profile.ts";
 import { WorkerSandbox } from "../worker-sandbox.ts";
 
@@ -20,7 +22,7 @@ test("checks and launches the same resolved absolute executable identity", () =>
       if (command.includes("auth")) return { exitCode: 0, stdout: "ready", stderr: "" };
       return { exitCode: 0, stdout: "openai-codex/gpt-5.6-sol", stderr: "" };
     },
-  }, WorkerSandbox.createNull(), new Set(), true);
+  }, WorkerSandbox.createNull(), [PiHarnessContract.create()]);
 
   // act
   const result = setup.verify(profile("pi", "openai-codex/gpt-5.6-sol", { thinking: "high" }), "read-only", "/workspace");
@@ -58,4 +60,29 @@ test("fails closed for auth, catalog, option, and unenforceable capability failu
   expect(() => HarnessSetup.createNull({ cursorModels: ["other"] }).verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace")).toThrow("unavailable");
   expect(() => HarnessSetup.createNull().verify(profile("pi", "openai-codex/gpt-5.6-sol", { thinking: "turbo" }), "read-only", "/workspace")).toThrow("invalid thinking");
   expect(() => HarnessSetup.createNull().verify(profile("cursor-agent", "cursor-grok-4.5-high"), "test", "/workspace")).toThrow("cannot enforce");
+});
+
+test("matches Cursor catalog ids and rejects label tokens from the same listing", () => {
+  // arrange
+  const catalog = "Available models\nauto - Auto (default)\ncursor-grok-4.5-high - Cursor Grok 4.5\n";
+  const setup = new HarnessSetup({
+    which: () => "/resolved/bin/cursor-agent",
+    run: (command) => {
+      if (command.includes("--version")) return { exitCode: 0, stdout: "1.0.0-test", stderr: "" };
+      if (command.includes("--help")) return { exitCode: 0, stdout: "--print --output-format --stream-partial-output --model --mode --force --trust --sandbox", stderr: "" };
+      if (command.includes("status")) return { exitCode: 0, stdout: "Login successful", stderr: "" };
+      if (command.includes("--list-models")) return { exitCode: 0, stdout: catalog, stderr: "" };
+      return { exitCode: 1, stdout: "", stderr: "unexpected" };
+    },
+  }, WorkerSandbox.createNull(), [CursorHarnessContract.create({ verifiedVersions: new Set(["1.0.0-test"]), privateAuthenticationAvailable: true })]);
+
+  // act/assert
+  expect(setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace").invocation.args).toContain("cursor-grok-4.5-high");
+  expect(() => setup.verify(profile("cursor-agent", "Auto"), "code", "/workspace")).toThrow("unavailable");
+});
+
+test("fails closed when the profile harness has no injected contract", () => {
+  expect(() => HarnessSetup.createNull({ contracts: [PiHarnessContract.create()] })
+    .verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace"))
+    .toThrow("Unknown harness: cursor-agent");
 });

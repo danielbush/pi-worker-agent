@@ -1,10 +1,10 @@
-import { capabilityForPurpose, profileFingerprint, type NativeInvocationSnapshot, type WorkerProfile } from "../domain/execution-profile.ts";
+import { capabilityForPurpose, profileFingerprint, toolsForCapability, type NativeInvocationSnapshot, type WorkerProfile } from "../domain/execution-profile.ts";
 import { NativeHarness, type NullNativeHarnessOutput } from "../infrastructure/process/native-harness.ts";
 import { normalizePiJsonLine, parsePiJsonLine } from "../harnesses/pi/pi-json-line.ts";
 import { Registry, type NullRegistryState } from "../storage/registry.ts";
 import { TaskStore, type NullTaskStoreState } from "../storage/task-store.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
-import { HarnessSetup, toolsForCapability } from "../infrastructure/process/harness-setup.ts";
+import { HarnessSetup } from "../infrastructure/process/harness-setup.ts";
 import { CursorStreamJsonNormalizer } from "../harnesses/cursor/cursor-stream-json.ts";
 import { JobWorktreeLocator } from "../workflows/job-worktree-locator.ts";
 
