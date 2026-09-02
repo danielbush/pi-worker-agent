@@ -13,7 +13,7 @@
 
 - Prefer OOP composition: small stateful “Lego bricks” with clear ownership and injected dependencies.
 - Use classes for lifecycle, persistence, orchestration, and other stateful services.
-- Keep pure formatting and conversion logic as functions.
+- Pure algorithmic, formatting and conversion logic can be functions that are used by classes.
 - Use a system similar to James Shore's nullable architecture
   - Classes that directly interact with the outside world (DOM, fs, network) are INFRASTRUCTURE_WRAPPER's
     - code that talks to the outside world (DRIVER_CODE) should be injected into the INFRASTRUCTURE_WRAPPER via .create
@@ -25,25 +25,28 @@
   - call any INFRASTRUCTURE_WRAPPER or INFRASTRUCTURE_CONSUMER that is used by a class an INFRASTRUCTRUE_DEPENDENCY
   - both types of INFRASTRUCTURE_CODE must support a static .create() that creates production instances and .createNull() that creates NULL_VARIANT's;
   - aim to provide useful defaults for .create and .createNull to avoid having to specify too many parameters
-  - in general: find the direct interface with the environment, extract it if not already and make this the INFRASTRUCTURE_WRAPPER and give it EMBEDDED_STUB's ;  then all consumers of this wrapper become INFRASTRUCTURE_CONSUMER's; code tests use nulled versions of the code, see testing section below.
+  - in general: find the direct interface with the environment, extract it if not already and make this the INFRASTRUCTURE_WRAPPER, identify the required DRIVER_CODE and stub it out for the NULL_VARIANT (EMBEDDED_STUB's) ;  then make consumers of this wrapper into INFRASTRUCTURE_CONSUMER's; code tests use nulled versions of the code, see testing section below.
   - Constructors should NOT receive null flags, nullable backends, or null-specific state.  The class instance should NEVER know it is using a NULL_VARIANT or not.
   - createNull() configuration is confined to each class’s static createNull().
-  - Production driver code is injected by create().
-  - DRIVER_CODE invocation and coordination remain in instance methods and constructors.
+  - Production DRIVER_CODE is injected by create().
+  - DRIVER_CODE invocation and coordination must remain in instance methods and constructors.
   - NULL_VARIANT's use EMBEDDED_STUB's implementing the same driver interfaces.
 - Name source files after major domain constructs, such as `job.ts`, `task.ts`, and `worker-session.ts`; avoid generic names such as `types.ts` or `utils.ts`.
-- Group code by responsibility: `domain/`, `workflows/`, `demo/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
 - Add concise docstrings that map classes to the constructs and ownership boundaries in `ARCHITECTURE.md`.
+- file system layout
+  - the filesystem should group subsystems and hide detail in subdirs
+  - use a "deep modules" approach to keep the overall skeleton of the app on the surface (major classes, interfaces or other) and push detail and execution logic into subdirs
+  - put INFRASTRUCTURE_WRAPPER's into `src/infrastructure/` and group by responsibility within that dir
+  - Group all other code in `src/` by responsibility: eg `domain/`, `workflows/`, `demo/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
+  - important constructs (usually coordinators, managers, mediators) should get their own files and sit near the top of the directory hierarchy; lower-level implementation code should be pushed down into subdirectories
+  - introduce interfaces where more than one implementation of something may be needed
+
+Specific to this project
+
 - Keep database metadata separate from canonical file-based task data.
 - Avoid duplicate sources of truth. For example, `request.md` is the canonical job prompt and is not duplicated as `jobs.instructions`.
 - Do not invent extra entities, IDs, or current-state fields without a concrete need. Event logs should record obvious observable harness activity using only IDs the harness provides or that correlation strictly requires.
 - In this project, “demo” means a policy-defined workflow through the real architecture against the managed project, not a hardcoded command or a separate fake domain model, registry, runner, or generated project.
-- file system layout
-  - the filesystem should group subsystems and hide detail in subdirs
-  - use a "deep modules" approach
-  - important constructs (usually coordinators, managers, mediators) should get their own files and sit near the top of the directory hierarchy; lower-level implementation code should be pushed down into subdirectories
-  - put INFRASTRUCTURE_WRAPPER's into src/infrastructure/ and group within that dir
-  - introduce interfaces where more than one implementation of something may be needed
 
 ## Testing and safety
 
