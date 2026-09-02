@@ -17,11 +17,20 @@ export interface HarnessFinishInput {
   run(command: string[], cwd: string): HarnessCommandResult;
 }
 
+export interface HarnessResolveInput {
+  which(command: string): string | null;
+  run(command: string[], cwd: string): HarnessCommandResult;
+  home: string;
+  isExecutable(path: string): boolean;
+  canonicalPath(path: string): string;
+}
+
 /** Per-harness rules for proving a live CLI can run a worker profile and for building its argv snapshot. */
 export interface HarnessContract {
   readonly harness: HarnessName;
   readonly executableName: string;
   readonly requiredHelpOptions: readonly string[];
+  resolveExecutable(input: HarnessResolveInput): string;
   finish(input: HarnessFinishInput): HarnessSetupResult;
 }
 

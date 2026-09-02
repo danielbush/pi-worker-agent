@@ -1,5 +1,5 @@
 import { toolsForCapability } from "../../domain/execution-profile.ts";
-import { requireHarnessOutput, type HarnessContract, type HarnessFinishInput, type HarnessSetupResult } from "../harness-contract.ts";
+import { requireHarnessOutput, type HarnessContract, type HarnessFinishInput, type HarnessResolveInput, type HarnessSetupResult } from "../harness-contract.ts";
 
 const THINKING = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 
@@ -11,6 +11,12 @@ export class PiHarnessContract implements HarnessContract {
 
   static create(): PiHarnessContract {
     return new PiHarnessContract();
+  }
+
+  resolveExecutable(input: HarnessResolveInput): string {
+    const resolved = input.which(this.executableName);
+    if (!resolved || !resolved.startsWith("/")) throw new Error(`${this.executableName} executable is unavailable as an absolute path`);
+    return resolved;
   }
 
   finish(input: HarnessFinishInput): HarnessSetupResult {

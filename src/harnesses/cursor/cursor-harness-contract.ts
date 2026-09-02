@@ -1,6 +1,7 @@
+import { createCursorExecutableLocator, resolveCursorExecutable } from "./cursor-executable.ts";
 import { cursorCatalogHasModel } from "./cursor-model-catalog.ts";
 import { CURSOR_STREAM_CONTRACT } from "./cursor-stream-json.ts";
-import { requireHarnessOutput, type HarnessContract, type HarnessFinishInput, type HarnessSetupResult } from "../harness-contract.ts";
+import { requireHarnessOutput, type HarnessContract, type HarnessFinishInput, type HarnessResolveInput, type HarnessSetupResult } from "../harness-contract.ts";
 
 export interface CursorHarnessContractOptions {
   verifiedVersions: ReadonlySet<string>;
@@ -21,6 +22,14 @@ export class CursorHarnessContract implements HarnessContract {
 
   static create(options: CursorHarnessContractOptions): CursorHarnessContract {
     return new CursorHarnessContract(options);
+  }
+
+  resolveExecutable(input: HarnessResolveInput): string {
+    return resolveCursorExecutable({
+      ...createCursorExecutableLocator(input.which, input.run, input.home),
+      isExecutable: input.isExecutable,
+      canonicalPath: input.canonicalPath,
+    });
   }
 
   finish(input: HarnessFinishInput): HarnessSetupResult {
