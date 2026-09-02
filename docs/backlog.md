@@ -21,4 +21,12 @@
 
 ## fix
 
+## test
+
+- **test: Verify a clean installation end to end**
+  - Clone the repository into a separate clean location and start it using only the documented setup path.
+  - Exercise project and workspace registration, task delegation, the default workflow, status reporting, and worker sandbox startup without relying on this checkout's existing data or configuration.
+  - Record each discovered problem as a focused `fix` backlog item before correcting and retesting it.
+  - COMMENT: I'll clone this project somewhere and start it up; then we fix any issues.
+
 ## chore
