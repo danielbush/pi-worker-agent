@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Registry } from "../../storage/registry.ts";
 import { TaskStore } from "../../storage/task-store.ts";
-import { formatWorkerStatus, WorkerStatusReporter } from "../worker-status-reporter.ts";
+import { formatTaskStatus, TaskStatusReporter } from "../task-status-reporter.ts";
 
 const TIMESTAMP = "2026-08-30T12:00:00Z";
 
@@ -10,7 +10,7 @@ test("emits manager-visible status from nulled worker state", async () => {
   const registry = Registry.createNull({
     tasks: [{
       id: "task_demo",
-      projectId: "project_demo",
+      workspaceId: "project_demo",
       title: "Implement greeting CLI",
       status: "running",
       createdAt: TIMESTAMP,
@@ -57,7 +57,7 @@ test("emits manager-visible status from nulled worker state", async () => {
       }],
     }],
   });
-  const reporter = new WorkerStatusReporter(registry, taskStore);
+  const reporter = new TaskStatusReporter(registry, taskStore);
 
   // act
   const status = await reporter.inspect("task_demo");
@@ -80,6 +80,12 @@ test("emits manager-visible status from nulled worker state", async () => {
       result: "Change src/index.ts and run bun test.",
     }],
   });
-  expect(formatWorkerStatus(status!)).toContain("plan job job_plan: completed");
-  expect(formatWorkerStatus(status!)).toContain("Result:\nChange src/index.ts and run bun test.");
+  expect(formatTaskStatus(status!)).toContain(
+    "job_plan | Plan greeting CLI implementation | completed",
+  );
+  expect(formatTaskStatus(status!)).toContain("Use --verbose for progress, artifact paths");
+  expect(formatTaskStatus(status!)).not.toContain("Worker session:");
+  expect(formatTaskStatus(status!)).not.toContain("Change src/index.ts and run bun test.");
+  expect(formatTaskStatus(status!, { includeResults: true }))
+    .toContain("Result:\nChange src/index.ts and run bun test.");
 });

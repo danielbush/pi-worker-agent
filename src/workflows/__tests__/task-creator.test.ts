@@ -13,15 +13,25 @@ class FixedIds {
 
 test("creates canonical task files against an authorized workspace", async () => {
   // arrange
-  const registry = Registry.createNull({ projects: [{
-    id: "project_demo",
-    name: "pi-worker-agent",
-    rootDir: "/projects/pi-worker-agent",
-    createdAt: TIMESTAMP,
-    lastUsedAt: TIMESTAMP,
-    authorizedAt: TIMESTAMP,
-    authorizedBySessionId: "manager-session",
-  }] });
+  const registry = Registry.createNull({
+    workspaces: [{
+      id: "workspace_demo",
+      name: "pi-worker-agent",
+      rootDir: "/projects/pi-worker-agent",
+      createdAt: TIMESTAMP,
+      lastUsedAt: TIMESTAMP,
+      authorizedAt: TIMESTAMP,
+      authorizedBySessionId: "manager-session",
+    }],
+    projects: [{
+      id: "project_demo",
+      directoryName: "pi-worker-agent",
+      title: "Pi worker agent",
+      description: null,
+      createdAt: TIMESTAMP,
+      lastUsedAt: TIMESTAMP,
+    }],
+  });
   const taskStore = TaskStore.createNull();
   const creator = new TaskCreator(
     registry,
@@ -32,7 +42,8 @@ test("creates canonical task files against an authorized workspace", async () =>
 
   // act
   const created = await creator.create({
-    workspaceId: "project_demo",
+    workspaceId: "workspace_demo",
+    projectId: "project_demo",
     title: "Add greeting CLI",
     intent: "Demonstrate task orchestration.",
     outcomes: "- [ ] Greeting works.\n",
@@ -40,8 +51,9 @@ test("creates canonical task files against an authorized workspace", async () =>
   });
 
   // assert
-  expect(created.task).toMatchObject({ id: TASK_ID, projectId: "project_demo", status: "queued" });
-  expect(registry.projects.get("project_demo")).toMatchObject({ rootDir: "/projects/pi-worker-agent" });
+  expect(created.task).toMatchObject({ id: TASK_ID, workspaceId: "workspace_demo", status: "queued" });
+  expect(created.workspace).toMatchObject({ rootDir: "/projects/pi-worker-agent" });
+  expect(registry.projectTasks.listTasks("project_demo")).toEqual([created.task]);
   expect(registry.tasks.get(TASK_ID)).toEqual(created.task);
   expect(taskStore.tasks.state).toEqual([{
     taskId: TASK_ID,

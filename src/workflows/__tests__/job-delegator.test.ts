@@ -16,8 +16,8 @@ class FixedIds {
 test("creates a dependent implementation job, worktree, and detached launch", async () => {
   // arrange
   const registry = Registry.createNull({
-    projects: [{
-      id: "project_demo",
+    workspaces: [{
+      id: "workspace_demo",
       name: "pi-worker-agent",
       rootDir: "/projects/pi-worker-agent",
       createdAt: TIMESTAMP,
@@ -25,7 +25,7 @@ test("creates a dependent implementation job, worktree, and detached launch", as
     }],
     tasks: [{
       id: TASK_ID,
-      projectId: "project_demo",
+      workspaceId: "workspace_demo",
       title: "Add greeting CLI",
       status: "completed",
       createdAt: TIMESTAMP,

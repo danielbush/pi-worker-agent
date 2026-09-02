@@ -1,10 +1,9 @@
-/** Queryable metadata for one registered project in the `workspaces` table. */
+/** Durable metadata for one `$DATA_ROOT/projects/<directoryName>` management project. */
 export interface Project {
   id: string;
-  name: string;
-  rootDir: string;
+  directoryName: string;
+  title: string;
+  description: string | null;
   createdAt: string;
   lastUsedAt: string;
-  authorizedAt?: string | null;
-  authorizedBySessionId?: string | null;
 }

@@ -17,7 +17,7 @@ flowchart LR
     subgraph Arrival[How the data arrives]
         User([User])
         Manager["Manager agent<br/>ongoing Pi conversation"]
-        Translation["Translate conversation into a task<br/><br/>projectId<br/>intent?<br/>outcomes?<br/>background"]
+        Translation["Translate conversation into a task<br/><br/>projectId<br/>workspaceId<br/>intent?<br/>outcomes?<br/>background"]
         PlanJobs["Define each job<br/><br/>jobType<br/>instructions"]
         AssignIds["Generate stable IDs<br/><br/>taskId<br/>jobId<br/>workerSessionId"]
         Create["Create database rows,<br/>task files, and isolated worktrees"]
@@ -40,9 +40,13 @@ flowchart LR
         subgraph Tables[Tables]
             direction LR
 
-            Project["workspaces<br/><br/>id<br/>name<br/>rootDir<br/>createdAt<br/>lastUsedAt"]
+            Project["projects<br/><br/>id<br/>directoryName<br/>title<br/>description?<br/>createdAt<br/>lastUsedAt"]
 
-            Task["tasks<br/><br/>id<br/>projectId?<br/>title<br/>status<br/>createdAt<br/>finishedAt"]
+            Workspace["workspaces<br/><br/>id<br/>name<br/>rootDir<br/>authorization metadata"]
+
+            ProjectTask["projects_tasks<br/><br/>projectId<br/>taskId<br/>addedAt"]
+
+            Task["tasks<br/><br/>id<br/>workspaceId?<br/>title<br/>status<br/>createdAt<br/>finishedAt"]
 
             Job["jobs<br/><br/>id<br/>taskId<br/>jobType<br/>parentSessionId<br/>parentSessionFile<br/>harness<br/>model<br/>effortLevel<br/>modelName<br/>modelVersion<br/>title<br/>status<br/>progress<br/>createdAt<br/>finishedAt<br/>bundlePath<br/>userNotified<br/>agentNotified"]
 
@@ -101,12 +105,16 @@ flowchart LR
     Workflow -->|guides task and job decisions| Manager
     Coding -->|guides coding requests| Manager
 
-    Project -->|id and rootDir| Manager
-    Project -->|rootDir for projectId| Create
+    Project -->|identity and task grouping| Manager
+    Workspace -->|authorized rootDir| Manager
+    Workspace -->|rootDir for workspaceId| Create
     Create -->|insert and later update| Task
+    Create -->|insert| ProjectTask
     Create -->|insert and later update| Job
     Create -->|insert| WorkerSession
-    Project -.->|id referenced by tasks.projectId| Task
+    Workspace -.->|id referenced by tasks.workspaceId| Task
+    Project -.->|projectId| ProjectTask
+    Task -.->|taskId| ProjectTask
     Task -.->|id referenced by jobs.taskId| Job
     Job -.->|id referenced by workerSessions.jobId| WorkerSession
     Job -.->|id referenced by both job ID fields| Dependency
@@ -168,7 +176,8 @@ All paths in the storage layout below are relative to `DATA_ROOT`. Consumers nor
 
 The user and manager agent discuss a piece of work. The manager translates the relevant parts of that conversation into:
 
-- **`projectId`** — the registered project workspace selected by the manager.
+- **`projectId`** — the registered management project associated with the task.
+- **`workspaceId`** — the user-authorized execution location selected for the task.
 - Optional **`intent`** — why the user wants the work and the shape they want it to take, ideally preserved in their own words.
 - Optional **`outcomes`** — a checklist of what should be observable when the task is complete.
 - **`background`** — relevant facts, decisions, constraints, or a conversation summary needed to understand the task.
@@ -188,30 +197,45 @@ The manager decomposes the task into jobs. Each job has:
 
 The application generates stable IDs before creating database rows or filesystem records. SQLite and the filesystem do not assign these IDs.
 
+- Generate bare UUIDs for project, workspace, and task identities. Manager tools accept an exact ID or any unique shorthand of at least four leading characters.
 - Generate `taskId` as a bare UUID, then use it for `tasks.id` and `tasks/<first-two-hex-digits>/<task-uuid>/`. The single two-character prefix level distributes tasks across 256 directories without adding unnecessary traversal depth.
 - Generate each `jobId`, then use it for `jobs.id`, `jobs/<job-id>/`, and the derived `worktrees/<job-id>/` path.
 - Generate each `workerSessionId`, then use it for `workerSessions.id` and `worker-sessions/<session-id>/`.
 
-The manager selects an existing workspace for the managed project, loads its `rootDir`, generates `taskId`, and creates the task. Demonstrations use this same project, task, job, worker-session, and worktree flow rather than a hardcoded command or generated-project fixture.
+The manager selects a registered management project and an authorized workspace, loads the workspace's `rootDir`, generates `taskId`, and atomically creates both the task and its `projects_tasks` association. Demonstrations use this same project, workspace, task, job, worker-session, and worktree flow rather than a hardcoded command or generated-project fixture.
 
 ## Metadata (database)
 
 SQLite stores structured metadata and query-friendly current-state projections.
 
+### `projects`
+
+Each immediate `$DATA_ROOT/projects/<directoryName>` subdirectory maps to durable project metadata.
+
+- `id` — synthetic project identity.
+- `directoryName` — unique directory mapping under `DATA_ROOT/projects/`.
+- `title` and optional `description` — enough identifying context to understand the project if its file store is unavailable.
+- `createdAt` and `lastUsedAt` — registration and activity timestamps.
+
 ### `workspaces`
 
-Registered codebase checkouts are called workspaces in metadata to distinguish them from the managed project sequences under `DATA_ROOT/projects/`.
+Workspaces are user-authorized codebase locations, independent of management-project identity.
 
-- `id` — project identity used by tasks.
-- `name` — user-facing project name.
-- `rootDir` — main project checkout.
-- `createdAt` — when the project was registered.
-- `lastUsedAt` — when it was last selected for a task.
+- `id` — workspace identity used by tasks.
+- `name` — user-facing workspace name.
+- `rootDir` — canonical codebase checkout path.
+- `createdAt`, `lastUsedAt`, and authorization metadata — registration, activity, and approval audit data.
+
+### `projects_tasks`
+
+- `projectId` and `taskId` associate projects and tasks without relying on Markdown references.
+- `addedAt` records when the association was created.
+- The composite primary key prevents duplicate associations.
 
 ### `tasks`
 
 - `id` — task identity.
-- `projectId` — optional reference to `workspaces.id`.
+- `workspaceId` — optional reference to `workspaces.id`.
 - `title` — short, action-oriented summary derived by the manager from the available task files.
 - `status` — overall task state.
 - `createdAt` and `finishedAt` — task lifetime.
@@ -401,8 +425,8 @@ Fields when relevant:
 For a project job, the extension:
 
 - Creates the job and assigns its `id`.
-- Loads the project through `tasks.projectId`.
-- Reads the project's `rootDir`.
+- Loads the workspace through `tasks.workspaceId`.
+- Reads the workspace's `rootDir`.
 - Computes the worktree path as `worktrees/<job-id>/`.
 - Creates the git worktree.
 - Executes the worker inside it.
@@ -411,7 +435,7 @@ The worktree path is derived from the job `id`; it is not stored on the job. Job
 
 ## Manager permissions
 
-The Pi extension starts in restricted manager mode. Its application-enforced allowlist exposes read tools and worker-agent orchestration tools, while a `tool_call` guard blocks every other tool even if another extension reactivates it. The manager may inspect and propose any workspace path through `worker_register_workspace`, but the tool fails without interactive UI and records the canonical path in SQLite only after the user approves the displayed name, path, action, and Git status. Task creation accepts only an authorized workspace ID, and delegation revalidates that the recorded canonical path remains accessible. Project/task/workspace relationships are intentionally separate future work.
+The Pi extension starts in restricted manager mode. Its application-enforced allowlist exposes read tools and worker-agent orchestration tools, while a `tool_call` guard blocks every other tool even if another extension reactivates it. The manager may inspect and propose any workspace path through `worker_register_workspace`, but the tool fails without interactive UI and records the canonical path in SQLite only after the user approves the displayed name, path, action, and Git status. Project registration accepts only existing immediate subdirectories under `$DATA_ROOT/projects/`, stores a synthetic ID plus identifying metadata, and never derives task membership by parsing Markdown. Task creation accepts a registered project ID and authorized workspace ID, creates the `projects_tasks` association transactionally, and delegation revalidates that the recorded canonical workspace path remains accessible. Managers answer project-status questions through the joined project-task query tool; `taskid://...` references remain documentation links.
 
 Unrestricted coding is an explicit user elevation rather than an agent decision. `/development-mode` requires interactive confirmation and lasts only for the current session; `/manager-mode`, reload, and session replacement restore the restricted manager profile.
 

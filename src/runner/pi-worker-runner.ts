@@ -59,8 +59,8 @@ export class PiWorkerRunner {
     if (!workerSession || workerSession.jobId !== job.id) {
       throw new Error(`Unknown worker session: ${input.workerSessionId}`);
     }
-    const project = task.projectId ? this.registry.projects.get(task.projectId) : undefined;
-    if (!project) throw new Error(`Task has no registered project: ${task.id}`);
+    const workspace = task.workspaceId ? this.registry.workspaces.get(task.workspaceId) : undefined;
+    if (!workspace) throw new Error(`Task has no registered workspace: ${task.id}`);
 
     const events = this.taskStore.events(task.id, job.id, workerSession.id);
     const request = await this.taskStore.readRequest(task.id, job.id);
@@ -71,7 +71,7 @@ export class PiWorkerRunner {
     });
 
     try {
-      const cwd = job.jobType === "implement" ? this.taskStore.paths.worktree(job.id) : project.rootDir;
+      const cwd = job.jobType === "implement" ? this.taskStore.paths.worktree(job.id) : workspace.rootDir;
       const temporaryDirectory = join(sessionDirectory, "tmp");
       const process = await this.harness.start({
         cwd,

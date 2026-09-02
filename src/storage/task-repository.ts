@@ -1,10 +1,12 @@
+import { resolveIdReference } from "../domain/id.ts";
 import type { Task, TaskStatus } from "../domain/task.ts";
 import type { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 
 interface TaskPersistence {
   create(task: Task): void;
   get(id: string): Task | undefined;
-  listForProject(projectId: string): Task[];
+  list(): Task[];
+  listForWorkspace(workspaceId: string): Task[];
   updateStatus(id: string, status: TaskStatus, finishedAt: string | null): void;
 }
 
@@ -15,10 +17,11 @@ export class TaskRepository {
   static create(database: RegistryDatabase): TaskRepository {
     return new TaskRepository({
       create: (task) => database.db.query(`
-        INSERT INTO tasks (id, projectId, title, status, createdAt, finishedAt) VALUES (?, ?, ?, ?, ?, ?)
-      `).run(task.id, task.projectId, task.title, task.status, task.createdAt, task.finishedAt),
+        INSERT INTO tasks (id, workspaceId, title, status, createdAt, finishedAt) VALUES (?, ?, ?, ?, ?, ?)
+      `).run(task.id, task.workspaceId, task.title, task.status, task.createdAt, task.finishedAt),
       get: (id) => (database.db.query("SELECT * FROM tasks WHERE id = ?").get(id) as Task | null) ?? undefined,
-      listForProject: (projectId) => database.db.query(`SELECT * FROM tasks WHERE projectId = ? ORDER BY createdAt DESC`).all(projectId) as Task[],
+      list: () => database.db.query("SELECT * FROM tasks ORDER BY createdAt DESC").all() as Task[],
+      listForWorkspace: (workspaceId) => database.db.query(`SELECT * FROM tasks WHERE workspaceId = ? ORDER BY createdAt DESC`).all(workspaceId) as Task[],
       updateStatus: (id, status, finishedAt) => { database.db.query("UPDATE tasks SET status = ?, finishedAt = ? WHERE id = ?").run(status, finishedAt, id); },
     });
   }
@@ -31,7 +34,9 @@ export class TaskRepository {
         records.set(task.id, structuredClone(task));
       },
       get: (id) => clone(records.get(id)),
-      listForProject: (projectId) => [...records.values()].filter((task) => task.projectId === projectId)
+      list: () => [...records.values()].map((task) => structuredClone(task))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      listForWorkspace: (workspaceId) => [...records.values()].filter((task) => task.workspaceId === workspaceId)
         .map((task) => structuredClone(task)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       updateStatus: (id, status, finishedAt) => { const task = records.get(id); if (task) Object.assign(task, { status, finishedAt }); },
     });
@@ -39,7 +44,11 @@ export class TaskRepository {
 
   create(task: Task): void { this.persistence.create(task); }
   get(id: string): Task | undefined { return this.persistence.get(id); }
-  listForProject(projectId: string): Task[] { return this.persistence.listForProject(projectId); }
+  resolve(reference: string): Task | undefined {
+    return resolveIdReference(reference, this.persistence.list(), "task");
+  }
+  list(): Task[] { return this.persistence.list(); }
+  listForWorkspace(workspaceId: string): Task[] { return this.persistence.listForWorkspace(workspaceId); }
   updateStatus(id: string, status: TaskStatus, finishedAt: string | null = null): void {
     this.persistence.updateStatus(id, status, finishedAt);
   }

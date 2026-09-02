@@ -8,6 +8,9 @@ const MANAGER_TOOL_NAMES = new Set([
   "find",
   "ls",
   "worker_register_workspace",
+  "worker_register_project",
+  "worker_add_task_to_project",
+  "worker_project_tasks",
   "worker_create_task",
   "worker_delegate_job",
 ]);

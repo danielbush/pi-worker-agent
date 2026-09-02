@@ -1,5 +1,4 @@
 import { afterEach, expect, test } from "bun:test";
-import { Database } from "bun:sqlite";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -41,20 +40,33 @@ test("composes project, task, job, session, and dependency repositories", () => 
   const registry = Registry.create(root);
 
   registry.transaction(() => {
-    registry.projects.create({
-      id: "project_test",
+    registry.workspaces.create({
+      id: "workspace_test",
       name: "Greeting demo",
       rootDir: "/tmp/greeting-demo",
       createdAt: "2026-08-30T12:00:00Z",
       lastUsedAt: "2026-08-30T12:00:00Z",
     });
+    registry.projects.create({
+      id: "project_test",
+      directoryName: "greeting-demo",
+      title: "Greeting demo",
+      description: "A test project",
+      createdAt: "2026-08-30T12:00:00Z",
+      lastUsedAt: "2026-08-30T12:00:00Z",
+    });
     registry.tasks.create({
       id: "task_test",
-      projectId: "project_test",
+      workspaceId: "workspace_test",
       title: "Implement greeting CLI",
       status: "queued",
       createdAt: "2026-08-30T12:00:00Z",
       finishedAt: null,
+    });
+    registry.projectTasks.create({
+      projectId: "project_test",
+      taskId: "task_test",
+      addedAt: "2026-08-30T12:00:00Z",
     });
     registry.jobs.create(job("job_plan", "task_test", "plan", "queued"));
     registry.jobs.create(job("job_implement", "task_test", "implement", "blocked"));
@@ -95,7 +107,9 @@ test("composes project, task, job, session, and dependency repositories", () => 
     });
   });
 
-  expect(registry.projects.get("project_test")?.name).toBe("Greeting demo");
+  expect(registry.workspaces.get("workspace_test")?.name).toBe("Greeting demo");
+  expect(registry.projects.get("project_test")?.title).toBe("Greeting demo");
+  expect(registry.projectTasks.listTasks("project_test").map((task) => task.id)).toEqual(["task_test"]);
   expect(registry.tasks.get("task_test")?.status).toBe("queued");
   expect(registry.jobs.listForTask("task_test").map(({ id, status }) => ({ id, status }))).toEqual([
     { id: "job_plan", status: "queued" },
@@ -114,66 +128,6 @@ test("composes project, task, job, session, and dependency repositories", () => 
   registry.close();
 });
 
-test("removes the obsolete prototype database schema", () => {
-  const root = mkdtempSync(join(tmpdir(), "pi-worker-registry-"));
-  roots.push(root);
-  const legacy = new Database(join(root, "registry.sqlite"), { create: true });
-  legacy.exec(`
-    CREATE TABLE jobs (
-      id TEXT PRIMARY KEY,
-      parent_session_id TEXT NOT NULL,
-      task TEXT NOT NULL
-    );
-    INSERT INTO jobs VALUES ('legacy-job', 'legacy-session', 'legacy task');
-  `);
-  legacy.close();
-
-  const registry = Registry.create(root);
-  const inspection = new Database(join(root, "registry.sqlite"));
-  const columns = inspection.query("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
-
-  expect(columns.map((column) => column.name)).toContain("taskId");
-  expect(inspection.query("SELECT COUNT(*) AS count FROM jobs").get()).toEqual({ count: 0 });
-  expect(inspection.query("PRAGMA user_version").get()).toEqual({ user_version: 3 });
-  inspection.close();
-  registry.close();
-});
-
-test("renames an existing projects table without losing workspace metadata", () => {
-  const root = mkdtempSync(join(tmpdir(), "pi-worker-registry-"));
-  roots.push(root);
-  const legacy = new Database(join(root, "registry.sqlite"), { create: true });
-  legacy.exec(`
-    CREATE TABLE projects (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      rootDir TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      lastUsedAt TEXT NOT NULL
-    ) STRICT;
-    INSERT INTO projects VALUES (
-      'project_existing',
-      'Existing project',
-      '/tmp/existing',
-      '2026-08-30T12:00:00Z',
-      '2026-08-30T12:00:00Z'
-    );
-    PRAGMA user_version = 1;
-  `);
-  legacy.close();
-
-  const registry = Registry.create(root);
-  const inspection = new Database(join(root, "registry.sqlite"));
-
-  expect(registry.projects.get("project_existing")?.rootDir).toBe("/tmp/existing");
-  expect(inspection.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'projects'").get()).toBeNull();
-  expect(inspection.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'workspaces'").get()).toEqual({ name: "workspaces" });
-  expect(inspection.query("PRAGMA foreign_key_list(tasks)").all()).toContainEqual(expect.objectContaining({ table: "workspaces", from: "projectId" }));
-  expect(inspection.query("PRAGMA user_version").get()).toEqual({ user_version: 3 });
-  inspection.close();
-  registry.close();
-});
-
 test("enforces metadata relationships", () => {
   const root = mkdtempSync(join(tmpdir(), "pi-worker-registry-"));
   roots.push(root);
@@ -181,7 +135,7 @@ test("enforces metadata relationships", () => {
 
   expect(() => registry.tasks.create({
     id: "task_invalid",
-    projectId: "missing_project",
+    workspaceId: "missing_workspace",
     title: "Invalid task",
     status: "queued",
     createdAt: "2026-08-30T12:00:00Z",

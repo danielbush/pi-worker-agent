@@ -3,7 +3,7 @@ export type TaskStatus = "queued" | "running" | "completed" | "failed" | "cancel
 /** Queryable metadata and current status for one user objective in `tasks`. */
 export interface Task {
   id: string;
-  projectId: string | null;
+  workspaceId: string | null;
   title: string;
   status: TaskStatus;
   createdAt: string;

@@ -69,8 +69,8 @@ export class JobDelegator {
     }
     const task = this.registry.tasks.get(input.taskId);
     if (!task) throw new Error(`Unknown task: ${input.taskId}`);
-    const project = task.projectId ? this.registry.projects.get(task.projectId) : undefined;
-    if (!project) throw new Error(`Task has no registered workspace: ${task.id}`);
+    const workspace = task.workspaceId ? this.registry.workspaces.get(task.workspaceId) : undefined;
+    if (!workspace) throw new Error(`Task has no registered workspace: ${task.id}`);
 
     const dependency = input.dependsOnJobId
       ? this.registry.jobs.get(input.dependsOnJobId)
@@ -91,7 +91,7 @@ export class JobDelegator {
     const worktreePath = input.jobType === "implement"
       ? this.taskStore.paths.worktree(jobId)
       : null;
-    if (worktreePath) this.worktrees.create(project.rootDir, worktreePath);
+    if (worktreePath) this.worktrees.create(workspace.rootDir, worktreePath);
 
     const bundlePath = await this.taskStore.jobs.create({
       taskId: task.id,

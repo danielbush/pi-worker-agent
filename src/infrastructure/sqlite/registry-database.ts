@@ -45,11 +45,8 @@ export class RegistryDatabase {
       this.exec("PRAGMA journal_mode = WAL");
       this.exec("PRAGMA busy_timeout = 5000");
       this.exec("PRAGMA foreign_keys = ON");
-      this.removeObsoletePrototypeSchema();
-      this.renameProjectsTable();
       this.createSchema();
-      this.addWorkspaceAuthorizationColumns();
-      this.exec("PRAGMA user_version = 3");
+      this.exec("PRAGMA user_version = 4");
     } catch (error) {
       this.db.close();
       throw error;
@@ -102,31 +99,6 @@ export class RegistryDatabase {
     this.db.exec(sql);
   }
 
-  /** Removes the unreleased prototype schema rather than maintaining compatibility with it. */
-  private removeObsoletePrototypeSchema(): void {
-    const jobs = this.db.query("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
-    if (jobs.length === 0 || jobs.some((column) => column.name === "taskId")) return;
-
-    this.exec(`
-      DROP TABLE IF EXISTS jobDependencies;
-      DROP TABLE IF EXISTS workerSessions;
-      DROP TABLE IF EXISTS jobs;
-      DROP TABLE IF EXISTS tasks;
-      DROP TABLE IF EXISTS projects;
-      DROP TABLE IF EXISTS workspaces;
-    `);
-  }
-
-  private renameProjectsTable(): void {
-    const projects = this.db.query(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'projects'",
-    ).get();
-    const workspaces = this.db.query(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'workspaces'",
-    ).get();
-    if (projects && !workspaces) this.exec("ALTER TABLE projects RENAME TO workspaces");
-  }
-
   private createSchema(): void {
     this.exec(`
       CREATE TABLE IF NOT EXISTS workspaces (
@@ -139,13 +111,29 @@ export class RegistryDatabase {
         authorizedBySessionId TEXT
       ) STRICT;
 
+      CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        directoryName TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        description TEXT,
+        createdAt TEXT NOT NULL,
+        lastUsedAt TEXT NOT NULL
+      ) STRICT;
+
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
-        projectId TEXT REFERENCES workspaces(id),
+        workspaceId TEXT REFERENCES workspaces(id),
         title TEXT NOT NULL,
         status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed', 'cancelled')),
         createdAt TEXT NOT NULL,
         finishedAt TEXT
+      ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS projects_tasks (
+        projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        taskId TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        addedAt TEXT NOT NULL,
+        PRIMARY KEY (projectId, taskId)
       ) STRICT;
 
       CREATE TABLE IF NOT EXISTS jobs (
@@ -186,20 +174,13 @@ export class RegistryDatabase {
         CHECK (jobId <> dependsOnJobId)
       ) STRICT;
 
-      CREATE INDEX IF NOT EXISTS tasks_project_created ON tasks(projectId, createdAt DESC);
+      DROP INDEX IF EXISTS tasks_project_created;
+      CREATE INDEX IF NOT EXISTS tasks_workspace_created ON tasks(workspaceId, createdAt DESC);
+      CREATE INDEX IF NOT EXISTS projects_tasks_task ON projects_tasks(taskId);
       CREATE INDEX IF NOT EXISTS jobs_task_created ON jobs(taskId, createdAt);
       CREATE INDEX IF NOT EXISTS jobs_parent_created ON jobs(parentSessionId, createdAt DESC);
       CREATE INDEX IF NOT EXISTS dependencies_parent ON jobDependencies(dependsOnJobId);
     `);
   }
 
-  private addWorkspaceAuthorizationColumns(): void {
-    const columns = this.db.query("PRAGMA table_info(workspaces)").all() as Array<{ name: string }>;
-    if (!columns.some((column) => column.name === "authorizedAt")) {
-      this.exec("ALTER TABLE workspaces ADD COLUMN authorizedAt TEXT");
-    }
-    if (!columns.some((column) => column.name === "authorizedBySessionId")) {
-      this.exec("ALTER TABLE workspaces ADD COLUMN authorizedBySessionId TEXT");
-    }
-  }
 }

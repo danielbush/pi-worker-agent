@@ -118,7 +118,7 @@ test("fails when Pi reports an assistant error despite exiting zero", async () =
 
 function createRegistry(job: Job = planningJob()): Registry {
   return Registry.createNull({
-    projects: [{
+    workspaces: [{
       id: "project_demo",
       name: "Greeting demo",
       rootDir: "/projects/greeting",
@@ -127,7 +127,7 @@ function createRegistry(job: Job = planningJob()): Registry {
     }],
     tasks: [{
       id: "task_demo",
-      projectId: "project_demo",
+      workspaceId: "project_demo",
       title: "Implement greeting CLI",
       status: "queued",
       createdAt: TIMESTAMP,

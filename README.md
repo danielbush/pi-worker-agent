@@ -58,7 +58,7 @@ $DATA_ROOT/projects/pi-worker-agent/
 plan → code (`implement` job)
 ```
 
-The manager uses `worker_register_workspace`, `worker_create_task`, and `worker_delegate_job` to create each durable workspace, task, and job explicitly. Manager mode exposes only read and orchestration tools; arbitrary shell commands and file mutations are blocked. The manager may inspect and propose any workspace path, but registration or directory creation requires interactive user approval. SQLite records approved canonical paths, and task creation can select only an authorized workspace ID.
+The manager uses narrow orchestration tools to register workspaces and management projects, create and associate tasks, query project task status, and delegate jobs explicitly. Manager mode exposes only read and orchestration tools; arbitrary shell commands and file mutations are blocked. The manager may inspect and propose any workspace path, but registration or directory creation requires interactive user approval. SQLite records approved canonical workspace paths, maps `$DATA_ROOT/projects/<directoryName>` entries to durable project metadata, and associates tasks through `projects_tasks`; Markdown `taskid://...` links remain human-facing references. Projects, workspaces, and tasks use bare UUIDs, and manager tools accept unique leading shorthand of at least four characters.
 
 When directly developing this system, the user can run `/development-mode` and confirm the warning to restore unrestricted coding tools for the current session. `/manager-mode` immediately restores the restricted tool set, and every new or reloaded session starts restricted.
 
@@ -71,5 +71,5 @@ The demo stops after code so the user can exercise the result. This is a normal 
 Inspect any created task from Pi with:
 
 ```text
-/worker-status <task-uuid>
+/task-status <task-uuid>
 ```

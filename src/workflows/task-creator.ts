@@ -1,5 +1,5 @@
 import type { Id } from "../domain/id.ts";
-import type { Project } from "../domain/project.ts";
+import type { Workspace } from "../domain/workspace.ts";
 import type { Task } from "../domain/task.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
 import { Registry } from "../storage/registry.ts";
@@ -7,6 +7,7 @@ import { TaskStore } from "../storage/task-store.ts";
 
 export interface CreateTaskInput {
   workspaceId: string;
+  projectId: string;
   title: string;
   intent?: string;
   outcomes?: string;
@@ -14,7 +15,8 @@ export interface CreateTaskInput {
 }
 
 export interface CreatedTask {
-  project: Project;
+  projectId: string;
+  workspace: Workspace;
   task: Task;
 }
 
@@ -37,11 +39,13 @@ export class TaskCreator {
 
   async create(input: CreateTaskInput): Promise<CreatedTask> {
     const timestamp = this.clock.now();
-    const project = this.registry.projects.get(input.workspaceId);
-    if (!project?.authorizedAt) throw new Error(`Workspace is not authorized: ${input.workspaceId}`);
+    const workspace = this.registry.workspaces.resolve(input.workspaceId);
+    if (!workspace?.authorizedAt) throw new Error(`Workspace is not authorized: ${input.workspaceId}`);
+    const project = this.registry.projects.resolve(input.projectId);
+    if (!project) throw new Error(`Unknown project: ${input.projectId}`);
     const task: Task = {
       id: this.ids.createTaskId(),
-      projectId: project.id,
+      workspaceId: workspace.id,
       title: input.title,
       status: "queued",
       createdAt: timestamp,
@@ -55,10 +59,12 @@ export class TaskCreator {
       background: input.background,
     });
     this.registry.transaction(() => {
+      this.registry.workspaces.touch(workspace.id, timestamp);
       this.registry.projects.touch(project.id, timestamp);
       this.registry.tasks.create(task);
+      this.registry.projectTasks.create({ projectId: project.id, taskId: task.id, addedAt: timestamp });
     });
 
-    return { project: { ...project, lastUsedAt: timestamp }, task };
+    return { projectId: project.id, workspace: { ...workspace, lastUsedAt: timestamp }, task };
   }
 }

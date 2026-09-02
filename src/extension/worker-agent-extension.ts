@@ -12,11 +12,14 @@ import {
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 import { JobDelegator } from "../workflows/job-delegator.ts";
+import { ProjectRegistrar } from "../workflows/project-registrar.ts";
+import { ProjectTaskLinker } from "../workflows/project-task-linker.ts";
+import { ProjectTaskReporter } from "../workflows/project-task-reporter.ts";
 import { TaskCreator } from "../workflows/task-creator.ts";
 import { WorkspaceRegistrar } from "../workflows/workspace-registrar.ts";
 import { ManagerPermissions } from "./manager-permissions.ts";
 import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
-import { formatWorkerStatus, WorkerStatusReporter } from "./worker-status-reporter.ts";
+import { formatTaskStatus, TaskStatusReporter } from "./task-status-reporter.ts";
 
 type WorkerAgentPi = Pick<
   ExtensionAPI,
@@ -93,6 +96,7 @@ export class WorkerAgentExtension {
     this.registered = true;
     this.registerLifecycle();
     this.registerWorkspaceTool();
+    this.registerProjectTools();
     this.registerTaskTool();
     this.registerJobTool();
     this.registerStatusCommand();
@@ -181,6 +185,76 @@ export class WorkerAgentExtension {
     });
   }
 
+  private registerProjectTools(): void {
+    this.pi.registerTool({
+      name: "worker_register_project",
+      label: "Register managed project",
+      description: "Index an existing immediate subdirectory of $DATA_ROOT/projects with durable identifying metadata.",
+      promptSnippet: "Register a managed-project directory",
+      promptGuidelines: [
+        "Read the project's sequence.md first and preserve its title and intent when registering metadata.",
+        "Only immediate directories under $DATA_ROOT/projects with sequence.md can be registered.",
+      ],
+      parameters: Type.Object({
+        directoryName: Type.String(),
+        title: Type.String(),
+        description: Type.Optional(Type.String()),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const project = ProjectRegistrar.create(this.root, registry, Id.create()).register(params);
+        return {
+          content: [{ type: "text", text: `Registered project ${project.title} (${project.id}).` }],
+          details: { projectId: project.id, directoryName: project.directoryName },
+        };
+      },
+    });
+
+    this.pi.registerTool({
+      name: "worker_add_task_to_project",
+      label: "Add task to project",
+      description: "Associate an existing durable task with a registered management project.",
+      promptSnippet: "Associate an existing task with a project",
+      parameters: Type.Object({
+        projectId: Type.String({ description: "Exact project ID or unique leading shorthand" }),
+        taskId: Type.String({ description: "Exact task ID or unique leading shorthand" }),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const association = ProjectTaskLinker.create(registry).link(params.projectId, params.taskId);
+        return {
+          content: [{ type: "text", text: `Added task ${association.taskId} to project ${association.projectId}.` }],
+          details: association,
+        };
+      },
+    });
+
+    this.pi.registerTool({
+      name: "worker_project_tasks",
+      label: "List project tasks",
+      description: "List task titles and statuses for a registered management project using the projects_tasks join.",
+      promptSnippet: "Check task status for a managed project",
+      parameters: Type.Object({
+        project: Type.String({ description: "Project directory name, exact ID, or unique leading shorthand" }),
+        outstandingOnly: Type.Optional(Type.Boolean()),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const report = ProjectTaskReporter.create(registry).inspect(
+          params.project,
+          params.outstandingOnly ?? false,
+        );
+        const lines = report.tasks.length === 0
+          ? ["No matching tasks."]
+          : report.tasks.map((task) => `${task.id} | ${task.status} | ${task.title}`);
+        return {
+          content: [{ type: "text", text: [`Project: ${report.project.title} (${report.project.id})`, ...lines].join("\n") }],
+          details: report,
+        };
+      },
+    });
+  }
+
   private registerTaskTool(): void {
     this.pi.registerTool({
       name: "worker_create_task",
@@ -189,7 +263,7 @@ export class WorkerAgentExtension {
       promptSnippet: "Create a durable worker task against an authorized workspace",
       promptGuidelines: [
         "Use worker_create_task instead of temporary scripts, direct SQLite writes, or manual task-directory creation.",
-        "Pass only a workspace ID returned by worker_register_workspace; worker_create_task cannot authorize a path.",
+        "Pass a workspace ID returned by worker_register_workspace and a project ID returned by worker_register_project; worker_create_task cannot authorize a path or invent a project.",
         "After worker_create_task succeeds, reference its UUID from the managed-project slice and .agent/tasks.md.",
       ],
       parameters: Type.Object({
@@ -197,7 +271,8 @@ export class WorkerAgentExtension {
         intent: Type.Optional(Type.String()),
         outcomes: Type.Optional(Type.String()),
         background: Type.String(),
-        workspaceId: Type.String({ description: "ID of a user-authorized workspace" }),
+        workspaceId: Type.String({ description: "Exact authorized workspace ID or unique leading shorthand" }),
+        projectId: Type.String({ description: "Exact registered project ID or unique leading shorthand" }),
       }),
       execute: async (_toolCallId, params) => {
         const registry = this.registry ??= this.services.registry();
@@ -207,6 +282,7 @@ export class WorkerAgentExtension {
           Id.create(),
         ).create({
           workspaceId: params.workspaceId,
+          projectId: params.projectId,
           title: params.title,
           intent: params.intent,
           outcomes: params.outcomes,
@@ -215,9 +291,9 @@ export class WorkerAgentExtension {
         return {
           content: [{
             type: "text",
-            text: `Created task ${created.task.id} for workspace ${created.project.name}.\nWorkspace: ${created.project.rootDir}`,
+            text: `Created task ${created.task.id} for workspace ${created.workspace.name} and project ${created.projectId}.\nWorkspace: ${created.workspace.rootDir}`,
           }],
-          details: { taskId: created.task.id, workspaceId: created.project.id, workspaceRoot: created.project.rootDir },
+          details: { taskId: created.task.id, projectId: created.projectId, workspaceId: created.workspace.id, workspaceRoot: created.workspace.rootDir },
         };
       },
     });
@@ -235,7 +311,7 @@ export class WorkerAgentExtension {
         "Evaluate a completed dependency before calling worker_delegate_job for the next workflow transition.",
       ],
       parameters: Type.Object({
-        taskId: Type.String(),
+        taskId: Type.String({ description: "Exact task UUID or unique leading shorthand" }),
         jobType: Type.String({ description: "plan or implement" }),
         title: Type.String(),
         request: Type.String({ description: "Complete canonical worker prompt, including relevant task context and accepted dependency results" }),
@@ -249,13 +325,14 @@ export class WorkerAgentExtension {
         const model = ctx.model;
         if (!model) throw new Error("Cannot delegate without an active model");
         const registry = this.registry ??= this.services.registry();
-        const task = registry.tasks.get(params.taskId);
-        const project = task?.projectId ? registry.projects.get(task.projectId) : undefined;
-        if (!project) throw new Error(`Task has no registered workspace: ${params.taskId}`);
-        if (!project.authorizedAt) throw new Error(`Task workspace is not authorized: ${project.id}`);
-        const preflight = WorkspaceDirectory.create(ctx.cwd).inspect(project.rootDir);
-        if (!preflight.exists || preflight.canonicalPath !== project.rootDir) {
-          throw new Error(`Task workspace path changed or is inaccessible: ${project.rootDir}`);
+        const task = registry.tasks.resolve(params.taskId);
+        if (!task) throw new Error(`Unknown task: ${params.taskId}`);
+        const workspace = task.workspaceId ? registry.workspaces.get(task.workspaceId) : undefined;
+        if (!workspace) throw new Error(`Task has no registered workspace: ${task.id}`);
+        if (!workspace.authorizedAt) throw new Error(`Task workspace is not authorized: ${workspace.id}`);
+        const preflight = WorkspaceDirectory.create(ctx.cwd).inspect(workspace.rootDir);
+        if (!preflight.exists || preflight.canonicalPath !== workspace.rootDir) {
+          throw new Error(`Task workspace path changed or is inaccessible: ${workspace.rootDir}`);
         }
         const delegated = await JobDelegator.create(
           this.root,
@@ -264,7 +341,7 @@ export class WorkerAgentExtension {
           Id.create(),
           this.runner,
         ).delegate({
-          taskId: params.taskId,
+          taskId: task.id,
           jobType: params.jobType as JobType,
           title: params.title,
           request: params.request,
@@ -281,12 +358,12 @@ export class WorkerAgentExtension {
           content: [{
             type: "text",
             text: [
-              `Started ${delegated.job.jobType} job ${delegated.job.id} (pid ${delegated.pid}) for task ${params.taskId}.`,
+              `Started ${delegated.job.jobType} job ${delegated.job.id} (pid ${delegated.pid}) for task ${task.id}.`,
               delegated.worktreePath ? `Worktree: ${delegated.worktreePath}` : "",
             ].filter(Boolean).join("\n"),
           }],
           details: {
-            taskId: params.taskId,
+            taskId: task.id,
             jobId: delegated.job.id,
             workerSessionId: delegated.workerSession.id,
             worktreePath: delegated.worktreePath,
@@ -298,28 +375,31 @@ export class WorkerAgentExtension {
   }
 
   private registerStatusCommand(): void {
-    this.pi.registerCommand("worker-status", {
-      description: "Show task, job, worker-session, and result status",
+    this.pi.registerCommand("task-status", {
+      description: "Show task status and its jobs; use --verbose for details and results",
       handler: async (args, ctx) => {
-        const taskId = args.trim().split(/\s+/)[0];
+        const arguments_ = args.trim().split(/\s+/).filter(Boolean);
+        const taskId = arguments_.find((argument) => !argument.startsWith("--"));
+        const verbose = arguments_.includes("--verbose");
         if (!taskId) {
-          ctx.ui.notify("Pass a task UUID: /worker-status <task-uuid>", "info");
+          ctx.ui.notify("Pass a task UUID or unique shorthand: /task-status <task-id>", "info");
           return;
         }
         try {
           const registry = this.registry ??= this.services.registry();
-          const status = await WorkerStatusReporter.create(
+          const task = registry.tasks.resolve(taskId);
+          const status = task ? await TaskStatusReporter.create(
             registry,
             this.services.taskStore(),
-          ).inspect(taskId);
+          ).inspect(task.id) : null;
           if (!status) {
             ctx.ui.notify(`Unknown worker task: ${taskId}`, "error");
             return;
           }
-          ctx.ui.notify(formatWorkerStatus(status), "info");
+          ctx.ui.notify(formatTaskStatus(status, { includeResults: verbose }), "info");
         } catch (error) {
           const detail = error instanceof Error ? error.message : String(error);
-          ctx.ui.notify(`Unable to read worker status: ${detail}`, "error");
+          ctx.ui.notify(`Unable to read task status: ${detail}`, "error");
         }
       },
     });

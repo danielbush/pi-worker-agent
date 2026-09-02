@@ -3,7 +3,7 @@ import type { TaskStatus } from "../domain/task.ts";
 import { Registry, type NullRegistryState } from "../storage/registry.ts";
 import { TaskStore, type NullTaskStoreState } from "../storage/task-store.ts";
 
-export interface WorkerJobStatus {
+export interface TaskJobStatus {
   id: string;
   type: string;
   title: string;
@@ -16,37 +16,37 @@ export interface WorkerJobStatus {
   result: string | null;
 }
 
-export interface WorkerTaskStatus {
+export interface TaskStatusDetails {
   id: string;
   title: string;
   status: TaskStatus;
-  jobs: WorkerJobStatus[];
+  jobs: TaskJobStatus[];
 }
 
-export interface NullWorkerStatusReporterState {
+export interface NullTaskStatusReporterState {
   registry?: NullRegistryState;
   taskStore?: NullTaskStoreState;
 }
 
 /** INFRASTRUCTURE_CONSUMER: reads canonical worker state for manager-facing status output. */
-export class WorkerStatusReporter {
+export class TaskStatusReporter {
   constructor(
     private readonly registry: Registry,
     private readonly taskStore: TaskStore,
   ) {}
 
-  static create(registry: Registry, taskStore: TaskStore): WorkerStatusReporter {
-    return new WorkerStatusReporter(registry, taskStore);
+  static create(registry: Registry, taskStore: TaskStore): TaskStatusReporter {
+    return new TaskStatusReporter(registry, taskStore);
   }
 
-  static createNull(state: NullWorkerStatusReporterState = {}): WorkerStatusReporter {
-    return new WorkerStatusReporter(
+  static createNull(state: NullTaskStatusReporterState = {}): TaskStatusReporter {
+    return new TaskStatusReporter(
       Registry.createNull(state.registry),
       TaskStore.createNull(state.taskStore),
     );
   }
 
-  async inspect(taskId: string): Promise<WorkerTaskStatus | undefined> {
+  async inspect(taskId: string): Promise<TaskStatusDetails | undefined> {
     const task = this.registry.tasks.get(taskId);
     if (!task) return undefined;
 
@@ -70,7 +70,7 @@ export class WorkerStatusReporter {
           ? this.taskStore.paths.events(task.id, job.id, session.id)
           : null,
         result: completed?.text ?? failed?.error ?? null,
-      } satisfies WorkerJobStatus;
+      } satisfies TaskJobStatus;
     }));
 
     return {
@@ -82,11 +82,20 @@ export class WorkerStatusReporter {
   }
 }
 
-export function formatWorkerStatus(status: WorkerTaskStatus): string {
+export function formatTaskStatus(
+  status: TaskStatusDetails,
+  options: { includeResults?: boolean } = {},
+): string {
   const lines = [
     `Task ${status.id}: ${status.title}`,
     `Status: ${status.status}`,
   ];
+  if (!options.includeResults) {
+    lines.push("", "Jobs:");
+    for (const job of status.jobs) lines.push(`${job.id} | ${job.title} | ${job.status}`);
+    lines.push("", "Use --verbose for progress, artifact paths, and full worker results.");
+    return lines.join("\n");
+  }
   for (const job of status.jobs) {
     lines.push(
       "",

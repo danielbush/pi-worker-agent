@@ -19,7 +19,7 @@ test("records a workspace after an approved preflight", () => {
   const registrar = new WorkspaceRegistrar(
     registry,
     directories,
-    { createProjectId: () => "project_demo" },
+    { createWorkspaceId: () => "workspace_demo" },
     Clock.createNull(TIMESTAMP),
   );
 
@@ -34,12 +34,12 @@ test("records a workspace after an approved preflight", () => {
 
   // assert
   expect(workspace).toMatchObject({
-    id: "project_demo",
+    id: "workspace_demo",
     rootDir: "/code/demo",
     authorizedAt: TIMESTAMP,
     authorizedBySessionId: "session_manager",
   });
-  expect(registry.projects.get("project_demo")).toEqual(workspace);
+  expect(registry.workspaces.get("workspace_demo")).toEqual(workspace);
   expect(directories.state.creations).toEqual([]);
 });
 
@@ -55,7 +55,7 @@ test("does not record a workspace without user approval", () => {
   const registrar = new WorkspaceRegistrar(
     registry,
     WorkspaceDirectory.createNull({ "/code/demo": preflight }),
-    { createProjectId: () => "project_demo" },
+    { createWorkspaceId: () => "workspace_demo" },
     Clock.createNull(TIMESTAMP),
   );
 
@@ -70,5 +70,5 @@ test("does not record a workspace without user approval", () => {
 
   // assert
   expect(registration).toThrow("requires user approval");
-  expect(registry.projects.list()).toEqual([]);
+  expect(registry.workspaces.list()).toEqual([]);
 });

@@ -29,6 +29,8 @@ Do not infer a named workflow from slash commands or implementation code. Names 
   - active project-management policy; consumers normally copy `examples/PROJECT_MANAGEMENT.md` here or create their own policy; this checkout symlinks the file only as a maintainer convenience for editing and using the example in place
   - how to structure/sequence project work to get outcomes
   - `$DATA_ROOT/projects/` is the source of truth for managed projects.
+    - Each immediate project subdirectory must map to a synthetic row in SQLite `projects`; use manager project tools to register it and query or associate tasks.
+    - SQLite `projects_tasks` is the relational source of project task membership and status queries; `taskid://...` references remain human-facing links.
     - Do not assume `./projects/` in this repository is the project registry unless `$DATA_ROOT` points here or the user explicitly says so.
     - By default this repository uses the gitignored `work/` directory; consumers can set `DATA_ROOT` or `PI_WORKER_AGENT_DATA_ROOT` to use another location.
   - Use `bun run projects` to list projects and `$DATA_ROOT`
@@ -48,7 +50,7 @@ Do not infer a named workflow from slash commands or implementation code. Names 
         - created should be YYYY-MM-DD; it can be use to archive entries old than year; archive to save on context
   - other questions you should handle:
     - where were the last few tasks for this project?
-      - use `$DATA_ROOT/projects/XXX/.agent/tasks.md`
+      - use the manager project-task query tool for relational status; use `$DATA_ROOT/projects/XXX/.agent/tasks.md` for the human-maintained index
     - what is the next thing to work on in this project?
       - use `$DATA_ROOT/PROJECT_MANAGEMENT.md` in conjunction with the content in `XXX/`
     - can we add a task to do ...?
