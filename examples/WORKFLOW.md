@@ -24,28 +24,33 @@ Address specific review findings in the implementation worktree and rerun releva
 
 Run focused verification against an existing worktree without making product changes. Depend on the implementation or fix being tested.
 
-## Default job profiles
+## Worker profiles
 
-The manager uses these profiles unless the task explicitly overrides a harness, logical model, or effort value for a job purpose:
+Worker profiles expose each harness's native configuration rather than attempting to normalize model and effort options across harnesses:
 
 ```yaml
-plan:
-  model: gpt-5.6-sol
-  effort: high
-  harness: pi
+profiles:
+  pi-sol-high:
+    harness: pi
+    model: openai-codex/gpt-5.6-sol
+    thinking: high
 
-implement:
-  model: cursor-grok-4.5
-  effort: high
-  harness: cursor-agent
+  cursor-grok-high:
+    harness: cursor-agent
+    model: cursor-grok-4.5-high
 
-review:
-  model: gpt-5.6-sol
-  effort: medium
-  harness: pi
+  pi-sol-medium:
+    harness: pi
+    model: openai-codex/gpt-5.6-sol
+    thinking: medium
+
+defaults:
+  plan: pi-sol-high
+  implement: cursor-grok-high
+  review: pi-sol-medium
 ```
 
-Logical model and effort values are owned by this policy. Harness adapters map them to native selectors, such as `openai-codex/gpt-5.6-sol` plus separate Pi effort or Cursor's effort-bearing `cursor-grok-4.5-high`. Missing mappings fail closed. Trusted execution capabilities remain application-enforced and cannot be expanded by a task override.
+Tasks may override a job purpose by selecting another configured worker profile. Harness adapters validate their own native settings and available models. Trusted execution capabilities such as `read-only`, `code`, and `test` remain separate, application-enforced, and unavailable to task overrides.
 
 ## Coding flow
 

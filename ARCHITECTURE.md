@@ -181,7 +181,7 @@ The user and manager agent discuss a piece of work. The manager translates the r
 - Optional **`intent`** — why the user wants the work and the shape they want it to take, ideally preserved in their own words.
 - Optional **`outcomes`** — a checklist of what should be observable when the task is complete.
 - **`background`** — relevant facts, decisions, constraints, or a conversation summary needed to understand the task.
-- Optional **job-profile overrides** — task-specific changes to the workflow's default harness, logical model, or effort for a job purpose.
+- Optional **worker-profile overrides** — task-specific selections that replace the workflow's default named worker profile for a job purpose.
 
 The manager harvests `intent` from the conversation rather than requiring the user to write a formal specification. It should preserve the user's wording even when that wording is informal or woolly. Technical specifications in the user's intent should remain intact because they may determine the shape of the result. If the user does not want to formalize intent, the manager writes a minimal faithful statement without adding ceremony.
 
@@ -192,23 +192,21 @@ When present, `intent` and `outcomes` are the primary basis for reviewing whethe
 The manager decomposes the task into jobs. Each job has:
 
 - **`jobType`** — the policy-defined purpose of the job.
-- **`executionProfile`** — the resolved, trusted execution configuration used for that job.
+- **`workerProfile`** — the named harness-native worker configuration selected for that job.
+- **`capabilityProfile`** — the separate trusted capability boundary enforced by the application.
 - **`instructions`** — what that specific worker should do and return.
 
-## Execution profiles and model mapping
+## Worker profiles and trusted capabilities
 
-Workflow purpose and execution capability are separate concepts. `WORKFLOW.md` defines the default sequence and assigns a named execution profile to each job purpose. A profile selects:
+Workflow purpose, worker configuration, and execution capability are separate concepts. `WORKFLOW.md` defines the default sequence and assigns a named worker profile to each job purpose. A worker profile selects a harness, such as `pi` or `cursor-agent`, plus that harness's native model and option values.
 
-- a worker harness, such as `pi` or `cursor-agent`;
-- a logical model designation owned by this system;
-- a normalized effort level owned by this system; and
-- a trusted capability profile, such as `read-only`, `code`, or `test`, which application code enforces.
+The system does not impose a universal model or effort vocabulary. Pi profiles can use a model such as `openai-codex/gpt-5.6-sol` with separate `thinking: high`, while Cursor profiles can use an effort-bearing model selector such as `cursor-grok-4.5-high`. Each harness adapter exposes and validates its native configuration and model catalog directly.
 
-Tasks may override the default profile assignment or individual harness, model, and effort values for a job purpose. The manager resolves defaults plus task overrides when creating each job. The resulting profile and effective values are snapshotted on the job so later policy changes do not rewrite the audit history of completed work.
+Tasks may override a job purpose by selecting another configured worker profile. The manager resolves the workflow default plus any task override when creating each job. The profile identity and exact native invocation values are snapshotted on the job so later policy or catalog changes do not rewrite the audit history of completed work.
 
-Logical model and effort designations remain independent of harness syntax. Each harness adapter maps the pair to the exact selector and arguments that harness expects. If a provider bakes version or effort into one model slug, that slug is an adapter output rather than the canonical model identity. Missing or incompatible mappings fail closed instead of silently changing model or effort.
+Trusted capability profiles, such as `read-only`, `code`, and `test`, remain independent of worker profiles. Application code assigns and enforces them; task overrides cannot expand capabilities by selecting a harness or model.
 
-The source, validation, persistence, and audit mechanism for policy-defined job types and execution profiles remains part of the execution-profile decoupling work. Regardless of whether policy is compiled into configuration or database rows, application-enforced capability profiles remain the security boundary.
+The source, validation, persistence, and audit mechanism for policy-defined job types and worker profiles remains part of the execution-profile decoupling work. Regardless of whether policy is compiled into configuration or database rows, application-enforced capability profiles remain the security boundary.
 
 ## Identity and creation order
 
@@ -257,7 +255,7 @@ Workspaces are user-authorized codebase locations, independent of management-pro
 - `status` — overall task state.
 - `createdAt` and `finishedAt` — task lifetime.
 - One task can contain multiple jobs, such as implementation, review, and fixes.
-- Optional job-profile overrides alter the workflow defaults for this task without changing project-wide policy.
+- Optional worker-profile overrides select configured alternatives for this task without changing project-wide policy.
 - Example title: `Investigate flaky authentication tests`.
 
 Task statuses:
@@ -276,18 +274,17 @@ Typical transitions are `queued → running → completed | failed | cancelled`.
 - `taskId` — required reference to `tasks.id`.
 - `jobType` — policy-defined purpose such as `investigate`, `plan`, `implement`, `review`, `test`, or `fix`.
 - `parentSessionId` and `parentSessionFile` — managing Pi session that owns notifications.
-- `executionProfile` — named and versioned profile resolved for this job.
+- `workerProfile` — named and versioned harness-native profile resolved for this job.
+- `capabilityProfile` — trusted application-enforced capability snapshot.
 - `harness` — resolved worker harness, such as `pi` or `cursor-agent`.
-- `model` — logical model designation owned by this system.
-- `effortLevel` — normalized requested reasoning or effort setting owned by this system.
-- `harnessModel` — exact model selector produced by the harness adapter, including any provider-specific version or baked-in effort designation.
-- `modelName` and `modelVersion` — normalized model identity for querying and comparison.
+- `model` and harness-specific options — exact native values supplied to the harness.
+- `modelName` and `modelVersion` — optional display and query metadata reported by the harness.
 - `title` — short summary of this specific job.
 - `status` and `progress` — current query-friendly projections.
 - `createdAt` and `finishedAt` — overall job lifetime.
 - `bundlePath` — job's file-storage directory.
 - `userNotified` and `agentNotified` — completion-delivery state.
-- The current implementation defines allowed `jobType` values in TypeScript; the execution-profile decoupling work will move policy-defined purposes and profile assignments out of core code while retaining application-enforced trusted capabilities.
+- The current implementation defines allowed `jobType` values in TypeScript; the profile decoupling work will move policy-defined purposes and worker-profile assignments out of core code while retaining application-enforced trusted capabilities.
 
 Job statuses:
 
