@@ -58,7 +58,7 @@ $DATA_ROOT/projects/pi-worker-agent/
 plan → code (`implement` job)
 ```
 
-The manager uses `worker_create_task` and `worker_delegate_job` to create each durable task and job explicitly. Manager mode exposes only read and orchestration tools; arbitrary shell commands and file mutations are blocked. Task creation and delegation are also confined to Pi's current workspace.
+The manager uses `worker_register_workspace`, `worker_create_task`, and `worker_delegate_job` to create each durable workspace, task, and job explicitly. Manager mode exposes only read and orchestration tools; arbitrary shell commands and file mutations are blocked. The manager may inspect and propose any workspace path, but registration or directory creation requires interactive user approval. SQLite records approved canonical paths, and task creation can select only an authorized workspace ID.
 
 When directly developing this system, the user can run `/development-mode` and confirm the warning to restore unrestricted coding tools for the current session. `/manager-mode` immediately restores the restricted tool set, and every new or reloaded session starts restricted.
 

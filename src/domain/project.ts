@@ -5,4 +5,6 @@ export interface Project {
   rootDir: string;
   createdAt: string;
   lastUsedAt: string;
+  authorizedAt?: string | null;
+  authorizedBySessionId?: string | null;
 }

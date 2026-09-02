@@ -48,7 +48,8 @@ export class RegistryDatabase {
       this.removeObsoletePrototypeSchema();
       this.renameProjectsTable();
       this.createSchema();
-      this.exec("PRAGMA user_version = 2");
+      this.addWorkspaceAuthorizationColumns();
+      this.exec("PRAGMA user_version = 3");
     } catch (error) {
       this.db.close();
       throw error;
@@ -133,7 +134,9 @@ export class RegistryDatabase {
         name TEXT NOT NULL,
         rootDir TEXT NOT NULL,
         createdAt TEXT NOT NULL,
-        lastUsedAt TEXT NOT NULL
+        lastUsedAt TEXT NOT NULL,
+        authorizedAt TEXT,
+        authorizedBySessionId TEXT
       ) STRICT;
 
       CREATE TABLE IF NOT EXISTS tasks (
@@ -188,5 +191,15 @@ export class RegistryDatabase {
       CREATE INDEX IF NOT EXISTS jobs_parent_created ON jobs(parentSessionId, createdAt DESC);
       CREATE INDEX IF NOT EXISTS dependencies_parent ON jobDependencies(dependsOnJobId);
     `);
+  }
+
+  private addWorkspaceAuthorizationColumns(): void {
+    const columns = this.db.query("PRAGMA table_info(workspaces)").all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "authorizedAt")) {
+      this.exec("ALTER TABLE workspaces ADD COLUMN authorizedAt TEXT");
+    }
+    if (!columns.some((column) => column.name === "authorizedBySessionId")) {
+      this.exec("ALTER TABLE workspaces ADD COLUMN authorizedBySessionId TEXT");
+    }
   }
 }

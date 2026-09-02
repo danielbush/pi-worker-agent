@@ -134,7 +134,7 @@ test("removes the obsolete prototype database schema", () => {
 
   expect(columns.map((column) => column.name)).toContain("taskId");
   expect(inspection.query("SELECT COUNT(*) AS count FROM jobs").get()).toEqual({ count: 0 });
-  expect(inspection.query("PRAGMA user_version").get()).toEqual({ user_version: 2 });
+  expect(inspection.query("PRAGMA user_version").get()).toEqual({ user_version: 3 });
   inspection.close();
   registry.close();
 });
@@ -169,7 +169,7 @@ test("renames an existing projects table without losing workspace metadata", () 
   expect(inspection.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'projects'").get()).toBeNull();
   expect(inspection.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'workspaces'").get()).toEqual({ name: "workspaces" });
   expect(inspection.query("PRAGMA foreign_key_list(tasks)").all()).toContainEqual(expect.objectContaining({ table: "workspaces", from: "projectId" }));
-  expect(inspection.query("PRAGMA user_version").get()).toEqual({ user_version: 2 });
+  expect(inspection.query("PRAGMA user_version").get()).toEqual({ user_version: 3 });
   inspection.close();
   registry.close();
 });

@@ -1,11 +1,10 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { realpathSync, statSync } from "node:fs";
-import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type } from "typebox";
 import { DATA_ROOT } from "../config.ts";
 import { Id } from "../domain/id.ts";
 import { JOB_TYPES, type JobType } from "../domain/job.ts";
+import { WorkspaceDirectory } from "../infrastructure/filesystem/workspace-directory.ts";
 import {
   DetachedRunnerLauncher,
   type DetachedRunnerLaunch,
@@ -14,6 +13,7 @@ import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 import { JobDelegator } from "../workflows/job-delegator.ts";
 import { TaskCreator } from "../workflows/task-creator.ts";
+import { WorkspaceRegistrar } from "../workflows/workspace-registrar.ts";
 import { ManagerPermissions } from "./manager-permissions.ts";
 import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
 import { formatWorkerStatus, WorkerStatusReporter } from "./worker-status-reporter.ts";
@@ -92,6 +92,7 @@ export class WorkerAgentExtension {
   register(): void {
     this.registered = true;
     this.registerLifecycle();
+    this.registerWorkspaceTool();
     this.registerTaskTool();
     this.registerJobTool();
     this.registerStatusCommand();
@@ -126,14 +127,69 @@ export class WorkerAgentExtension {
     });
   }
 
+  private registerWorkspaceTool(): void {
+    this.pi.registerTool({
+      name: "worker_register_workspace",
+      label: "Register worker workspace",
+      description: "Propose a filesystem path as an authorized worker workspace. Registration or creation occurs only after interactive user approval.",
+      promptSnippet: "Ask the user to authorize a worker workspace",
+      promptGuidelines: [
+        "Use read-only tools to inspect the proposed path, repository instructions, or nearest existing parent before registration.",
+        "Call worker_register_workspace only when the user has asked to set up that workspace; the application will independently verify it and ask the user to approve.",
+        "Never describe a workspace as authorized until worker_register_workspace returns its workspace ID.",
+      ],
+      parameters: Type.Object({
+        name: Type.String({ description: "Short workspace name" }),
+        path: Type.String({ description: "Existing path, or path to create after approval" }),
+        createIfMissing: Type.Optional(Type.Boolean({ description: "Create the directory after approval when it does not exist" })),
+      }),
+      execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
+        const directories = WorkspaceDirectory.create(ctx.cwd);
+        const preflight = directories.inspect(params.path);
+        if (!preflight.exists && !params.createIfMissing) {
+          throw new Error(`Workspace does not exist; set createIfMissing only if creation is intended: ${preflight.requestedPath}`);
+        }
+        if (!ctx.hasUI) throw new Error("Workspace registration requires interactive user approval");
+        const action = preflight.exists ? "Register existing directory" : "Create and register directory";
+        const approved = await ctx.ui.confirm(
+          "Authorize worker workspace?",
+          [
+            `Name: ${params.name}`,
+            `Path: ${preflight.canonicalPath}`,
+            `Action: ${action}`,
+            `Git repository: ${preflight.gitRepository ? "yes" : "no"}`,
+            "Workers may read this path and create isolated worktrees from Git repositories.",
+          ].join("\n"),
+        );
+        if (!approved) throw new Error("Workspace authorization declined by user");
+        const registry = this.registry ??= this.services.registry();
+        const workspace = WorkspaceRegistrar.create(registry, directories, Id.create()).register({
+          name: params.name,
+          preflight,
+          createIfMissing: params.createIfMissing ?? false,
+          userApproved: true,
+          approvedBySessionId: ctx.sessionManager.getSessionId(),
+        });
+        return {
+          content: [{
+            type: "text",
+            text: `Authorized workspace ${workspace.name} (${workspace.id}).\nPath: ${workspace.rootDir}`,
+          }],
+          details: { workspaceId: workspace.id, name: workspace.name, workspaceRoot: workspace.rootDir },
+        };
+      },
+    });
+  }
+
   private registerTaskTool(): void {
     this.pi.registerTool({
       name: "worker_create_task",
       label: "Create worker task",
-      description: "Create a durable task with canonical intent, outcomes, and background against a registered workspace.",
-      promptSnippet: "Create a durable worker task against a workspace",
+      description: "Create a durable task with canonical intent, outcomes, and background against an authorized workspace.",
+      promptSnippet: "Create a durable worker task against an authorized workspace",
       promptGuidelines: [
         "Use worker_create_task instead of temporary scripts, direct SQLite writes, or manual task-directory creation.",
+        "Pass only a workspace ID returned by worker_register_workspace; worker_create_task cannot authorize a path.",
         "After worker_create_task succeeds, reference its UUID from the managed-project slice and .agent/tasks.md.",
       ],
       parameters: Type.Object({
@@ -141,23 +197,16 @@ export class WorkerAgentExtension {
         intent: Type.Optional(Type.String()),
         outcomes: Type.Optional(Type.String()),
         background: Type.String(),
-        workspaceRoot: Type.Optional(Type.String({ description: "Defaults to the current Pi working directory" })),
-        workspaceName: Type.Optional(Type.String()),
+        workspaceId: Type.String({ description: "ID of a user-authorized workspace" }),
       }),
-      execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
-        const root = canonicalWorkspace(params.workspaceRoot ?? ctx.cwd, "Requested workspace");
-        const currentWorkspace = canonicalWorkspace(ctx.cwd, "Current Pi workspace");
-        if (root !== currentWorkspace) {
-          throw new Error("Manager mode can create tasks only for the current Pi workspace");
-        }
+      execute: async (_toolCallId, params) => {
         const registry = this.registry ??= this.services.registry();
         const created = await TaskCreator.create(
           registry,
           this.services.taskStore(),
           Id.create(),
         ).create({
-          workspaceRoot: root,
-          workspaceName: params.workspaceName ?? basename(root),
+          workspaceId: params.workspaceId,
           title: params.title,
           intent: params.intent,
           outcomes: params.outcomes,
@@ -166,9 +215,9 @@ export class WorkerAgentExtension {
         return {
           content: [{
             type: "text",
-            text: `Created task ${created.task.id} for workspace ${created.project.name}.`,
+            text: `Created task ${created.task.id} for workspace ${created.project.name}.\nWorkspace: ${created.project.rootDir}`,
           }],
-          details: { taskId: created.task.id, projectId: created.project.id },
+          details: { taskId: created.task.id, workspaceId: created.project.id, workspaceRoot: created.project.rootDir },
         };
       },
     });
@@ -182,6 +231,7 @@ export class WorkerAgentExtension {
       promptSnippet: "Create and launch a plan or implement worker job",
       promptGuidelines: [
         "Use worker_delegate_job instead of temporary scripts, direct SQLite writes, manual worktree creation, or direct runner invocation.",
+        "Before worker_delegate_job, read the target workspace's agent instructions and include relevant guidance in the canonical worker request.",
         "Evaluate a completed dependency before calling worker_delegate_job for the next workflow transition.",
       ],
       parameters: Type.Object({
@@ -202,10 +252,10 @@ export class WorkerAgentExtension {
         const task = registry.tasks.get(params.taskId);
         const project = task?.projectId ? registry.projects.get(task.projectId) : undefined;
         if (!project) throw new Error(`Task has no registered workspace: ${params.taskId}`);
-        const projectRoot = canonicalWorkspace(project.rootDir, "Task workspace");
-        const currentWorkspace = canonicalWorkspace(ctx.cwd, "Current Pi workspace");
-        if (projectRoot !== currentWorkspace) {
-          throw new Error("Manager mode can delegate jobs only for the current Pi workspace");
+        if (!project.authorizedAt) throw new Error(`Task workspace is not authorized: ${project.id}`);
+        const preflight = WorkspaceDirectory.create(ctx.cwd).inspect(project.rootDir);
+        if (!preflight.exists || preflight.canonicalPath !== project.rootDir) {
+          throw new Error(`Task workspace path changed or is inaccessible: ${project.rootDir}`);
         }
         const delegated = await JobDelegator.create(
           this.root,
@@ -273,16 +323,5 @@ export class WorkerAgentExtension {
         }
       },
     });
-  }
-}
-
-function canonicalWorkspace(path: string, label: string): string {
-  const absolutePath = resolve(path);
-  try {
-    if (!statSync(absolutePath).isDirectory()) throw new Error("not a directory");
-    return realpathSync(absolutePath);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`${label} is not an accessible directory: ${absolutePath} (${detail})`);
   }
 }

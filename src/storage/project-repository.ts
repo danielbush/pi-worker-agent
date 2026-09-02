@@ -6,6 +6,7 @@ interface ProjectPersistence {
   get(id: string): Project | undefined;
   list(): Project[];
   touch(id: string, lastUsedAt: string): void;
+  authorize(id: string, authorizedAt: string, authorizedBySessionId: string): void;
 }
 
 /** INFRASTRUCTURE_CONSUMER: persists registered-project metadata in `workspaces`. */
@@ -20,6 +21,11 @@ export class ProjectRepository {
       get: (id) => (database.db.query("SELECT * FROM workspaces WHERE id = ?").get(id) as Project | null) ?? undefined,
       list: () => database.db.query("SELECT * FROM workspaces ORDER BY lastUsedAt DESC").all() as Project[],
       touch: (id, lastUsedAt) => { database.db.query("UPDATE workspaces SET lastUsedAt = ? WHERE id = ?").run(lastUsedAt, id); },
+      authorize: (id, authorizedAt, authorizedBySessionId) => {
+        database.db.query(`
+          UPDATE workspaces SET authorizedAt = ?, authorizedBySessionId = ?, lastUsedAt = ? WHERE id = ?
+        `).run(authorizedAt, authorizedBySessionId, authorizedAt, id);
+      },
     });
   }
 
@@ -34,6 +40,14 @@ export class ProjectRepository {
       list: () => [...records.values()].map((project) => structuredClone(project))
         .sort((a, b) => b.lastUsedAt.localeCompare(a.lastUsedAt)),
       touch: (id, lastUsedAt) => { const project = records.get(id); if (project) project.lastUsedAt = lastUsedAt; },
+      authorize: (id, authorizedAt, authorizedBySessionId) => {
+        const project = records.get(id);
+        if (project) {
+          project.authorizedAt = authorizedAt;
+          project.authorizedBySessionId = authorizedBySessionId;
+          project.lastUsedAt = authorizedAt;
+        }
+      },
     });
   }
 
@@ -41,6 +55,9 @@ export class ProjectRepository {
   get(id: string): Project | undefined { return this.persistence.get(id); }
   list(): Project[] { return this.persistence.list(); }
   touch(id: string, lastUsedAt: string): void { this.persistence.touch(id, lastUsedAt); }
+  authorize(id: string, authorizedAt: string, authorizedBySessionId: string): void {
+    this.persistence.authorize(id, authorizedAt, authorizedBySessionId);
+  }
 }
 
 function clone<T>(value: T | undefined): T | undefined {

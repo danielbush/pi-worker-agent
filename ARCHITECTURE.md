@@ -411,7 +411,7 @@ The worktree path is derived from the job `id`; it is not stored on the job. Job
 
 ## Manager permissions
 
-The Pi extension starts in restricted manager mode. Its application-enforced allowlist exposes read tools and worker-agent orchestration tools, while a `tool_call` guard blocks every other tool even if another extension reactivates it. Task creation and delegation canonicalize their workspace paths and require the task workspace to be Pi's current workspace.
+The Pi extension starts in restricted manager mode. Its application-enforced allowlist exposes read tools and worker-agent orchestration tools, while a `tool_call` guard blocks every other tool even if another extension reactivates it. The manager may inspect and propose any workspace path through `worker_register_workspace`, but the tool fails without interactive UI and records the canonical path in SQLite only after the user approves the displayed name, path, action, and Git status. Task creation accepts only an authorized workspace ID, and delegation revalidates that the recorded canonical path remains accessible. Project/task/workspace relationships are intentionally separate future work.
 
 Unrestricted coding is an explicit user elevation rather than an agent decision. `/development-mode` requires interactive confirmation and lasts only for the current session; `/manager-mode`, reload, and session replacement restore the restricted manager profile.
 

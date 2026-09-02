@@ -9,6 +9,7 @@ const CODING_TOOLS = [
   "bash",
   "write",
   "edit",
+  "worker_register_workspace",
   "worker_create_task",
   "worker_delegate_job",
 ];
@@ -40,6 +41,7 @@ test("locks the manager to read and orchestration tools", () => {
       "grep",
       "find",
       "ls",
+      "worker_register_workspace",
       "worker_create_task",
       "worker_delegate_job",
     ],

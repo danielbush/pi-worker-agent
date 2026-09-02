@@ -7,6 +7,7 @@ const MANAGER_TOOL_NAMES = new Set([
   "grep",
   "find",
   "ls",
+  "worker_register_workspace",
   "worker_create_task",
   "worker_delegate_job",
 ]);

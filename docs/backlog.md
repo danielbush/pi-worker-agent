@@ -11,6 +11,11 @@
   - COMMENT: so job types and execution profiles are defined in markdown and compiled to database tables -- no code changes which would result in having to modify the core system; we could provide tools to add these and audit with timestamps, id
   - COMMENT: or we have a configuration file instead of the markdown that defines job types and execution profiles; and this is created instead of the db tables; if the config is not found, then the system stops; it could potentially encode workflows also; the config file reader could check it for integrity issues before letting the system run anything; there are data integrity issues because if the config changes it might make existing recorded values dangling (a deleted execution profile or job type); so maybe we have db tables that hold the config and enforce some referential integrity with the system metadata for tasks/jobs; a flag to delete means old entries can be retained in the system; old tasks/jobs once finished are fossils, so maybe this is overkill, the main thing would be recording enough data for an audit - what capabilities were provided when the job was run? etc
 
+- **feat: Model project, task, and workspace relationships**
+  - Current metadata associates tasks directly with workspace rows while managed-project documents remain a separate concept.
+  - Direction: add explicit project identity and relationships without conflating project sequencing, task objectives, and authorized execution locations.
+  - COMMENT: I have a separate thing I want to do that links projects to tasks and workspaces, so stick a pin in that.
+
 - **feat: Add a Windows worker sandbox backend**
   - Detect native Windows and fail closed for writable workers until an approved sandbox backend is configured.
   - Investigate and prototype WSL2, Windows Sandbox, and AppContainer against the same filesystem, process, network, path-translation, startup, and operational requirements.

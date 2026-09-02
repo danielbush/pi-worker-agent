@@ -8,13 +8,20 @@ const TIMESTAMP = "2026-09-01T12:00:00Z";
 const TASK_ID = "ab123456-1234-4123-8123-1234567890ab";
 
 class FixedIds {
-  createProjectId(): string { return "project_demo"; }
   createTaskId(): string { return TASK_ID; }
 }
 
-test("creates canonical task files and registers its workspace", async () => {
+test("creates canonical task files against an authorized workspace", async () => {
   // arrange
-  const registry = Registry.createNull();
+  const registry = Registry.createNull({ projects: [{
+    id: "project_demo",
+    name: "pi-worker-agent",
+    rootDir: "/projects/pi-worker-agent",
+    createdAt: TIMESTAMP,
+    lastUsedAt: TIMESTAMP,
+    authorizedAt: TIMESTAMP,
+    authorizedBySessionId: "manager-session",
+  }] });
   const taskStore = TaskStore.createNull();
   const creator = new TaskCreator(
     registry,
@@ -25,8 +32,7 @@ test("creates canonical task files and registers its workspace", async () => {
 
   // act
   const created = await creator.create({
-    workspaceRoot: "/projects/pi-worker-agent",
-    workspaceName: "pi-worker-agent",
+    workspaceId: "project_demo",
     title: "Add greeting CLI",
     intent: "Demonstrate task orchestration.",
     outcomes: "- [ ] Greeting works.\n",
