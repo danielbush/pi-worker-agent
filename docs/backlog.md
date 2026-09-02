@@ -15,4 +15,10 @@
 
 ## fix
 
+- **fix: Confine writable workers to assigned worktrees**
+  - An isolated Git worktree currently selects a worker's working directory but does not prevent its shell, write, or edit tools from modifying other host paths.
+  - Launch writable workers inside a fail-closed OS sandbox that permits only the worktree, canonical worker-session storage, and controlled temporary paths.
+  - Test direct paths and symlink escapes against `/usr/local`, home configuration, and sibling projects.
+  - COMMENT: how do we stop it from modifying /usr/local/bin or anything outside the project???
+
 ## chore

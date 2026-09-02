@@ -409,6 +409,12 @@ For a project job, the extension:
 
 The worktree path is derived from the job `id`; it is not stored on the job. Jobs whose task has no project do not receive a project worktree.
 
+## Manager permissions
+
+The Pi extension starts in restricted manager mode. Its application-enforced allowlist exposes read tools and worker-agent orchestration tools, while a `tool_call` guard blocks every other tool even if another extension reactivates it. Task creation and delegation canonicalize their workspace paths and require the task workspace to be Pi's current workspace.
+
+Unrestricted coding is an explicit user elevation rather than an agent decision. `/development-mode` requires interactive confirmation and lasts only for the current session; `/manager-mode`, reload, and session replacement restore the restricted manager profile. This boundary constrains the manager only. Writable worker jobs require their own process-level confinement.
+
 ## Source layout
 
 ```text

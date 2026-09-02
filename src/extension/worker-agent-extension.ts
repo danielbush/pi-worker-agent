@@ -1,5 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { basename } from "node:path";
+import { realpathSync, statSync } from "node:fs";
+import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type } from "typebox";
 import { DATA_ROOT } from "../config.ts";
@@ -13,10 +14,14 @@ import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 import { JobDelegator } from "../workflows/job-delegator.ts";
 import { TaskCreator } from "../workflows/task-creator.ts";
+import { ManagerPermissions } from "./manager-permissions.ts";
 import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
 import { formatWorkerStatus, WorkerStatusReporter } from "./worker-status-reporter.ts";
 
-type WorkerAgentPi = Pick<ExtensionAPI, "on" | "registerCommand" | "registerTool" | "sendMessage">;
+type WorkerAgentPi = Pick<
+  ExtensionAPI,
+  "getActiveTools" | "on" | "registerCommand" | "registerTool" | "sendMessage" | "setActiveTools"
+>;
 
 interface WorkerAgentServices {
   registry(): Registry;
@@ -62,10 +67,12 @@ export class WorkerAgentExtension {
 
   static createNull(state: NullWorkerAgentExtensionState = {}): WorkerAgentExtension {
     const pi = {
+      getActiveTools: () => [],
       on: () => {},
       registerCommand: () => {},
       registerTool: () => {},
       sendMessage: () => {},
+      setActiveTools: () => {},
     } as unknown as WorkerAgentPi;
     return new WorkerAgentExtension(
       pi,
@@ -88,6 +95,7 @@ export class WorkerAgentExtension {
     this.registerTaskTool();
     this.registerJobTool();
     this.registerStatusCommand();
+    new ManagerPermissions(this.pi).register();
   }
 
   private registerLifecycle(): void {
@@ -137,7 +145,11 @@ export class WorkerAgentExtension {
         workspaceName: Type.Optional(Type.String()),
       }),
       execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
-        const root = params.workspaceRoot ?? ctx.cwd;
+        const root = canonicalWorkspace(params.workspaceRoot ?? ctx.cwd, "Requested workspace");
+        const currentWorkspace = canonicalWorkspace(ctx.cwd, "Current Pi workspace");
+        if (root !== currentWorkspace) {
+          throw new Error("Manager mode can create tasks only for the current Pi workspace");
+        }
         const registry = this.registry ??= this.services.registry();
         const created = await TaskCreator.create(
           registry,
@@ -187,6 +199,14 @@ export class WorkerAgentExtension {
         const model = ctx.model;
         if (!model) throw new Error("Cannot delegate without an active model");
         const registry = this.registry ??= this.services.registry();
+        const task = registry.tasks.get(params.taskId);
+        const project = task?.projectId ? registry.projects.get(task.projectId) : undefined;
+        if (!project) throw new Error(`Task has no registered workspace: ${params.taskId}`);
+        const projectRoot = canonicalWorkspace(project.rootDir, "Task workspace");
+        const currentWorkspace = canonicalWorkspace(ctx.cwd, "Current Pi workspace");
+        if (projectRoot !== currentWorkspace) {
+          throw new Error("Manager mode can delegate jobs only for the current Pi workspace");
+        }
         const delegated = await JobDelegator.create(
           this.root,
           registry,
@@ -253,5 +273,16 @@ export class WorkerAgentExtension {
         }
       },
     });
+  }
+}
+
+function canonicalWorkspace(path: string, label: string): string {
+  const absolutePath = resolve(path);
+  try {
+    if (!statSync(absolutePath).isDirectory()) throw new Error("not a directory");
+    return realpathSync(absolutePath);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`${label} is not an accessible directory: ${absolutePath} (${detail})`);
   }
 }

@@ -58,7 +58,13 @@ $DATA_ROOT/projects/pi-worker-agent/
 plan → code (`implement` job)
 ```
 
-The manager uses `worker_create_task` and `worker_delegate_job` to create each durable task and job explicitly. Planning workers are read-only; implementation workers receive an isolated worktree plus write, edit, and shell tools. The demo stops after code so the user can exercise the result. This is a normal policy-driven task, not a `/worker-demo` command. A subsequent vertical slice will extend the flow with review.
+The manager uses `worker_create_task` and `worker_delegate_job` to create each durable task and job explicitly. Manager mode exposes only read and orchestration tools; arbitrary shell commands and file mutations are blocked. Task creation and delegation are also confined to Pi's current workspace.
+
+When directly developing this system, the user can run `/development-mode` and confirm the warning to restore unrestricted coding tools for the current session. `/manager-mode` immediately restores the restricted tool set, and every new or reloaded session starts restricted.
+
+Quickly test the boundary with the harmless prompt `Use bash to run pwd. Do not use another tool.` It should be unavailable or blocked after startup and after `/manager-mode`, succeed after confirmed `/development-mode`, then become unavailable again after `/manager-mode`.
+
+Planning workers are read-only; implementation workers receive an isolated worktree plus write, edit, and shell tools. The demo stops after code so the user can exercise the result. This is a normal policy-driven task, not a `/worker-demo` command. A subsequent vertical slice will extend the flow with review.
 
 Inspect any created task from Pi with:
 
