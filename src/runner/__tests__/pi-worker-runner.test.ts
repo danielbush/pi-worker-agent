@@ -43,6 +43,11 @@ test("completes a planning job from Pi output", async () => {
     tools: ["read", "grep", "find", "ls"],
     prompt: REQUEST,
     sessionDirectory: "/worker/session-plan/pi-session",
+    temporaryDirectory: "/worker/session-plan/pi-session/tmp",
+    writablePaths: [
+      "/worker/session-plan/pi-session",
+      "/worker/session-plan/pi-session/tmp",
+    ],
   }]);
   expect((await taskStore.events("task_demo", "job_plan", "session_plan").readAll()).map((event) => event.type))
     .toEqual([
@@ -53,6 +58,30 @@ test("completes a planning job from Pi output", async () => {
       "assistant.completed",
       "session.completed",
     ]);
+});
+
+test("confines an implementation worker to its worktree and session directories", async () => {
+  // arrange
+  const registry = createRegistry({ ...planningJob(), jobType: "implement" });
+  const taskStore = createTaskStore();
+  const harness = PiHarness.createNull({
+    stdoutLines: piOutput({ content: "Implemented.", stopReason: "stop" }),
+  });
+  const runner = new PiWorkerRunner(registry, taskStore, harness, Clock.createNull(TIMESTAMP));
+
+  // act
+  const exitCode = await runner.execute(input());
+
+  // assert
+  expect(exitCode).toBe(0);
+  expect(harness.state.invocations[0]).toMatchObject({
+    cwd: "/null-worker-agent/worktrees/job_plan",
+    writablePaths: [
+      "/worker/session-plan/pi-session",
+      "/worker/session-plan/pi-session/tmp",
+      "/null-worker-agent/worktrees/job_plan",
+    ],
+  });
 });
 
 test("selects writable tools for implementation and recognizes reported failure", () => {
@@ -87,7 +116,7 @@ test("fails when Pi reports an assistant error despite exiting zero", async () =
     .toEqual({ timestamp: TIMESTAMP, type: "session.completed", exitCode: 0 });
 });
 
-function createRegistry(): Registry {
+function createRegistry(job: Job = planningJob()): Registry {
   return Registry.createNull({
     projects: [{
       id: "project_demo",
@@ -104,7 +133,7 @@ function createRegistry(): Registry {
       createdAt: TIMESTAMP,
       finishedAt: null,
     }],
-    jobs: [planningJob()],
+    jobs: [job],
     workerSessions: [{
       id: "session_plan",
       jobId: "job_plan",

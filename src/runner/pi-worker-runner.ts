@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type { JobType } from "../domain/job.ts";
 import { PiHarness, type NullPiHarnessOutput } from "../infrastructure/pi/pi-harness.ts";
 import { normalizePiJsonLine, parsePiJsonLine } from "../harnesses/pi/pi-json-line.ts";
@@ -70,13 +71,21 @@ export class PiWorkerRunner {
     });
 
     try {
-      const process = this.harness.start({
-        cwd: job.jobType === "implement" ? this.taskStore.paths.worktree(job.id) : project.rootDir,
+      const cwd = job.jobType === "implement" ? this.taskStore.paths.worktree(job.id) : project.rootDir;
+      const temporaryDirectory = join(sessionDirectory, "tmp");
+      const process = await this.harness.start({
+        cwd,
         model: job.model,
         effortLevel: job.effortLevel,
         tools: toolsForJob(job.jobType),
         prompt: request,
         sessionDirectory,
+        temporaryDirectory,
+        writablePaths: [
+          sessionDirectory,
+          temporaryDirectory,
+          ...(job.jobType === "implement" ? [cwd] : []),
+        ],
       });
       await events.append({ timestamp: this.clock.now(), type: "session.started", pid: process.pid });
       await events.append({ timestamp: this.clock.now(), type: "prompt", text: request });

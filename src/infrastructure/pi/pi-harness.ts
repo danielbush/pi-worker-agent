@@ -1,3 +1,5 @@
+import { WorkerSandbox } from "../process/worker-sandbox.ts";
+
 export interface PiInvocation {
   cwd: string;
   model: string;
@@ -5,6 +7,8 @@ export interface PiInvocation {
   tools: string[];
   prompt: string;
   sessionDirectory: string;
+  temporaryDirectory: string;
+  writablePaths: string[];
 }
 
 export interface NullPiHarnessOutput {
@@ -41,6 +45,7 @@ interface PiProcessDriver {
     stdin: "ignore";
     stdout: "pipe";
     stderr: "pipe";
+    env: Record<string, string | undefined>;
   }): PiProcess;
 }
 
@@ -49,31 +54,37 @@ export class PiHarness {
   private readonly invocations: PiInvocation[] = [];
   private killed = false;
 
-  constructor(private readonly driver: PiProcessDriver) {}
+  constructor(
+    private readonly driver: PiProcessDriver,
+    private readonly sandbox: WorkerSandbox,
+  ) {}
 
   static create(): PiHarness {
-    return new PiHarness(Bun as unknown as PiProcessDriver);
+    return new PiHarness(Bun as unknown as PiProcessDriver, WorkerSandbox.create());
   }
 
   static createNull(output: NullPiHarnessOutput = {}): PiHarness {
-    return new PiHarness({
-      spawn: () => ({
-        pid: output.pid ?? 1234,
-        stdout: textStream(`${(output.stdoutLines ?? []).join("\n")}\n`),
-        stderr: textStream(output.stderr ?? ""),
-        exited: Promise.resolve(output.exitCode ?? 0),
-        kill: () => {},
-      }),
-    });
+    return new PiHarness(
+      {
+        spawn: () => ({
+          pid: output.pid ?? 1234,
+          stdout: textStream(`${(output.stdoutLines ?? []).join("\n")}\n`),
+          stderr: textStream(output.stderr ?? ""),
+          exited: Promise.resolve(output.exitCode ?? 0),
+          kill: () => {},
+        }),
+      },
+      WorkerSandbox.createNull(),
+    );
   }
 
   get state(): PiHarnessState {
     return { invocations: structuredClone(this.invocations), killed: this.killed };
   }
 
-  start(invocation: PiInvocation): PiHarnessProcess {
+  async start(invocation: PiInvocation): Promise<PiHarnessProcess> {
     this.invocations.push(structuredClone(invocation));
-    const process = this.driver.spawn([
+    const command = await this.sandbox.wrap([
       "pi",
       "--mode", "json",
       "--print",
@@ -90,20 +101,36 @@ export class PiHarness {
       "--",
       invocation.prompt,
     ], {
-      cwd: invocation.cwd,
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "pipe",
+      writablePaths: invocation.writablePaths,
+      temporaryDirectory: invocation.temporaryDirectory,
+    });
+
+    let child: PiProcess;
+    try {
+      child = this.driver.spawn(command, {
+        cwd: invocation.cwd,
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { ...globalThis.process.env, TMPDIR: invocation.temporaryDirectory },
+      });
+    } catch (error) {
+      await this.sandbox.reset();
+      throw error;
+    }
+    const exited = child.exited.then(async (exitCode) => {
+      await this.sandbox.reset();
+      return exitCode;
     });
 
     return {
-      pid: process.pid,
-      consumeLines: (consume) => consumeJsonLines(process.stdout, consume),
-      stderr: () => new Response(process.stderr).text(),
-      exited: () => process.exited,
+      pid: child.pid,
+      consumeLines: (consume) => consumeJsonLines(child.stdout, consume),
+      stderr: () => new Response(child.stderr).text(),
+      exited: () => exited,
       kill: () => {
         this.killed = true;
-        process.kill();
+        child.kill();
       },
     };
   }

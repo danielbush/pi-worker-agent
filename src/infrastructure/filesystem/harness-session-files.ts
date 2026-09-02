@@ -32,6 +32,7 @@ export class HarnessSessionFiles {
   async prepare(storagePath: string): Promise<string> {
     const directory = join(storagePath, "pi-session");
     await this.driver.mkdir(directory, { recursive: true, mode: 0o700 });
+    await this.driver.mkdir(join(directory, "tmp"), { recursive: true, mode: 0o700 });
     return directory;
   }
 

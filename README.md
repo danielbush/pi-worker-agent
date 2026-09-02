@@ -64,7 +64,9 @@ When directly developing this system, the user can run `/development-mode` and c
 
 Quickly test the boundary with the harmless prompt `Use bash to run pwd. Do not use another tool.` It should be unavailable or blocked after startup and after `/manager-mode`, succeed after confirmed `/development-mode`, then become unavailable again after `/manager-mode`.
 
-Planning workers are read-only; implementation workers receive an isolated worktree plus write, edit, and shell tools. The demo stops after code so the user can exercise the result. This is a normal policy-driven task, not a `/worker-demo` command. A subsequent vertical slice will extend the flow with review.
+Planning workers are read-only; implementation workers receive an isolated worktree plus write, edit, and shell tools. Every Pi worker process tree runs through `@anthropic-ai/sandbox-runtime`: macOS uses `sandbox-exec`, Linux uses Bubblewrap, and unsupported platforms—including Windows—fail closed. Writes are limited to the implementation worktree, canonical worker-session directory, and its private temporary directory; common model-provider domains are allowlisted and sensitive credential directories are denied to worker reads. Linux hosts must provide `bubblewrap`, `socat`, and `ripgrep`.
+
+The demo stops after code so the user can exercise the result. This is a normal policy-driven task, not a `/worker-demo` command. A subsequent vertical slice will extend the flow with review.
 
 Inspect any created task from Pi with:
 

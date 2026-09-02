@@ -413,7 +413,9 @@ The worktree path is derived from the job `id`; it is not stored on the job. Job
 
 The Pi extension starts in restricted manager mode. Its application-enforced allowlist exposes read tools and worker-agent orchestration tools, while a `tool_call` guard blocks every other tool even if another extension reactivates it. Task creation and delegation canonicalize their workspace paths and require the task workspace to be Pi's current workspace.
 
-Unrestricted coding is an explicit user elevation rather than an agent decision. `/development-mode` requires interactive confirmation and lasts only for the current session; `/manager-mode`, reload, and session replacement restore the restricted manager profile. This boundary constrains the manager only. Writable worker jobs require their own process-level confinement.
+Unrestricted coding is an explicit user elevation rather than an agent decision. `/development-mode` requires interactive confirmation and lasts only for the current session; `/manager-mode`, reload, and session replacement restore the restricted manager profile.
+
+Workers have a separate process-level boundary. Before spawning Pi, the harness initializes `@anthropic-ai/sandbox-runtime` and wraps the entire worker process tree. macOS uses `sandbox-exec`; Linux uses Bubblewrap and required helper tools; Windows and unsupported or misconfigured platforms fail before Pi starts. The sandbox denies writes by default and allows only canonical worker-session paths, a private temporary directory, and the assigned implementation worktree for writable jobs. Sandbox setup and cleanup are part of the harness lifecycle rather than instructions trusted to the worker.
 
 ## Source layout
 

@@ -11,14 +11,14 @@
   - COMMENT: so job types and execution profiles are defined in markdown and compiled to database tables -- no code changes which would result in having to modify the core system; we could provide tools to add these and audit with timestamps, id
   - COMMENT: or we have a configuration file instead of the markdown that defines job types and execution profiles; and this is created instead of the db tables; if the config is not found, then the system stops; it could potentially encode workflows also; the config file reader could check it for integrity issues before letting the system run anything; there are data integrity issues because if the config changes it might make existing recorded values dangling (a deleted execution profile or job type); so maybe we have db tables that hold the config and enforce some referential integrity with the system metadata for tasks/jobs; a flag to delete means old entries can be retained in the system; old tasks/jobs once finished are fossils, so maybe this is overkill, the main thing would be recording enough data for an audit - what capabilities were provided when the job was run? etc
 
+- **feat: Add a Windows worker sandbox backend**
+  - Detect native Windows and fail closed for writable workers until an approved sandbox backend is configured.
+  - Investigate and prototype WSL2, Windows Sandbox, and AppContainer against the same filesystem, process, network, path-translation, startup, and operational requirements.
+  - Prefer WSL2 if it can reuse the Linux sandbox reliably while denying Windows-drive mounts and unsafe interop; retain a native option if WSL2 provisioning or isolation is unsuitable.
+  - COMMENT: WSL2 sounds tempting because we are back in Linux land; investigate all three approaches.
+
 ## refactor
 
 ## fix
-
-- **fix: Confine writable workers to assigned worktrees**
-  - An isolated Git worktree currently selects a worker's working directory but does not prevent its shell, write, or edit tools from modifying other host paths.
-  - Launch writable workers inside a fail-closed OS sandbox that permits only the worktree, canonical worker-session storage, and controlled temporary paths.
-  - Test direct paths and symlink escapes against `/usr/local`, home configuration, and sibling projects.
-  - COMMENT: how do we stop it from modifying /usr/local/bin or anything outside the project???
 
 ## chore
