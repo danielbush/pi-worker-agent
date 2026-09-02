@@ -2,12 +2,13 @@
 
 ## Project structure
 
-Projects use readable names. Each project has one project document, `sequence.md`, plus a document for the current vertical slice and each completed slice:
+Projects use readable names. Each project has a `sequence.md` roadmap, a `backlog.md`, plus a document for the current vertical slice and each completed slice:
 
 ```text
 projects/
 └── <project-name>/
     ├── sequence.md
+    ├── backlog.md
     ├── 01-<completed-slice>.md
     ├── 02-<completed-slice>.md
     └── 03-<next-slice>.md
@@ -58,7 +59,11 @@ Only **Next** is committed enough to have a slice document. Freely revise, reord
 
 ## Backlog policy
 
-Use `docs/backlog.md` in the root of a managed codebase for concrete product or technical concerns that are worth retaining but are not part of the current vertical slice. The backlog complements project sequencing; it does not replace `sequence.md`, choose what happens next, or turn speculative ideas into commitments.
+Use `$DATA_ROOT/projects/<project-name>/backlog.md` for concrete product or technical concerns that are worth retaining but are not part of the current vertical slice. The backlog belongs to the managed project rather than any one codebase workspace, and it is the single source of truth across the project's authorized workspaces. Do not duplicate it in a workspace-level `docs/backlog.md`.
+
+The manager may add, edit, delete, and reprioritize backlog entries through narrow project-management tooling without enabling unrestricted development mode or creating a coding task. Backlog operations must be restricted to the selected registered project, validate the format below, preserve user comments, and report the resulting change clearly.
+
+The backlog complements project sequencing; it does not replace `sequence.md`, choose what happens next, or turn speculative ideas into commitments.
 
 Keep exactly these second-level sections, with bullet points beneath each:
 
