@@ -74,6 +74,7 @@ test("emits manager-visible status from nulled worker state", async () => {
       status: "completed",
       progress: "Planning completed",
       workerSessionId: "session_plan",
+      worktreePath: null,
       requestPath: "/null-worker-agent/tasks/ta/task_demo/jobs/job_plan/request.md",
       eventsPath: "/null-worker-agent/tasks/ta/task_demo/jobs/job_plan/worker-sessions/session_plan/events.jsonl",
       result: "Change src/index.ts and run bun test.",

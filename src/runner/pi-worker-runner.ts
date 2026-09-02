@@ -1,3 +1,4 @@
+import type { JobType } from "../domain/job.ts";
 import { PiHarness, type NullPiHarnessOutput } from "../infrastructure/pi/pi-harness.ts";
 import { normalizePiJsonLine, parsePiJsonLine } from "../harnesses/pi/pi-json-line.ts";
 import { Registry, type NullRegistryState } from "../storage/registry.ts";
@@ -65,14 +66,15 @@ export class PiWorkerRunner {
     const sessionDirectory = await this.taskStore.prepareHarnessSessionDirectory(workerSession.storagePath);
     this.registry.transaction(() => {
       this.registry.tasks.updateStatus(task.id, "running");
-      this.registry.jobs.updateStatus(job.id, "running", "Pi planning worker is running");
+      this.registry.jobs.updateStatus(job.id, "running", `Pi ${job.jobType} worker is running`);
     });
 
     try {
       const process = this.harness.start({
-        cwd: project.rootDir,
+        cwd: job.jobType === "implement" ? this.taskStore.paths.worktree(job.id) : project.rootDir,
         model: job.model,
         effortLevel: job.effortLevel,
+        tools: toolsForJob(job.jobType),
         prompt: request,
         sessionDirectory,
       });
@@ -82,6 +84,7 @@ export class PiWorkerRunner {
       const stderrPromise = process.stderr();
       let agentSettled = false;
       let assistantCompleted = false;
+      let assistantResult: string | undefined;
       let assistantFailure: string | undefined;
       try {
         await process.consumeLines(async (line) => {
@@ -94,7 +97,10 @@ export class PiWorkerRunner {
             assistantCompleted = true;
             assistantFailure = normalized.assistantFailure;
           }
-          for (const event of normalized.events) await events.append(event);
+          for (const event of normalized.events) {
+            if (event.type === "assistant.completed") assistantResult = event.text;
+            await events.append(event);
+          }
         });
       } catch (error) {
         process.kill();
@@ -116,18 +122,18 @@ export class PiWorkerRunner {
       }
 
       const finishedAt = this.clock.now();
-      const succeeded = exitCode === 0 && agentSettled && assistantCompleted && !assistantFailure;
+      const reportedFailure = reportedWorkerFailure(assistantResult);
+      const succeeded = exitCode === 0
+        && agentSettled
+        && assistantCompleted
+        && !assistantFailure
+        && !reportedFailure;
       if (succeeded) {
-        this.registry.transaction(() => {
-          this.registry.jobs.updateStatus(job.id, "completed", "Planning completed", finishedAt);
-          const allJobsCompleted = this.registry.jobs.listForTask(task.id)
-            .every((taskJob) => taskJob.status === "completed");
-          if (allJobsCompleted) this.registry.tasks.updateStatus(task.id, "completed", finishedAt);
-        });
+        this.registry.jobs.updateStatus(job.id, "completed", `${job.jobType} completed`, finishedAt);
         return 0;
       }
 
-      const detail = assistantFailure ?? (
+      const detail = assistantFailure ?? reportedFailure ?? (
         stderr.trim()
         || (exitCode !== 0
           ? `Pi exited with code ${exitCode}`
@@ -154,4 +160,21 @@ export class PiWorkerRunner {
       return 1;
     }
   }
+}
+
+export function toolsForJob(jobType: JobType): string[] {
+  const readOnly = ["read", "grep", "find", "ls"];
+  if (jobType === "implement" || jobType === "fix") {
+    return [...readOnly, "write", "edit", "bash"];
+  }
+  if (jobType === "test") return [...readOnly, "bash"];
+  return readOnly;
+}
+
+export function reportedWorkerFailure(result: string | undefined): string | undefined {
+  if (!result) return undefined;
+  const firstLine = result.trim().split("\n", 1)[0] ?? "";
+  return /^(unable to|failed to|i (?:cannot|can't|could not|couldn't)\b)/i.test(firstLine)
+    ? firstLine
+    : undefined;
 }

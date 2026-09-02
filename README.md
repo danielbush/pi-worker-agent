@@ -58,7 +58,7 @@ $DATA_ROOT/projects/pi-worker-agent/
 plan → code (`implement` job)
 ```
 
-The manager creates each job explicitly and stops after code so the user can exercise the result in its isolated worktree. This is a normal policy-driven task, not a `/worker-demo` command. A subsequent vertical slice will extend the flow with review.
+The manager uses `worker_create_task` and `worker_delegate_job` to create each durable task and job explicitly. Planning workers are read-only; implementation workers receive an isolated worktree plus write, edit, and shell tools. The demo stops after code so the user can exercise the result. This is a normal policy-driven task, not a `/worker-demo` command. A subsequent vertical slice will extend the flow with review.
 
 Inspect any created task from Pi with:
 

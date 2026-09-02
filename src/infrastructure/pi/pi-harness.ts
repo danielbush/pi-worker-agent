@@ -2,6 +2,7 @@ export interface PiInvocation {
   cwd: string;
   model: string;
   effortLevel: string;
+  tools: string[];
   prompt: string;
   sessionDirectory: string;
 }
@@ -76,7 +77,7 @@ export class PiHarness {
       "pi",
       "--mode", "json",
       "--print",
-      "--tools", "read,grep,find,ls",
+      "--tools", invocation.tools.join(","),
       "--no-extensions",
       "--no-skills",
       "--no-prompt-templates",

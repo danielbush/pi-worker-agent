@@ -4,7 +4,7 @@ import { PiHarness } from "../../infrastructure/pi/pi-harness.ts";
 import { Registry } from "../../storage/registry.ts";
 import { TaskStore } from "../../storage/task-store.ts";
 import { Clock } from "../../infrastructure/system/clock.ts";
-import { PiWorkerRunner } from "../pi-worker-runner.ts";
+import { PiWorkerRunner, reportedWorkerFailure, toolsForJob } from "../pi-worker-runner.ts";
 
 const TIMESTAMP = "2026-08-30T12:00:00Z";
 const REQUEST = "Inspect the project and produce an implementation plan.";
@@ -27,10 +27,10 @@ test("completes a planning job from Pi output", async () => {
 
   // assert
   expect(exitCode).toBe(0);
-  expect(registry.jobs.get("job_plan")).toMatchObject({ status: "completed", progress: "Planning completed" });
+  expect(registry.jobs.get("job_plan")).toMatchObject({ status: "completed", progress: "plan completed" });
   expect(registry.tasks.get("task_demo")).toMatchObject({
-    status: "completed",
-    finishedAt: TIMESTAMP,
+    status: "running",
+    finishedAt: null,
   });
   expect(registry.workerSessions.get("session_plan")).toMatchObject({
     harnessSessionId: "pi-native-session",
@@ -40,6 +40,7 @@ test("completes a planning job from Pi output", async () => {
     cwd: "/projects/greeting",
     model: "anthropic/claude-test",
     effortLevel: "high",
+    tools: ["read", "grep", "find", "ls"],
     prompt: REQUEST,
     sessionDirectory: "/worker/session-plan/pi-session",
   }]);
@@ -52,6 +53,13 @@ test("completes a planning job from Pi output", async () => {
       "assistant.completed",
       "session.completed",
     ]);
+});
+
+test("selects writable tools for implementation and recognizes reported failure", () => {
+  expect(toolsForJob("implement")).toEqual(["read", "grep", "find", "ls", "write", "edit", "bash"]);
+  expect(reportedWorkerFailure("Unable to implement because tools are read-only.\n\nNo files changed."))
+    .toBe("Unable to implement because tools are read-only.");
+  expect(reportedWorkerFailure("Implemented the requested change.")).toBeUndefined();
 });
 
 test("fails when Pi reports an assistant error despite exiting zero", async () => {

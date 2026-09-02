@@ -1,3 +1,6 @@
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+
 interface GitProcessResult {
   exitCode: number;
   stdout: { toString(): string };
@@ -5,7 +8,9 @@ interface GitProcessResult {
 }
 
 interface GitDriver {
+  which(command: string): string | null;
   spawnSync(command: string[], options: { cwd: string; stdout: "pipe"; stderr: "pipe" }): GitProcessResult;
+  mkdirSync(path: string, options: { recursive: true }): unknown;
 }
 
 /** INFRASTRUCTURE_WRAPPER: owns Git operations for projects and worktrees. */
@@ -16,16 +21,22 @@ export class GitRepository {
   ) {}
 
   static create(rootDir: string): GitRepository {
-    return new GitRepository(rootDir, Bun as unknown as GitDriver);
+    return new GitRepository(rootDir, {
+      which: (command) => Bun.which(command),
+      spawnSync: (command, options) => Bun.spawnSync(command, options),
+      mkdirSync,
+    });
   }
 
   static createNull(rootDir: string, commit = "0".repeat(40)): GitRepository {
     return new GitRepository(rootDir, {
+      which: (command) => command,
       spawnSync: (command) => ({
         exitCode: 0,
         stdout: { toString: () => command.includes("rev-parse") ? commit : "" },
         stderr: { toString: () => "" },
       }),
+      mkdirSync: () => undefined,
     });
   }
 
@@ -44,8 +55,16 @@ export class GitRepository {
     return this.run(["status", "--porcelain"]);
   }
 
+  createWorktree(path: string): void {
+    this.driver.mkdirSync(dirname(path), { recursive: true });
+    this.run(["worktree", "add", "--detach", path, "HEAD"]);
+  }
+
   private run(args: string[]): string {
-    const result = this.driver.spawnSync(["git", ...args], {
+    const executable = this.driver.which("git");
+    if (!executable) throw new Error("git executable not found in PATH");
+
+    const result = this.driver.spawnSync([executable, ...args], {
       cwd: this.rootDir,
       stdout: "pipe",
       stderr: "pipe",

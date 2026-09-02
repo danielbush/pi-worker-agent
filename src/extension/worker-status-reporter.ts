@@ -10,6 +10,7 @@ export interface WorkerJobStatus {
   status: JobStatus;
   progress: string | null;
   workerSessionId: string | null;
+  worktreePath: string | null;
   requestPath: string;
   eventsPath: string | null;
   result: string | null;
@@ -63,6 +64,7 @@ export class WorkerStatusReporter {
         status: job.status,
         progress: job.progress,
         workerSessionId: session?.id ?? null,
+        worktreePath: job.jobType === "implement" ? this.taskStore.paths.worktree(job.id) : null,
         requestPath: this.taskStore.paths.request(task.id, job.id),
         eventsPath: session
           ? this.taskStore.paths.events(task.id, job.id, session.id)
@@ -91,6 +93,7 @@ export function formatWorkerStatus(status: WorkerTaskStatus): string {
       `${job.type} job ${job.id}: ${job.status}`,
       `Progress: ${job.progress ?? "none"}`,
       `Worker session: ${job.workerSessionId ?? "not started"}`,
+      ...(job.worktreePath ? [`Worktree: ${job.worktreePath}`] : []),
       `Request: ${job.requestPath}`,
       `Events: ${job.eventsPath ?? "not created"}`,
     );

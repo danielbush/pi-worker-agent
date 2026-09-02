@@ -226,7 +226,7 @@ Task statuses:
 - `failed` — a required job failed and the workflow cannot continue.
 - `cancelled` — the task was explicitly cancelled.
 
-Typical transitions are `queued → running → completed | failed | cancelled`. Task status is a database projection derived from its jobs plus explicit cancellation.
+Typical transitions are `queued → running → completed | failed | cancelled`. Starting a job moves the task to `running`, and a failed required job may move it to `failed`. The runner does not mark a task complete merely because every currently existing job has completed: the manager applies `WORKFLOW.md`, determines whether more jobs are required, evaluates the outcomes, and explicitly settles the task.
 
 ### `jobs`
 
@@ -414,7 +414,7 @@ The worktree path is derived from the job `id`; it is not stored on the job. Job
 ```text
 src/
 ├── extension.ts       # minimal Pi extension entry point
-├── extension/         # Pi tools, commands, lifecycle, widgets, notifications
+├── extension/         # manager-facing task/job tools, commands, lifecycle, and notifications
 ├── workflows/         # task/job orchestration and dependency scheduling
 ├── domain/            # data types, IDs, statuses, and dependency rules; no I/O
 ├── infrastructure/    # nullable wrappers grouped by filesystem, git, Pi, process, SQLite, and system
