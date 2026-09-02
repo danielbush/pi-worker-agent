@@ -5,6 +5,7 @@ import { normalizePiJsonLine, parsePiJsonLine } from "../harnesses/pi/pi-json-li
 import { Registry, type NullRegistryState } from "../storage/registry.ts";
 import { TaskStore, type NullTaskStoreState } from "../storage/task-store.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
+import { JobWorktreeLocator } from "../workflows/job-worktree-locator.ts";
 
 export interface PiWorkerRunnerInput {
   taskId: string;
@@ -71,7 +72,13 @@ export class PiWorkerRunner {
     });
 
     try {
-      const cwd = job.jobType === "implement" ? this.taskStore.paths.worktree(job.id) : workspace.rootDir;
+      const worktreePath = job.jobType === "implement" || job.jobType === "review"
+        ? new JobWorktreeLocator(this.registry, this.taskStore).locate(job)
+        : null;
+      if (job.jobType === "review" && !worktreePath) {
+        throw new Error(`Review job has no implementation worktree: ${job.id}`);
+      }
+      const cwd = worktreePath ?? workspace.rootDir;
       const temporaryDirectory = join(sessionDirectory, "tmp");
       const process = await this.harness.start({
         cwd,
@@ -84,7 +91,7 @@ export class PiWorkerRunner {
         writablePaths: [
           sessionDirectory,
           temporaryDirectory,
-          ...(job.jobType === "implement" ? [cwd] : []),
+          ...(job.jobType === "implement" || job.jobType === "fix" ? [cwd] : []),
         ],
       });
       await events.append({ timestamp: this.clock.now(), type: "session.started", pid: process.pid });

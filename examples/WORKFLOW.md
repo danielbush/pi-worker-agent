@@ -24,53 +24,37 @@ Address specific review findings in the implementation worktree and rerun releva
 
 Run focused verification against an existing worktree without making product changes. Depend on the implementation or fix being tested.
 
-## Coding flows
+## Coding flow
 
-The manager chooses one of these flows based on the size and uncertainty of the task, then creates each next job only after evaluating the previous result.
+### Default coding task
 
-### Demo task
-
-Use this workflow only when the user asks to demonstrate task handling and manager orchestration through the real system. Run it against the current managed project and keep the coding target isolated from product code, such as `demo/greeting-cli/` in an implementation worktree.
-
-```text
-plan → code (`implement` job)
-```
-
-1. Create a task with explicit intent, outcomes, and background, reference it from the current vertical slice with `taskid://<uuid>`, and update the project's `.agent/tasks.md` index.
-2. Create a read-only `plan` job against the project's registered workspace.
-3. When planning completes, stop. The manager evaluates the result; the runner does not create the next job automatically.
-4. If the plan is acceptable, create an `implement` job with an `implements-plan` dependency and include the accepted plan in its canonical `request.md`.
-5. Run implementation in an isolated worktree and expose its progress, worktree, and result through task status.
-6. Stop after the code job so the user can exercise the result. This demo deliberately omits review; the next vertical slice extends it to `plan → implement → review`.
-
-The workflow demonstrates policy-driven orchestration rather than a hardcoded demo command. The manager makes each transition explicitly and uses the same task, job, dependency, worktree, runner, and event-storage mechanisms intended for normal work.
-
-### Small coding task
-
-Use when the change is narrow, well specified, and does not need investigation before implementation.
-
-```text
-implement → review
-```
-
-1. Create `implement` with the task intent, outcomes, and relevant context.
-2. After successful implementation, create `review` with a `reviews` dependency.
-3. If review finds actionable problems, create `fix` with an `addresses-findings` dependency, then review again.
-4. Complete the task when the outcomes are met and no further work is justified.
-
-### Planned coding task
-
-Use when the change is uncertain, spans multiple areas, or benefits from investigation and decomposition.
+Coding tasks use planning and review by default:
 
 ```text
 plan → implement → review
 ```
 
-1. Create `plan` to inspect the project and propose an implementation approach.
-2. After accepting the plan, create `implement` with an `implements-plan` dependency and include the plan in its request.
-3. After successful implementation, create `review` with a `reviews` dependency.
-4. If review finds actionable problems, create `fix` with an `addresses-findings` dependency, then review again.
-5. Complete the task when the outcomes are met and no further work is justified.
+1. Create a task with explicit intent, outcomes, and background, associate it with the managed project, reference it from the current slice with `taskid://<uuid>`, and update the project's `.agent/tasks.md` index.
+2. Create a read-only `plan` job.
+3. After successful planning, the manager evaluates the result and creates an `implement` job with an `implements-plan` dependency. Include the accepted plan in its canonical `request.md`.
+4. Run implementation in an isolated worktree.
+5. After successful implementation, the manager evaluates the result and creates a read-only `review` job with a `reviews` dependency against that worktree.
+6. If review finds actionable problems, create a `fix` job with an `addresses-findings` dependency, then review the fix.
+7. Complete the task only when its outcomes are met and no further work is justified.
+
+Planning and review are policy defaults, so their successful transitions do not require separate user prompts. The manager still evaluates and persists each transition individually; a runner does not infer or create jobs merely because another job exited.
+
+A failure or ambiguous result stops automatic continuation for manager reassessment.
+
+### User-requested variations
+
+The user may explicitly modify the default for a task:
+
+- **No planning:** `implement → review`
+- **Skip review:** `plan → implement`
+- **No planning and skip review:** `implement`
+
+Treat these as explicit task-level workflow choices. Do not infer them merely because work appears small or urgent.
 
 ## Dependency rules
 

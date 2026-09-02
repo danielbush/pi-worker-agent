@@ -109,6 +109,8 @@ export class WorkerCompletionMonitor {
         "",
         "Worker result:",
         result,
+        "",
+        "Re-read the active project and workflow policies, evaluate this result, and perform the next required transition. Stop for failures or ambiguous results.",
       ].join("\n"));
       this.registry.jobs.markAgentNotified(job.id);
     }

@@ -2,6 +2,7 @@ import type { JobStatus } from "../domain/job.ts";
 import type { TaskStatus } from "../domain/task.ts";
 import { Registry, type NullRegistryState } from "../storage/registry.ts";
 import { TaskStore, type NullTaskStoreState } from "../storage/task-store.ts";
+import { JobWorktreeLocator } from "../workflows/job-worktree-locator.ts";
 
 export interface TaskJobStatus {
   id: string;
@@ -64,7 +65,9 @@ export class TaskStatusReporter {
         status: job.status,
         progress: job.progress,
         workerSessionId: session?.id ?? null,
-        worktreePath: job.jobType === "implement" ? this.taskStore.paths.worktree(job.id) : null,
+        worktreePath: job.jobType === "implement" || job.jobType === "review"
+          ? new JobWorktreeLocator(this.registry, this.taskStore).locate(job)
+          : null,
         requestPath: this.taskStore.paths.request(task.id, job.id),
         eventsPath: session
           ? this.taskStore.paths.events(task.id, job.id, session.id)

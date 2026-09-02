@@ -84,6 +84,69 @@ test("confines an implementation worker to its worktree and session directories"
   });
 });
 
+test("runs review read-only against the implementation worktree", async () => {
+  // arrange
+  const implementation = { ...planningJob(), id: "job_implement", jobType: "implement" as const };
+  const review = { ...planningJob(), id: "job_review", jobType: "review" as const };
+  const registry = Registry.createNull({
+    workspaces: [{
+      id: "project_demo",
+      name: "Greeting demo",
+      rootDir: "/projects/greeting",
+      createdAt: TIMESTAMP,
+      lastUsedAt: TIMESTAMP,
+    }],
+    tasks: [{
+      id: "task_demo",
+      workspaceId: "project_demo",
+      title: "Implement greeting CLI",
+      status: "queued",
+      createdAt: TIMESTAMP,
+      finishedAt: null,
+    }],
+    jobs: [implementation, review],
+    jobDependencies: [{
+      jobId: "job_review",
+      dependsOnJobId: "job_implement",
+      relationship: "reviews",
+    }],
+    workerSessions: [{
+      id: "session_review",
+      jobId: "job_review",
+      harnessSessionId: null,
+      harnessSessionPath: null,
+      storagePath: "/worker/session-review",
+      createdAt: TIMESTAMP,
+    }],
+  });
+  const taskStore = TaskStore.createNull({
+    requests: [{ taskId: "task_demo", jobId: "job_review", text: "Review it." }],
+    eventLogs: [{ taskId: "task_demo", jobId: "job_review", workerSessionId: "session_review" }],
+  });
+  const harness = PiHarness.createNull({
+    stdoutLines: piOutput({ content: "Review passed.", stopReason: "stop" }),
+  });
+  const runner = new PiWorkerRunner(registry, taskStore, harness, Clock.createNull(TIMESTAMP));
+
+  // act
+  const exitCode = await runner.execute({
+    taskId: "task_demo",
+    jobId: "job_review",
+    workerSessionId: "session_review",
+  });
+
+  // assert
+  expect(exitCode).toBe(0);
+  expect(harness.state.invocations[0]).toMatchObject({
+    cwd: "/null-worker-agent/worktrees/job_implement",
+    tools: ["read", "grep", "find", "ls"],
+    writablePaths: [
+      "/worker/session-review/pi-session",
+      "/worker/session-review/pi-session/tmp",
+    ],
+  });
+});
+
 test("selects writable tools for implementation and recognizes reported failure", () => {
   expect(toolsForJob("implement")).toEqual(["read", "grep", "find", "ls", "write", "edit", "bash"]);
   expect(reportedWorkerFailure("Unable to implement because tools are read-only.\n\nNo files changed."))

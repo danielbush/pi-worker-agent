@@ -422,7 +422,7 @@ Fields when relevant:
 
 ### Worktree
 
-For a project job, the extension:
+For an implementation job, the extension:
 
 - Creates the job and assigns its `id`.
 - Loads the workspace through `tasks.workspaceId`.
@@ -431,13 +431,15 @@ For a project job, the extension:
 - Creates the git worktree.
 - Executes the worker inside it.
 
-The worktree path is derived from the job `id`; it is not stored on the job. Jobs whose task has no project do not receive a project worktree.
+The worktree path is derived from the implementation job `id`; it is not stored on the job. A review follows its dependency chain to the implementation job and runs read-only inside that same worktree.
 
 ## Manager permissions
 
 The Pi extension starts in restricted manager mode. Its application-enforced allowlist exposes read tools and worker-agent orchestration tools, while a `tool_call` guard blocks every other tool even if another extension reactivates it. The manager may inspect and propose any workspace path through `worker_register_workspace`, but the tool fails without interactive UI and records the canonical path in SQLite only after the user approves the displayed name, path, action, and Git status. Project registration accepts only existing immediate subdirectories under `$DATA_ROOT/projects/`, stores a synthetic ID plus identifying metadata, and never derives task membership by parsing Markdown. Task creation accepts a registered project ID and authorized workspace ID, creates the `projects_tasks` association transactionally, and delegation revalidates that the recorded canonical workspace path remains accessible. Managers answer project-status questions through the joined project-task query tool; `taskid://...` references remain documentation links.
 
 Unrestricted coding is an explicit user elevation rather than an agent decision. `/development-mode` requires interactive confirmation and lasts only for the current session; `/manager-mode`, reload, and session replacement restore the restricted manager profile.
+
+When a detached worker settles, the completion monitor injects its durable result and triggers a manager turn. The manager re-reads policy, evaluates the result, and chooses the next transition. The runner does not encode or create workflow successors.
 
 Workers have a separate process-level boundary. Before spawning Pi, the harness initializes `@anthropic-ai/sandbox-runtime` and wraps the entire worker process tree. macOS uses `sandbox-exec`; Linux uses Bubblewrap and required helper tools; Windows and unsupported or misconfigured platforms fail before Pi starts. The sandbox denies writes by default and allows only canonical worker-session paths, a private temporary directory, and the assigned implementation worktree for writable jobs. Sandbox setup and cleanup are part of the harness lifecycle rather than instructions trusted to the worker.
 

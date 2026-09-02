@@ -6,6 +6,7 @@ import { DetachedRunnerLauncher } from "../infrastructure/process/detached-runne
 import { Clock } from "../infrastructure/system/clock.ts";
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
+import { JobWorktreeLocator } from "./job-worktree-locator.ts";
 
 export interface DelegateJobInput {
   taskId: string;
@@ -64,7 +65,7 @@ export class JobDelegator {
   }
 
   async delegate(input: DelegateJobInput): Promise<DelegatedJob> {
-    if (input.jobType !== "plan" && input.jobType !== "implement") {
+    if (input.jobType !== "plan" && input.jobType !== "implement" && input.jobType !== "review") {
       throw new Error(`Unsupported job type in this slice: ${input.jobType}`);
     }
     const task = this.registry.tasks.get(input.taskId);
@@ -90,8 +91,13 @@ export class JobDelegator {
     const timestamp = this.clock.now();
     const worktreePath = input.jobType === "implement"
       ? this.taskStore.paths.worktree(jobId)
-      : null;
-    if (worktreePath) this.worktrees.create(workspace.rootDir, worktreePath);
+      : dependency ? new JobWorktreeLocator(this.registry, this.taskStore).locate(dependency) : null;
+    if (input.jobType === "review" && !worktreePath) {
+      throw new Error("A review job requires a dependency with an implementation worktree");
+    }
+    if (input.jobType === "implement" && worktreePath) {
+      this.worktrees.create(workspace.rootDir, worktreePath);
+    }
 
     const bundlePath = await this.taskStore.jobs.create({
       taskId: task.id,

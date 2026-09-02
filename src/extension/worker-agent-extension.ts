@@ -116,7 +116,7 @@ export class WorkerAgentExtension {
           content: message,
           display: false,
         }, {
-          triggerTurn: false,
+          triggerTurn: true,
           deliverAs: "followUp",
         }),
       );
@@ -303,16 +303,17 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_delegate_job",
       label: "Delegate worker job",
-      description: "Create and launch the next plan or implement job for an existing task. Implement jobs receive an isolated git worktree and write/edit/bash tools.",
-      promptSnippet: "Create and launch a plan or implement worker job",
+      description: "Create and launch the next plan, implement, or review job for an existing task. Implement jobs receive isolated worktrees; review jobs inspect their dependency's worktree read-only.",
+      promptSnippet: "Create and launch a plan, implement, or review worker job",
       promptGuidelines: [
         "Use worker_delegate_job instead of temporary scripts, direct SQLite writes, manual worktree creation, or direct runner invocation.",
         "Before worker_delegate_job, read the target workspace's agent instructions and include relevant guidance in the canonical worker request.",
-        "Evaluate a completed dependency before calling worker_delegate_job for the next workflow transition.",
+        "Evaluate a completed dependency and re-read WORKFLOW.md before calling worker_delegate_job for the next workflow transition.",
+        "Review jobs must depend on the completed implementation they inspect and use the reviews relationship.",
       ],
       parameters: Type.Object({
         taskId: Type.String({ description: "Exact task UUID or unique leading shorthand" }),
-        jobType: Type.String({ description: "plan or implement" }),
+        jobType: Type.String({ description: "plan, implement, or review" }),
         title: Type.String(),
         request: Type.String({ description: "Complete canonical worker prompt, including relevant task context and accepted dependency results" }),
         dependsOnJobId: Type.Optional(Type.String()),

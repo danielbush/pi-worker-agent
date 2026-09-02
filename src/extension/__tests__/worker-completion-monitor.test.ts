@@ -48,6 +48,7 @@ test("delivers a settled worker result once", async () => {
   }]);
   expect(notifications.state.agent).toHaveLength(1);
   expect(notifications.state.agent[0]).toContain("Change src/index.ts.");
+  expect(notifications.state.agent[0]).toContain("perform the next required transition");
   expect(registry.jobs.get("job_plan")).toMatchObject({ userNotified: true, agentNotified: true });
 });
 
