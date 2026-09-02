@@ -1,12 +1,17 @@
 import { expect, test } from "bun:test";
 import { Clock } from "../../infrastructure/system/clock.ts";
-import { DetachedRunnerLauncher } from "../../infrastructure/process/detached-runner-launcher.ts";
+import { DetachedRunnerLauncher, type PreparedRunner } from "../../infrastructure/process/detached-runner-launcher.ts";
 import { Registry } from "../../storage/registry.ts";
 import { TaskStore } from "../../storage/task-store.ts";
 import { JobDelegator } from "../job-delegator.ts";
 
 const TIMESTAMP = "2026-09-01T12:00:00Z";
 const TASK_ID = "ab123456-1234-4123-8123-1234567890ab";
+
+class FailingRunner extends DetachedRunnerLauncher {
+  constructor() { super("/null/runner.ts", { which: () => "/null/bin/bun", exists: () => true, spawn: () => { throw new Error("spawn denied"); } }); }
+  override launch(_prepared: PreparedRunner, _root: string, _taskId: string, _jobId: string, _sessionId: string): number { throw new Error("spawn denied"); }
+}
 
 class FixedIds {
   constructor(
@@ -80,10 +85,6 @@ test("creates a dependent implementation job, worktree, and detached launch", as
     relationship: "implements-plan",
     parentSessionId: "manager-session",
     parentSessionFile: "/sessions/manager.jsonl",
-    model: "anthropic/test",
-    modelName: "Test",
-    modelVersion: "test",
-    effortLevel: "high",
   });
 
   // assert
@@ -111,6 +112,43 @@ test("creates a dependent implementation job, worktree, and detached launch", as
     jobId: "job_implement",
     workerSessionId: "session_implement",
   }]);
+});
+
+test("settles durable state and records a canonical error when detached spawn fails", async () => {
+  // arrange
+  const registry = Registry.createNull({
+    workspaces: [{ id: "workspace_demo", name: "demo", rootDir: "/projects/demo", createdAt: TIMESTAMP, lastUsedAt: TIMESTAMP }],
+    tasks: [{ id: TASK_ID, workspaceId: "workspace_demo", title: "Plan", status: "queued", createdAt: TIMESTAMP, finishedAt: null }],
+  });
+  const store = TaskStore.createNull();
+  const delegator = new JobDelegator("/data", registry, store, new FixedIds("job_plan", "session_plan"), new FailingRunner(), { create: () => {} }, Clock.createNull(TIMESTAMP));
+
+  // act
+  const result = delegator.delegate({ taskId: TASK_ID, jobType: "plan", title: "Plan", request: "Plan it", parentSessionId: "manager", parentSessionFile: null });
+
+  // assert
+  await expect(result).rejects.toThrow("Detached runner launch failed: spawn denied");
+  expect(registry.jobs.get("job_plan")).toMatchObject({ status: "failed", progress: "Detached runner launch failed: spawn denied" });
+  expect(registry.tasks.get(TASK_ID)?.status).toBe("failed");
+  expect(await store.events(TASK_ID, "job_plan", "session_plan").readAll()).toContainEqual({ timestamp: TIMESTAMP, type: "error", error: "Detached runner launch failed: spawn denied" });
+});
+
+test("does not leave a queued orphan when canonical error writing fails after launch failure", async () => {
+  // arrange
+  const registry = Registry.createNull({
+    workspaces: [{ id: "workspace_demo", name: "demo", rootDir: "/projects/demo", createdAt: TIMESTAMP, lastUsedAt: TIMESTAMP }],
+    tasks: [{ id: TASK_ID, workspaceId: "workspace_demo", title: "Plan", status: "queued", createdAt: TIMESTAMP, finishedAt: null }],
+  });
+  const store = TaskStore.createNull({ eventLogs: [{ taskId: TASK_ID, jobId: "job_plan", workerSessionId: "session_plan", appendError: "event disk unavailable" }] });
+  const delegator = new JobDelegator("/data", registry, store, new FixedIds("job_plan", "session_plan"), new FailingRunner(), { create: () => {} }, Clock.createNull(TIMESTAMP));
+
+  // act
+  const result = delegator.delegate({ taskId: TASK_ID, jobType: "plan", title: "Plan", request: "Plan it", parentSessionId: "manager", parentSessionFile: null });
+
+  // assert
+  await expect(result).rejects.toThrow("Detached runner launch failed: spawn denied; canonical error append failed: event disk unavailable");
+  expect(registry.jobs.get("job_plan")).toMatchObject({ status: "failed", progress: "Detached runner launch failed: spawn denied" });
+  expect(registry.tasks.get(TASK_ID)?.status).toBe("failed");
 });
 
 test("creates a read-only review against its implementation dependency's worktree", async () => {
@@ -174,10 +212,6 @@ test("creates a read-only review against its implementation dependency's worktre
     relationship: "reviews",
     parentSessionId: "manager-session",
     parentSessionFile: "/sessions/manager.jsonl",
-    model: "anthropic/test",
-    modelName: "Test",
-    modelVersion: "test",
-    effortLevel: "high",
   });
 
   // assert

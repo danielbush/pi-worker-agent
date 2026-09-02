@@ -1,5 +1,6 @@
 export const JOB_TYPES = ["investigate", "plan", "implement", "review", "test", "fix"] as const;
-export type JobType = (typeof JOB_TYPES)[number];
+/** A policy-defined purpose. Known capabilities are still resolved by application code. */
+export type JobType = string;
 
 export type JobStatus = "blocked" | "queued" | "running" | "completed" | "failed" | "cancelled" | "skipped";
 
@@ -10,7 +11,15 @@ export interface Job {
   jobType: JobType;
   parentSessionId: string;
   parentSessionFile: string | null;
+  /** Explicitly distinguishes historical pre-profile rows from current snapshots. */
+  snapshotProvenance?: "current" | "migration-fossil" | null;
+  /** Null only when snapshotProvenance is migration-fossil. */
+  workerProfile?: string | null;
+  profileFingerprint?: string | null;
+  capabilityProfile?: string | null;
   harness: string;
+  harnessVersion?: string | null;
+  nativeInvocation?: string | null;
   model: string;
   effortLevel: string;
   modelName: string;

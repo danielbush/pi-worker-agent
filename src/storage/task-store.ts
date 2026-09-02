@@ -8,7 +8,7 @@ import { WorkerSessionEventLogs } from "./task-store/worker-session-event-logs.t
 
 export interface NullTaskStoreState {
   requests?: Array<{ taskId: string; jobId: string; text: string }>;
-  eventLogs?: Array<{ taskId: string; jobId: string; workerSessionId: string; events?: WorkerEvent[] }>;
+  eventLogs?: Array<{ taskId: string; jobId: string; workerSessionId: string; events?: WorkerEvent[]; appendError?: string }>;
   harnessSessionPaths?: Record<string, string | null>;
 }
 
@@ -58,6 +58,14 @@ export class TaskStore {
 
   async prepareHarnessSessionDirectory(storagePath: string): Promise<string> {
     return this.harnessSessions.prepare(storagePath);
+  }
+
+  async createPrivateRuntimeDirectory(): Promise<string> {
+    return this.harnessSessions.createPrivateRuntimeDirectory();
+  }
+
+  async removePrivateRuntimeDirectory(path: string): Promise<void> {
+    await this.harnessSessions.removePrivateRuntimeDirectory(path);
   }
 
   async findHarnessSessionPath(directory: string, sessionId: string): Promise<string | null> {

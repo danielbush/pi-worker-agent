@@ -2,7 +2,7 @@
 
 A work-in-progress Pi extension for managing durable tasks and detached worker agents from Pi.
 
-Development is driven through the managed `pi-worker-agent` project under the configured data root. The current target is manager-orchestrated `plan → code` work against this repository, without a hardcoded demo command.
+Development is driven through the managed `pi-worker-agent` project under the configured data root. The current target is manager-orchestrated `plan → implement → review` work through named Pi or Cursor Agent profiles, without a hardcoded demo command.
 
 See:
 
@@ -64,11 +64,15 @@ When directly developing this system, the user can run `/development-mode` and c
 
 Quickly test the boundary with the harmless prompt `Use bash to run pwd. Do not use another tool.` It should be unavailable or blocked after startup and after `/manager-mode`, succeed after confirmed `/development-mode`, then become unavailable again after `/manager-mode`.
 
-Planning and review workers are read-only; implementation workers receive an isolated worktree plus write, edit, and shell tools. Reviews inherit the implementation worktree through their dependency and inspect it without write access. Every Pi worker process tree runs through `@anthropic-ai/sandbox-runtime`: macOS uses `sandbox-exec`, Linux uses Bubblewrap, and unsupported platforms—including Windows—fail closed. Writes are limited to the implementation worktree, canonical worker-session directory, and its private temporary directory; common model-provider domains are allowlisted and sensitive credential directories are denied to worker reads. Linux hosts must provide `bubblewrap`, `socat`, and `ripgrep`.
+`WORKFLOW.md` contains exactly one strictly parsed fenced YAML profile configuration. The shipped defaults use `pi-sol-high` for planning, `cursor-grok-high` for implementation/fixes, and `pi-sol-medium` for review/tests. `worker_create_task` accepts optional purpose-to-profile overrides; these select only harness-native model options and cannot grant capabilities. Delegation verifies one resolved executable identity, version/help contract, authentication, model catalog, native options, sandbox, Bun, and runner before creating execution state.
+
+Cursor Agent `2026.08.25-3e8eec8` was inspected at `/Users/danb/.local/bin/cursor-agent`. Its installed help confirms `--print --output-format stream-json`, `--stream-partial-output`, `--model`, `--list-models`, private API-key auth, and endpoint `https://api2.cursor.sh`; installed resources also name `api2direct.cursor.sh` and metrics host `api3.cursor.sh`. In this job's network boundary, the configured local HTTP CONNECT proxy returned `403 X-Proxy-Error: blocked-by-allowlist` for `api2.cursor.sh`. The authenticated CLI `status` said `Login successful` but could not fetch user details; `--list-models` and a minimal stream-JSON run both failed before TLS with `Client network socket disconnected before secure TLS connection was established`, and the run emitted zero stdout bytes. The representative redacted failure is retained as a fixture; it contained no credentials. Consequently `cursor-grok-4.5-high` could not be verified in the native catalog, no successful stream contract was captured, and production Cursor remains fail-closed with an explicit unverified-contract diagnostic. The slice is not complete.
+
+Planning and review workers are read-only; implementation workers receive an isolated worktree plus write, edit, and shell tools. Reviews inherit the implementation worktree through their dependency and inspect it without write access. Every Pi or Cursor Agent worker process tree runs through `@anthropic-ai/sandbox-runtime`: macOS uses `sandbox-exec`, Linux uses Bubblewrap, and unsupported platforms—including Windows—fail closed. Writes are limited to the implementation worktree, canonical worker-session directory, and a non-canonical private OS temporary directory; common model-provider domains are allowlisted and sensitive credential directories are denied to worker reads. Only selected-harness credentials are staged after preflight under a disposable private `HOME`, outside canonical artifacts, and removed on every settlement path. Cursor workers accept narrowly selected API-key/auth-token variables or a private file-store auth copy and cannot read the manager's persistent Cursor/Pi stores. Linux hosts must provide `bubblewrap`, `socat`, and `ripgrep`.
 
 Settled worker results trigger a new manager turn. The manager re-reads policy, evaluates the result, and performs the next required transition; the runner itself never invents successor jobs. After accepting the task outcome, the manager uses a narrow completion tool to settle the task. The tool rejects tasks with active work but does not encode workflow semantics or interpret settled job results.
 
-Inspect any created task from Pi with:
+Verbose status includes the immutable profile fingerprint, trusted capability, harness version, and native invocation snapshot. Inspect any created task from Pi with:
 
 ```text
 /task-status <task-uuid>

@@ -1,4 +1,4 @@
-import { PiWorkerRunner } from "./pi-worker-runner.ts";
+import { WorkerRunner } from "./worker-runner.ts";
 
 export async function main(args: string[]): Promise<number> {
   const [root, taskId, jobId, workerSessionId] = args;
@@ -7,7 +7,7 @@ export async function main(args: string[]): Promise<number> {
     return 2;
   }
 
-  const runner = PiWorkerRunner.create(root);
+  const runner = WorkerRunner.create(root);
   try {
     return await runner.execute({ taskId, jobId, workerSessionId });
   } finally {

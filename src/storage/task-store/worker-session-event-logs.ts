@@ -7,6 +7,7 @@ export interface NullWorkerSessionEventLog {
   jobId: string;
   workerSessionId: string;
   events?: WorkerEvent[];
+  appendError?: string;
 }
 
 interface EventLogLocator {
@@ -28,17 +29,17 @@ export class WorkerSessionEventLogs {
   static createNull(logs: NullWorkerSessionEventLog[] = []): WorkerSessionEventLogs {
     const records = new Map(logs.map((log) => [
       key(log.taskId, log.jobId, log.workerSessionId),
-      structuredClone(log.events ?? []),
+      { events: structuredClone(log.events ?? []), appendError: log.appendError },
     ]));
     return new WorkerSessionEventLogs({
       events: (taskId, jobId, workerSessionId) => {
         const logKey = key(taskId, jobId, workerSessionId);
-        let events = records.get(logKey);
-        if (!events) {
-          events = [];
-          records.set(logKey, events);
+        let record = records.get(logKey);
+        if (!record) {
+          record = { events: [], appendError: undefined };
+          records.set(logKey, record);
         }
-        return WorkerSessionEvents.createNull(taskId, jobId, workerSessionId, events);
+        return WorkerSessionEvents.createNull(taskId, jobId, workerSessionId, record.events, record.appendError);
       },
     });
   }

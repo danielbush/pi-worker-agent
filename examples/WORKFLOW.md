@@ -48,9 +48,11 @@ defaults:
   plan: pi-sol-high
   implement: cursor-grok-high
   review: pi-sol-medium
+  fix: cursor-grok-high
+  test: pi-sol-medium
 ```
 
-Tasks may override a job purpose by selecting another configured worker profile. Harness adapters validate their own native settings and available models. Trusted execution capabilities such as `read-only`, `code`, and `test` remain separate, application-enforced, and unavailable to task overrides.
+Tasks may override a job purpose by selecting another configured worker profile. For example, `worker_create_task` may receive `profileOverrides: { implement: pi-sol-high }`; the override is validated and applies only to that task. Harness adapters validate their own native settings and available models. Trusted execution capabilities such as `read-only`, `code`, and `test` remain separate, application-enforced, and unavailable to task overrides.
 
 ## Coding flow
 

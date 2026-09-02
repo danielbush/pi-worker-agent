@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
 import type { Job } from "../../domain/job.ts";
-import { PiHarness } from "../../infrastructure/pi/pi-harness.ts";
+import { profileFingerprint } from "../../domain/execution-profile.ts";
+import { NativeHarness } from "../../infrastructure/process/native-harness.ts";
 import { Registry } from "../../storage/registry.ts";
 import { TaskStore } from "../../storage/task-store.ts";
 import { Clock } from "../../infrastructure/system/clock.ts";
-import { PiWorkerRunner, reportedWorkerFailure, toolsForJob } from "../pi-worker-runner.ts";
+import { WorkerRunner, reportedWorkerFailure, toolsForJob } from "../worker-runner.ts";
 
 const TIMESTAMP = "2026-08-30T12:00:00Z";
 const REQUEST = "Inspect the project and produce an implementation plan.";
@@ -13,14 +14,14 @@ test("completes a planning job from Pi output", async () => {
   // arrange
   const registry = createRegistry();
   const taskStore = createTaskStore();
-  const harness = PiHarness.createNull({
+  const harness = NativeHarness.createNull({
     pid: 1234,
     stdoutLines: piOutput({
       content: "Change src/index.ts.",
       stopReason: "stop",
     }),
   });
-  const runner = new PiWorkerRunner(registry, taskStore, harness, Clock.createNull(TIMESTAMP));
+  const runner = new WorkerRunner(registry, taskStore, harness, Clock.createNull(TIMESTAMP));
 
   // act
   const exitCode = await runner.execute(input());
@@ -38,15 +39,17 @@ test("completes a planning job from Pi output", async () => {
   });
   expect(harness.state.invocations).toEqual([{
     cwd: "/projects/greeting",
-    model: "anthropic/claude-test",
+    model: "openai-codex/gpt-5.6-sol",
     effortLevel: "high",
     tools: ["read", "grep", "find", "ls"],
     prompt: REQUEST,
-    sessionDirectory: "/worker/session-plan/pi-session",
-    temporaryDirectory: "/worker/session-plan/pi-session/tmp",
+    sessionDirectory: "/worker/session-plan/harness-session",
+    temporaryDirectory: "/tmp/pi-worker-agent-null-private",
+    harness: "pi",
+    nativeInvocation: piInvocation(),
     writablePaths: [
-      "/worker/session-plan/pi-session",
-      "/worker/session-plan/pi-session/tmp",
+      "/worker/session-plan/harness-session",
+      "/tmp/pi-worker-agent-null-private",
     ],
   }]);
   expect((await taskStore.events("task_demo", "job_plan", "session_plan").readAll()).map((event) => event.type))
@@ -62,12 +65,12 @@ test("completes a planning job from Pi output", async () => {
 
 test("confines an implementation worker to its worktree and session directories", async () => {
   // arrange
-  const registry = createRegistry({ ...planningJob(), jobType: "implement" });
+  const registry = createRegistry({ ...planningJob(), jobType: "implement", capabilityProfile: "code", nativeInvocation: JSON.stringify({ ...piInvocation(), args: piInvocation().args.map((item) => item === "read,grep,find,ls" ? "read,grep,find,ls,write,edit,bash" : item) }) });
   const taskStore = createTaskStore();
-  const harness = PiHarness.createNull({
+  const harness = NativeHarness.createNull({
     stdoutLines: piOutput({ content: "Implemented.", stopReason: "stop" }),
   });
-  const runner = new PiWorkerRunner(registry, taskStore, harness, Clock.createNull(TIMESTAMP));
+  const runner = new WorkerRunner(registry, taskStore, harness, Clock.createNull(TIMESTAMP));
 
   // act
   const exitCode = await runner.execute(input());
@@ -77,8 +80,8 @@ test("confines an implementation worker to its worktree and session directories"
   expect(harness.state.invocations[0]).toMatchObject({
     cwd: "/null-worker-agent/worktrees/job_plan",
     writablePaths: [
-      "/worker/session-plan/pi-session",
-      "/worker/session-plan/pi-session/tmp",
+      "/worker/session-plan/harness-session",
+      "/tmp/pi-worker-agent-null-private",
       "/null-worker-agent/worktrees/job_plan",
     ],
   });
@@ -86,7 +89,7 @@ test("confines an implementation worker to its worktree and session directories"
 
 test("runs review read-only against the implementation worktree", async () => {
   // arrange
-  const implementation = { ...planningJob(), id: "job_implement", jobType: "implement" as const };
+  const implementation = { ...planningJob(), id: "job_implement", jobType: "implement" as const, capabilityProfile: "code" };
   const review = { ...planningJob(), id: "job_review", jobType: "review" as const };
   const registry = Registry.createNull({
     workspaces: [{
@@ -123,10 +126,10 @@ test("runs review read-only against the implementation worktree", async () => {
     requests: [{ taskId: "task_demo", jobId: "job_review", text: "Review it." }],
     eventLogs: [{ taskId: "task_demo", jobId: "job_review", workerSessionId: "session_review" }],
   });
-  const harness = PiHarness.createNull({
+  const harness = NativeHarness.createNull({
     stdoutLines: piOutput({ content: "Review passed.", stopReason: "stop" }),
   });
-  const runner = new PiWorkerRunner(registry, taskStore, harness, Clock.createNull(TIMESTAMP));
+  const runner = new WorkerRunner(registry, taskStore, harness, Clock.createNull(TIMESTAMP));
 
   // act
   const exitCode = await runner.execute({
@@ -141,10 +144,30 @@ test("runs review read-only against the implementation worktree", async () => {
     cwd: "/null-worker-agent/worktrees/job_implement",
     tools: ["read", "grep", "find", "ls"],
     writablePaths: [
-      "/worker/session-review/pi-session",
-      "/worker/session-review/pi-session/tmp",
+      "/worker/session-review/harness-session",
+      "/tmp/pi-worker-agent-null-private",
     ],
   });
+});
+
+test("fails closed when capability or profile snapshot is tampered", async () => {
+  // arrange
+  for (const changed of [
+    { ...planningJob(), capabilityProfile: "code" },
+    { ...planningJob(), profileFingerprint: "0".repeat(64) },
+  ]) {
+    const registry = createRegistry(changed);
+    const harness = NativeHarness.createNull({ stdoutLines: piOutput({ content: "Done", stopReason: "stop" }) });
+    const runner = new WorkerRunner(registry, createTaskStore(), harness, Clock.createNull(TIMESTAMP));
+
+    // act
+    const exitCode = await runner.execute(input());
+
+    // assert
+    expect(exitCode).toBe(1);
+    expect(registry.jobs.get("job_plan")?.status).toBe("failed");
+    expect(harness.state.invocations).toHaveLength(0);
+  }
 });
 
 test("selects writable tools for implementation and recognizes reported failure", () => {
@@ -158,7 +181,7 @@ test("fails when Pi reports an assistant error despite exiting zero", async () =
   // arrange
   const registry = createRegistry();
   const taskStore = createTaskStore();
-  const harness = PiHarness.createNull({
+  const harness = NativeHarness.createNull({
     stdoutLines: piOutput({
       content: "",
       stopReason: "error",
@@ -166,7 +189,7 @@ test("fails when Pi reports an assistant error despite exiting zero", async () =
     }),
     exitCode: 0,
   });
-  const runner = new PiWorkerRunner(registry, taskStore, harness, Clock.createNull(TIMESTAMP));
+  const runner = new WorkerRunner(registry, taskStore, harness, Clock.createNull(TIMESTAMP));
 
   // act
   const exitCode = await runner.execute(input());
@@ -222,8 +245,14 @@ function planningJob(): Job {
     jobType: "plan",
     parentSessionId: "manager-session",
     parentSessionFile: null,
+    snapshotProvenance: "current",
+    workerProfile: "pi-test",
+    profileFingerprint: profileFingerprint({ name: "pi-test", harness: "pi", model: "openai-codex/gpt-5.6-sol", options: { thinking: "high" } }),
+    capabilityProfile: "read-only",
     harness: "pi",
-    model: "anthropic/claude-test",
+    harnessVersion: "1.0.0-test",
+    nativeInvocation: JSON.stringify(piInvocation()),
+    model: "openai-codex/gpt-5.6-sol",
     effortLevel: "high",
     modelName: "Claude Test",
     modelVersion: "claude-test",
@@ -235,6 +264,13 @@ function planningJob(): Job {
     bundlePath: "/worker/job-plan",
     userNotified: false,
     agentNotified: false,
+  };
+}
+
+function piInvocation() {
+  return {
+    executable: "/null/bin/pi",
+    args: ["--mode", "json", "--print", "--tools", "read,grep,find,ls", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve", "--model", "openai-codex/gpt-5.6-sol", "--thinking", "high"],
   };
 }
 

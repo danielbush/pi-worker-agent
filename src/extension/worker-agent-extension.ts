@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { Type } from "typebox";
 import { DATA_ROOT } from "../config.ts";
 import { Id } from "../domain/id.ts";
-import { JOB_TYPES, type JobType } from "../domain/job.ts";
+import type { JobType } from "../domain/job.ts";
 import { WorkspaceDirectory } from "../infrastructure/filesystem/workspace-directory.ts";
 import {
   DetachedRunnerLauncher,
@@ -18,6 +18,7 @@ import { ProjectTaskReporter } from "../workflows/project-task-reporter.ts";
 import { TaskCompleter } from "../workflows/task-completer.ts";
 import { TaskCreator } from "../workflows/task-creator.ts";
 import { WorkspaceRegistrar } from "../workflows/workspace-registrar.ts";
+import { WorkflowProfileLoader } from "../workflows/workflow-profiles.ts";
 import { ManagerPermissions } from "./manager-permissions.ts";
 import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
 import { formatTaskStatus, TaskStatusReporter } from "./task-status-reporter.ts";
@@ -275,6 +276,7 @@ export class WorkerAgentExtension {
         background: Type.String(),
         workspaceId: Type.String({ description: "Exact authorized workspace ID or unique leading shorthand" }),
         projectId: Type.String({ description: "Exact registered project ID or unique leading shorthand" }),
+        profileOverrides: Type.Optional(Type.Record(Type.String(), Type.String(), { description: "Optional job-purpose to named worker-profile selections" })),
       }),
       execute: async (_toolCallId, params) => {
         const registry = this.registry ??= this.services.registry();
@@ -282,6 +284,7 @@ export class WorkerAgentExtension {
           registry,
           this.services.taskStore(),
           Id.create(),
+          WorkflowProfileLoader.create(this.root),
         ).create({
           workspaceId: params.workspaceId,
           projectId: params.projectId,
@@ -289,6 +292,7 @@ export class WorkerAgentExtension {
           intent: params.intent,
           outcomes: params.outcomes,
           background: params.background,
+          profileOverrides: params.profileOverrides,
         });
         return {
           content: [{
@@ -346,11 +350,6 @@ export class WorkerAgentExtension {
         relationship: Type.Optional(Type.String()),
       }),
       execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
-        if (!JOB_TYPES.includes(params.jobType as JobType)) {
-          throw new Error(`Unknown job type: ${params.jobType}`);
-        }
-        const model = ctx.model;
-        if (!model) throw new Error("Cannot delegate without an active model");
         const registry = this.registry ??= this.services.registry();
         const task = registry.tasks.resolve(params.taskId);
         if (!task) throw new Error(`Unknown task: ${params.taskId}`);
@@ -376,16 +375,13 @@ export class WorkerAgentExtension {
           relationship: params.relationship,
           parentSessionId: ctx.sessionManager.getSessionId(),
           parentSessionFile: ctx.sessionManager.getSessionFile() ?? null,
-          model: `${model.provider}/${model.id}`,
-          modelName: model.name,
-          modelVersion: model.id,
-          effortLevel: ctx.thinkingLevel ?? "medium",
         });
         return {
           content: [{
             type: "text",
             text: [
               `Started ${delegated.job.jobType} job ${delegated.job.id} (pid ${delegated.pid}) for task ${task.id}.`,
+              `Profile: ${delegated.job.workerProfile} (${delegated.job.harness} ${delegated.job.model})`,
               delegated.worktreePath ? `Worktree: ${delegated.worktreePath}` : "",
             ].filter(Boolean).join("\n"),
           }],
@@ -395,6 +391,12 @@ export class WorkerAgentExtension {
             workerSessionId: delegated.workerSession.id,
             worktreePath: delegated.worktreePath,
             pid: delegated.pid,
+            workerProfile: delegated.job.workerProfile,
+            profileFingerprint: delegated.job.profileFingerprint,
+            capabilityProfile: delegated.job.capabilityProfile,
+            harness: delegated.job.harness,
+            harnessVersion: delegated.job.harnessVersion,
+            nativeInvocation: delegated.job.nativeInvocation,
           },
         };
       },

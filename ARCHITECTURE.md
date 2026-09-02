@@ -46,9 +46,9 @@ flowchart LR
 
             ProjectTask["projects_tasks<br/><br/>projectId<br/>taskId<br/>addedAt"]
 
-            Task["tasks<br/><br/>id<br/>workspaceId?<br/>title<br/>status<br/>createdAt<br/>finishedAt"]
+            Task["tasks<br/><br/>id<br/>workspaceId?<br/>profileOverrides?<br/>title<br/>status<br/>createdAt<br/>finishedAt"]
 
-            Job["jobs<br/><br/>id<br/>taskId<br/>jobType<br/>parentSessionId<br/>parentSessionFile<br/>harness<br/>model<br/>effortLevel<br/>modelName<br/>modelVersion<br/>title<br/>status<br/>progress<br/>createdAt<br/>finishedAt<br/>bundlePath<br/>userNotified<br/>agentNotified"]
+            Job["jobs<br/><br/>id<br/>taskId<br/>jobType<br/>parentSessionId<br/>parentSessionFile<br/>workerProfile + fingerprint<br/>capabilityProfile<br/>harness + version<br/>nativeInvocation<br/>model<br/>effortLevel<br/>modelName<br/>modelVersion<br/>title<br/>status<br/>progress<br/>createdAt<br/>finishedAt<br/>bundlePath<br/>userNotified<br/>agentNotified"]
 
             WorkerSession["workerSessions<br/><br/>id<br/>jobId<br/>harnessSessionId?<br/>harnessSessionPath?<br/>storagePath<br/>createdAt"]
 
@@ -206,7 +206,9 @@ Tasks may override a job purpose by selecting another configured worker profile.
 
 Trusted capability profiles, such as `read-only`, `code`, and `test`, remain independent of worker profiles. Application code assigns and enforces them; task overrides cannot expand capabilities by selecting a harness or model.
 
-The source, validation, persistence, and audit mechanism for policy-defined job types and worker profiles remains part of the execution-profile decoupling work. Regardless of whether policy is compiled into configuration or database rows, application-enforced capability profiles remain the security boundary.
+At every task creation and at job creation, the application strictly compiles the unique, top-level, correctly indented fenced YAML profile block in `WORKFLOW.md`. Repeated sections, unknown/duplicate keys, unsupported purposes, missing defaults, dangling references, and unsupported native options fail closed. Profile definitions remain policy rather than database configuration rows; tasks store validated override JSON, while each new job stores the selected name and fingerprint, trusted capability, harness/version, and native invocation snapshot. Repository and SQLite boundaries require complete snapshots marked `current`. Migration alone writes the durable `migration-fossil` provenance marker on older wholly null rows; an unmarked or newly inserted all-null row is corrupt, not a fossil, and cannot be launched.
+
+Delegation checks one resolved absolute harness path, Bun, the runner entry point, sandbox, authentication, catalog, options, and a version-bound adapter contract before persistence. The runner independently recomputes capability from `jobType` and the profile fingerprint, requires snapshot equality, and derives tools/write paths only from those recomputed values. Cursor Agent remains disabled with a precise unverified-contract error until an authoritative stream-JSON contract can be captured and bound to its observed version.
 
 ## Identity and creation order
 
@@ -284,7 +286,7 @@ Typical transitions are `queued → running → completed | failed | cancelled`.
 - `createdAt` and `finishedAt` — overall job lifetime.
 - `bundlePath` — job's file-storage directory.
 - `userNotified` and `agentNotified` — completion-delivery state.
-- The current implementation defines allowed `jobType` values in TypeScript; the profile decoupling work will move policy-defined purposes and worker-profile assignments out of core code while retaining application-enforced trusted capabilities.
+- Job purposes and profile assignments come from workflow policy. Code independently maps supported purposes to trusted `read-only`, `code`, or `test` capabilities; neither profile configuration nor manager input can grant capability.
 
 Job statuses:
 
@@ -458,7 +460,7 @@ Unrestricted coding is an explicit user elevation rather than an agent decision.
 
 When a detached worker settles, the completion monitor injects its durable result and triggers a manager turn. The manager re-reads policy, evaluates the result, and chooses the next transition. The runner does not encode or create workflow successors. If the task outcome is accepted, the manager explicitly completes it through a narrow tool. Application code rejects completion while jobs remain active, but does not infer workflow meaning from job types, order, or settled results.
 
-Workers have a separate process-level boundary. Before spawning Pi, the harness initializes `@anthropic-ai/sandbox-runtime` and wraps the entire worker process tree. macOS uses `sandbox-exec`; Linux uses Bubblewrap and required helper tools; Windows and unsupported or misconfigured platforms fail before Pi starts. The sandbox denies writes by default and allows only canonical worker-session paths, a private temporary directory, and the assigned implementation worktree for writable jobs. Sandbox setup and cleanup are part of the harness lifecycle rather than instructions trusted to the worker.
+Workers have a separate process-level boundary. Before spawning Pi or Cursor Agent, the harness initializes `@anthropic-ai/sandbox-runtime` and wraps the entire worker process tree. macOS uses `sandbox-exec`; Linux uses Bubblewrap and required helper tools; Windows and unsupported or misconfigured platforms fail before a worker starts. The sandbox denies writes by default and allows only canonical worker-session paths, a non-canonical private OS temporary directory, and the assigned implementation worktree for writable jobs. After all possible preflight, only selected-harness credentials are staged in that private directory. Every child receives a disposable private `HOME`; Cursor supports only its selected API/auth-token variables or copied file-store `auth.json`, never the manager's keychain or persistent Cursor store. The child receives a minimal runtime/selected-harness environment, never the manager environment or another harness's auth. Credentials and private state are removed on success, failure, cancellation, parser errors, and spawn exceptions. A post-persistence detached spawn failure settles SQLite first; canonical error append is best effort, so event-log failure cannot leave queued state and both failures remain visible to the caller.
 
 ## Source layout
 
@@ -470,7 +472,7 @@ src/
 ├── domain/            # data types, IDs, statuses, and dependency rules; no I/O
 ├── infrastructure/    # nullable wrappers grouped by filesystem, git, Pi, process, SQLite, and system
 ├── storage/           # metadata and file-storage consumers, repositories, and paths
-├── harnesses/         # pure normalization for Pi and later harnesses
+├── harnesses/         # pure Pi and Cursor stream normalization
 └── runner/            # detached worker orchestration and process entry point
 ```
 

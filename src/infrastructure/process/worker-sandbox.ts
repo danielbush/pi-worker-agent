@@ -3,6 +3,7 @@ import { SandboxManager, type SandboxRuntimeConfig } from "@anthropic-ai/sandbox
 export interface WorkerSandboxPolicy {
   writablePaths: string[];
   temporaryDirectory: string;
+  deniedReadPaths?: string[];
 }
 
 export interface WorkerSandboxState {
@@ -32,9 +33,13 @@ const NETWORK_DOMAINS = [
   "*.chatgpt.com",
   "generativelanguage.googleapis.com",
   "oauth2.googleapis.com",
+  // Cursor Agent 2026.08.25 installed service URLs; do not widen to *.cursor.sh.
+  "api2.cursor.sh",
+  "api2direct.cursor.sh",
+  "api3.cursor.sh",
 ];
 
-/** INFRASTRUCTURE_WRAPPER: confines a Pi worker process tree to approved host capabilities. */
+/** INFRASTRUCTURE_WRAPPER: confines an entire worker harness process tree. */
 export class WorkerSandbox {
   private readonly configurations: SandboxRuntimeConfig[] = [];
   private readonly commands: string[] = [];
@@ -80,11 +85,15 @@ export class WorkerSandbox {
     };
   }
 
-  async wrap(command: string[], policy: WorkerSandboxPolicy): Promise<string[]> {
+  preflight(): void {
     this.assertSupported();
     if (!this.runtime.checkDependencies()) {
-      throw new Error("Worker sandbox dependencies are unavailable; refusing to launch Pi worker");
+      throw new Error("Worker sandbox dependencies are unavailable; refusing to launch worker");
     }
+  }
+
+  async wrap(command: string[], policy: WorkerSandboxPolicy): Promise<string[]> {
+    this.preflight();
 
     const config: SandboxRuntimeConfig = {
       network: {
@@ -92,7 +101,7 @@ export class WorkerSandbox {
         deniedDomains: [],
       },
       filesystem: {
-        denyRead: ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gh"],
+        denyRead: ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gh", ...(policy.deniedReadPaths ?? [])],
         allowWrite: [...new Set(policy.writablePaths)],
         denyWrite: [],
       },
@@ -123,7 +132,7 @@ export class WorkerSandbox {
       throw new Error("Pi workers are unsupported on Windows until a Windows sandbox backend is configured");
     }
     if (this.platform !== "darwin" && this.platform !== "linux") {
-      throw new Error(`Pi workers are unsupported on ${this.platform}: no sandbox backend is available`);
+      throw new Error(`Workers are unsupported on ${this.platform}: no sandbox backend is available`);
     }
   }
 }

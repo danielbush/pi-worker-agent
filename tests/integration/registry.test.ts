@@ -3,6 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Job, JobType } from "../../src/domain/job.ts";
+import { capabilityForPurpose, profileFingerprint } from "../../src/domain/execution-profile.ts";
 import { Registry } from "../../src/storage/registry.ts";
 import { removeTestDirectory } from "../../__tests__/test-directory.ts";
 
@@ -12,13 +13,21 @@ afterEach(() => {
 });
 
 function job(id: string, taskId: string, jobType: JobType, status: Job["status"]): Job {
+  const capability = capabilityForPurpose(jobType);
+  const profile = { name: "pi-medium", harness: "pi" as const, model: "default", options: { thinking: "medium" } };
   return {
     id,
     taskId,
     jobType,
     parentSessionId: "pi_manager",
     parentSessionFile: null,
+    snapshotProvenance: "current",
+    workerProfile: profile.name,
+    profileFingerprint: profileFingerprint(profile),
+    capabilityProfile: capability,
     harness: "pi",
+    harnessVersion: "1.0.0-test",
+    nativeInvocation: JSON.stringify({ executable: "/null/bin/pi", args: [] }),
     model: "default",
     effortLevel: "medium",
     modelName: "default",

@@ -45,8 +45,12 @@ export class RegistryDatabase {
       this.exec("PRAGMA journal_mode = WAL");
       this.exec("PRAGMA busy_timeout = 5000");
       this.exec("PRAGMA foreign_keys = ON");
+      const version = Number((this.db.query("PRAGMA user_version").get() as { user_version?: number } | null)?.user_version ?? 0);
       this.createSchema();
-      this.exec("PRAGMA user_version = 4");
+      if (version > 0 && version < 5) this.migrateToExecutionProfiles();
+      if (version > 0 && version < 6) this.migrateExecutionSnapshotProvenance();
+      this.createExecutionSnapshotGuards();
+      this.exec("PRAGMA user_version = 6");
     } catch (error) {
       this.db.close();
       throw error;
@@ -126,7 +130,8 @@ export class RegistryDatabase {
         title TEXT NOT NULL,
         status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed', 'cancelled')),
         createdAt TEXT NOT NULL,
-        finishedAt TEXT
+        finishedAt TEXT,
+        profileOverrides TEXT CHECK (profileOverrides IS NULL OR (json_valid(profileOverrides) AND json_type(profileOverrides) = 'object'))
       ) STRICT;
 
       CREATE TABLE IF NOT EXISTS projects_tasks (
@@ -142,7 +147,13 @@ export class RegistryDatabase {
         jobType TEXT NOT NULL,
         parentSessionId TEXT NOT NULL,
         parentSessionFile TEXT,
+        snapshotProvenance TEXT NOT NULL CHECK (snapshotProvenance IN ('current', 'migration-fossil')),
+        workerProfile TEXT,
+        profileFingerprint TEXT,
+        capabilityProfile TEXT,
         harness TEXT NOT NULL,
+        harnessVersion TEXT,
+        nativeInvocation TEXT,
         model TEXT NOT NULL,
         effortLevel TEXT NOT NULL,
         modelName TEXT NOT NULL,
@@ -154,7 +165,15 @@ export class RegistryDatabase {
         finishedAt TEXT,
         bundlePath TEXT NOT NULL,
         userNotified INTEGER NOT NULL DEFAULT 0 CHECK (userNotified IN (0, 1)),
-        agentNotified INTEGER NOT NULL DEFAULT 0 CHECK (agentNotified IN (0, 1))
+        agentNotified INTEGER NOT NULL DEFAULT 0 CHECK (agentNotified IN (0, 1)),
+        CHECK (nativeInvocation IS NULL OR (json_valid(nativeInvocation) AND json_type(nativeInvocation) = 'object')),
+        CHECK (
+          (snapshotProvenance = 'migration-fossil' AND workerProfile IS NULL AND profileFingerprint IS NULL AND capabilityProfile IS NULL AND harnessVersion IS NULL AND nativeInvocation IS NULL)
+          OR
+          (snapshotProvenance = 'current' AND workerProfile IS NOT NULL AND profileFingerprint IS NOT NULL AND capabilityProfile IS NOT NULL AND harnessVersion IS NOT NULL AND nativeInvocation IS NOT NULL)
+        ),
+        CHECK (capabilityProfile IS NULL OR capabilityProfile IN ('read-only', 'code', 'test')),
+        CHECK (harness IN ('pi', 'cursor-agent'))
       ) STRICT;
 
       CREATE TABLE IF NOT EXISTS workerSessions (
@@ -181,6 +200,45 @@ export class RegistryDatabase {
       CREATE INDEX IF NOT EXISTS jobs_parent_created ON jobs(parentSessionId, createdAt DESC);
       CREATE INDEX IF NOT EXISTS dependencies_parent ON jobDependencies(dependsOnJobId);
     `);
+  }
+
+  private migrateToExecutionProfiles(): void {
+    this.exec("ALTER TABLE tasks ADD COLUMN profileOverrides TEXT");
+    this.exec("ALTER TABLE jobs ADD COLUMN workerProfile TEXT");
+    this.exec("ALTER TABLE jobs ADD COLUMN profileFingerprint TEXT");
+    this.exec("ALTER TABLE jobs ADD COLUMN capabilityProfile TEXT");
+    this.exec("ALTER TABLE jobs ADD COLUMN harnessVersion TEXT");
+    this.exec("ALTER TABLE jobs ADD COLUMN nativeInvocation TEXT");
+  }
+
+  private migrateExecutionSnapshotProvenance(): void {
+    const malformed = this.db.query(`
+      SELECT id FROM jobs WHERE NOT (
+        (workerProfile IS NULL AND profileFingerprint IS NULL AND capabilityProfile IS NULL AND harnessVersion IS NULL AND nativeInvocation IS NULL)
+        OR
+        (workerProfile IS NOT NULL AND profileFingerprint IS NOT NULL AND capabilityProfile IS NOT NULL AND harnessVersion IS NOT NULL AND nativeInvocation IS NOT NULL)
+      ) LIMIT 1
+    `).get() as { id?: string } | null;
+    if (malformed?.id) throw new Error(`Cannot migrate partial execution snapshot for job ${malformed.id}`);
+    this.exec("ALTER TABLE jobs ADD COLUMN snapshotProvenance TEXT");
+    this.exec(`UPDATE jobs SET snapshotProvenance = CASE
+      WHEN workerProfile IS NULL THEN 'migration-fossil' ELSE 'current' END`);
+  }
+
+  private createExecutionSnapshotGuards(): void {
+    // Triggers also protect upgraded databases, whose ALTER-added provenance column
+    // cannot be strengthened to NOT NULL without rebuilding referenced tables.
+    const valid = `(
+      (NEW.snapshotProvenance = 'migration-fossil' AND NEW.workerProfile IS NULL AND NEW.profileFingerprint IS NULL AND NEW.capabilityProfile IS NULL AND NEW.harnessVersion IS NULL AND NEW.nativeInvocation IS NULL)
+      OR
+      (NEW.snapshotProvenance = 'current' AND NEW.workerProfile IS NOT NULL AND NEW.profileFingerprint IS NOT NULL AND NEW.capabilityProfile IS NOT NULL AND NEW.harnessVersion IS NOT NULL AND NEW.nativeInvocation IS NOT NULL)
+    )`;
+    this.exec(`CREATE TRIGGER IF NOT EXISTS jobs_execution_snapshot_insert
+      BEFORE INSERT ON jobs WHEN COALESCE(${valid}, 0) = 0
+      BEGIN SELECT RAISE(ABORT, 'invalid execution snapshot provenance'); END`);
+    this.exec(`CREATE TRIGGER IF NOT EXISTS jobs_execution_snapshot_update
+      BEFORE UPDATE OF snapshotProvenance, workerProfile, profileFingerprint, capabilityProfile, harnessVersion, nativeInvocation ON jobs WHEN COALESCE(${valid}, 0) = 0
+      BEGIN SELECT RAISE(ABORT, 'invalid execution snapshot provenance'); END`);
   }
 
 }

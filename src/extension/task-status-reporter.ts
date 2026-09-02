@@ -15,6 +15,12 @@ export interface TaskJobStatus {
   requestPath: string;
   eventsPath: string | null;
   result: string | null;
+  workerProfile: string | null;
+  profileFingerprint: string | null;
+  capabilityProfile: string | null;
+  harness: string;
+  harnessVersion: string | null;
+  nativeInvocation: string | null;
 }
 
 export interface TaskStatusDetails {
@@ -65,7 +71,7 @@ export class TaskStatusReporter {
         status: job.status,
         progress: job.progress,
         workerSessionId: session?.id ?? null,
-        worktreePath: job.jobType === "implement" || job.jobType === "review"
+        worktreePath: ["implement", "review", "fix", "test"].includes(job.jobType)
           ? new JobWorktreeLocator(this.registry, this.taskStore).locate(job)
           : null,
         requestPath: this.taskStore.paths.request(task.id, job.id),
@@ -73,6 +79,12 @@ export class TaskStatusReporter {
           ? this.taskStore.paths.events(task.id, job.id, session.id)
           : null,
         result: completed?.text ?? failed?.error ?? null,
+        workerProfile: job.workerProfile ?? null,
+        profileFingerprint: job.profileFingerprint ?? null,
+        capabilityProfile: job.capabilityProfile ?? null,
+        harness: job.harness,
+        harnessVersion: job.harnessVersion ?? null,
+        nativeInvocation: job.nativeInvocation ?? null,
       } satisfies TaskJobStatus;
     }));
 
@@ -104,6 +116,10 @@ export function formatTaskStatus(
       "",
       `${job.type} job ${job.id}: ${job.status}`,
       `Progress: ${job.progress ?? "none"}`,
+      `Profile: ${job.workerProfile ?? "migration-fossil"}${job.profileFingerprint ? ` (${job.profileFingerprint.slice(0, 12)})` : ""}`,
+      `Capability: ${job.capabilityProfile ?? "unknown"}`,
+      `Harness: ${job.harness}${job.harnessVersion ? ` ${job.harnessVersion}` : ""}`,
+      `Native invocation: ${job.nativeInvocation ?? "not recorded"}`,
       `Worker session: ${job.workerSessionId ?? "not started"}`,
       ...(job.worktreePath ? [`Worktree: ${job.worktreePath}`] : []),
       `Request: ${job.requestPath}`,

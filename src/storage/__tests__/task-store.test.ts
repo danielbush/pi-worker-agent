@@ -14,7 +14,7 @@ test("composes nulled task, job, harness-session, and event storage", async () =
   const taskFiles = TaskFiles.createNull(paths);
   const jobFiles = JobFiles.createNull(paths);
   const harnessSessions = HarnessSessionFiles.createNull({
-    "pi-native-session": "/null-worker-agent/pi-session/native.jsonl",
+    "pi-native-session": "/null-worker-agent/harness-session/native.jsonl",
   });
   const eventLogs = WorkerSessionEventLogs.createNull();
   const store = new TaskStore(paths, taskFiles, jobFiles, harnessSessions, eventLogs);
@@ -49,7 +49,7 @@ test("composes nulled task, job, harness-session, and event storage", async () =
   expect(await events.readAll()).toEqual([
     { timestamp: TIMESTAMP, type: "assistant.text", text: "Planning" },
   ]);
-  expect(sessionDirectory).toBe("/null-worker-agent/session_test/pi-session");
+  expect(sessionDirectory).toBe("/null-worker-agent/session_test/harness-session");
   expect(await store.findHarnessSessionPath(sessionDirectory, "pi-native-session"))
-    .toBe("/null-worker-agent/pi-session/native.jsonl");
+    .toBe("/null-worker-agent/harness-session/native.jsonl");
 });

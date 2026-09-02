@@ -54,6 +54,7 @@ export class WorkerSessionEvents {
     jobId: string,
     workerSessionId: string,
     records: WorkerEvent[] = [],
+    appendError?: string,
   ): WorkerSessionEvents {
     return new WorkerSessionEvents(
       {
@@ -65,6 +66,7 @@ export class WorkerSessionEvents {
         writeFile: async () => {},
         chmod: async () => {},
         appendFile: async (_path, text) => {
+          if (appendError) throw new Error(appendError);
           records.push(JSON.parse(text) as WorkerEvent);
         },
         readFile: async () => records.map((event) => `${JSON.stringify(event)}\n`).join(""),

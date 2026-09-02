@@ -78,6 +78,12 @@ test("emits manager-visible status from nulled worker state", async () => {
       requestPath: "/null-worker-agent/tasks/ta/task_demo/jobs/job_plan/request.md",
       eventsPath: "/null-worker-agent/tasks/ta/task_demo/jobs/job_plan/worker-sessions/session_plan/events.jsonl",
       result: "Change src/index.ts and run bun test.",
+      workerProfile: null,
+      profileFingerprint: null,
+      capabilityProfile: null,
+      harness: "pi",
+      harnessVersion: null,
+      nativeInvocation: null,
     }],
   });
   expect(formatTaskStatus(status!)).toContain(
