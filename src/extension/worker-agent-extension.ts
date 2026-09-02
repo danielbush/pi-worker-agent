@@ -305,7 +305,7 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_complete_task",
       label: "Complete worker task",
-      description: "Mark a manager-accepted task complete after all work has settled and its final job completed successfully.",
+      description: "Mark a manager-accepted task complete after all of its jobs have settled.",
       promptSnippet: "Complete a task after evaluating its final required job",
       promptGuidelines: [
         "Call worker_complete_task only after evaluating the task outcomes and final required job according to WORKFLOW.md.",

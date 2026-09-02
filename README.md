@@ -66,7 +66,7 @@ Quickly test the boundary with the harmless prompt `Use bash to run pwd. Do not 
 
 Planning and review workers are read-only; implementation workers receive an isolated worktree plus write, edit, and shell tools. Reviews inherit the implementation worktree through their dependency and inspect it without write access. Every Pi worker process tree runs through `@anthropic-ai/sandbox-runtime`: macOS uses `sandbox-exec`, Linux uses Bubblewrap, and unsupported platforms—including Windows—fail closed. Writes are limited to the implementation worktree, canonical worker-session directory, and its private temporary directory; common model-provider domains are allowlisted and sensitive credential directories are denied to worker reads. Linux hosts must provide `bubblewrap`, `socat`, and `ripgrep`.
 
-Settled worker results trigger a new manager turn. The manager re-reads policy, evaluates the result, and performs the next required transition; the runner itself never invents successor jobs. After accepting the final required job, the manager uses a narrow completion tool to settle the task, which rejects tasks with active work or an unsuccessful final job.
+Settled worker results trigger a new manager turn. The manager re-reads policy, evaluates the result, and performs the next required transition; the runner itself never invents successor jobs. After accepting the task outcome, the manager uses a narrow completion tool to settle the task. The tool rejects tasks with active work but does not encode workflow semantics or interpret settled job results.
 
 Inspect any created task from Pi with:
 

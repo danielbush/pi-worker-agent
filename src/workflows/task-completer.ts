@@ -36,11 +36,6 @@ export class TaskCompleter {
     if (unsettled.length > 0) {
       throw new Error(`Task has unsettled jobs: ${unsettled.map((job) => job.id).join(", ")}`);
     }
-    const finalJob = jobs.at(-1)!;
-    if (finalJob.status !== "completed") {
-      throw new Error(`Final job is not completed: ${finalJob.id} (${finalJob.status})`);
-    }
-
     this.registry.tasks.updateStatus(task.id, "completed", this.clock.now());
     return this.registry.tasks.get(task.id)!;
   }

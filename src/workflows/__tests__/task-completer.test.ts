@@ -35,15 +35,18 @@ test("refuses to complete a task with active work", () => {
   expect(() => completer.complete(TASK_ID)).toThrow("Task has unsettled jobs: job_review");
 });
 
-test("refuses to complete a task whose final job failed", () => {
+test("allows the manager to accept a task after an unsuccessful job has settled", () => {
   // arrange
   const completer = new TaskCompleter(
     registryWithJobs([job("job_review", "failed", STARTED)]),
     Clock.createNull(FINISHED),
   );
 
-  // act / assert
-  expect(() => completer.complete(TASK_ID)).toThrow("Final job is not completed: job_review (failed)");
+  // act
+  const task = completer.complete(TASK_ID);
+
+  // assert
+  expect(task).toMatchObject({ status: "completed", finishedAt: FINISHED });
 });
 
 function registryWithJobs(jobs: Job[]): Registry {
