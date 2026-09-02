@@ -12,6 +12,7 @@ const MANAGER_TOOL_NAMES = new Set([
   "worker_add_task_to_project",
   "worker_project_tasks",
   "worker_create_task",
+  "worker_complete_task",
   "worker_delegate_job",
 ]);
 

@@ -14,6 +14,7 @@ const CODING_TOOLS = [
   "worker_add_task_to_project",
   "worker_project_tasks",
   "worker_create_task",
+  "worker_complete_task",
   "worker_delegate_job",
 ];
 
@@ -49,6 +50,7 @@ test("locks the manager to read and orchestration tools", () => {
       "worker_add_task_to_project",
       "worker_project_tasks",
       "worker_create_task",
+      "worker_complete_task",
       "worker_delegate_job",
     ],
   });

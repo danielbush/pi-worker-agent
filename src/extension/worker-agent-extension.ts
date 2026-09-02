@@ -15,6 +15,7 @@ import { JobDelegator } from "../workflows/job-delegator.ts";
 import { ProjectRegistrar } from "../workflows/project-registrar.ts";
 import { ProjectTaskLinker } from "../workflows/project-task-linker.ts";
 import { ProjectTaskReporter } from "../workflows/project-task-reporter.ts";
+import { TaskCompleter } from "../workflows/task-completer.ts";
 import { TaskCreator } from "../workflows/task-creator.ts";
 import { WorkspaceRegistrar } from "../workflows/workspace-registrar.ts";
 import { ManagerPermissions } from "./manager-permissions.ts";
@@ -98,6 +99,7 @@ export class WorkerAgentExtension {
     this.registerWorkspaceTool();
     this.registerProjectTools();
     this.registerTaskTool();
+    this.registerTaskCompletionTool();
     this.registerJobTool();
     this.registerStatusCommand();
     new ManagerPermissions(this.pi).register();
@@ -294,6 +296,30 @@ export class WorkerAgentExtension {
             text: `Created task ${created.task.id} for workspace ${created.workspace.name} and project ${created.projectId}.\nWorkspace: ${created.workspace.rootDir}`,
           }],
           details: { taskId: created.task.id, projectId: created.projectId, workspaceId: created.workspace.id, workspaceRoot: created.workspace.rootDir },
+        };
+      },
+    });
+  }
+
+  private registerTaskCompletionTool(): void {
+    this.pi.registerTool({
+      name: "worker_complete_task",
+      label: "Complete worker task",
+      description: "Mark a manager-accepted task complete after all work has settled and its final job completed successfully.",
+      promptSnippet: "Complete a task after evaluating its final required job",
+      promptGuidelines: [
+        "Call worker_complete_task only after evaluating the task outcomes and final required job according to WORKFLOW.md.",
+        "Do not infer task acceptance merely from a worker process exiting successfully; review findings may require more work.",
+      ],
+      parameters: Type.Object({
+        taskId: Type.String({ description: "Exact task UUID or unique leading shorthand" }),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const task = TaskCompleter.create(registry).complete(params.taskId);
+        return {
+          content: [{ type: "text", text: `Completed task ${task.id}: ${task.title}` }],
+          details: { taskId: task.id, status: task.status, finishedAt: task.finishedAt },
         };
       },
     });
