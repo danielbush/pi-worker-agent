@@ -2,6 +2,12 @@
 
 ## feat
 
+- **feat: Allow the manager to maintain the project backlog**
+  - Add narrow manager tooling to add, edit, delete, and reprioritize items in the authorized workspace's `docs/backlog.md` without enabling unrestricted development mode.
+  - Validate the configured backlog structure and preserve user comments while keeping ordering as the source of priority within each section.
+  - Restrict edits to the registered project's backlog and return a clear summary of each change.
+  - COMMENT: allow manager to edit backlog - add, delete, priorities - basically edit I guess.
+
 - **feat: Decouple workflow job types from execution permissions**
   - COMMENT: The original intention was that `WORKFLOW.md` defined the job types; loosen the hardcoded connection while still ensuring read-only execution.
   - Current: `JOB_TYPES`, `JobDelegator`, and `toolsForJob()` must stay synchronized with workflow policy.
@@ -46,6 +52,11 @@
   - Define which attempt determines the job's current status without losing earlier failure evidence.
 
 ## fix
+
+- **fix: Stop when a required workflow transition is unsupported**
+  - Fail hard, preserve the existing implementation worktree, and report the unsupported transition instead of substituting another job type or creating a fresh worktree.
+  - Enforce dependency invariants such as `addresses-findings` requiring a `fix` job; exceptional forks require explicit user approval.
+  - COMMENT: like fail and stop if the job type is unsupported; then get the manager to fix it.
 
 - **fix: Reconcile orphaned running jobs after process loss**
   - On manager or host restart, detect persisted `running` jobs whose worker process no longer exists and settle or recover them according to policy.
