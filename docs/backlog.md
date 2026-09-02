@@ -21,6 +21,17 @@
   - Let the manager summarize recent tool, test, and assistant activity; avoid loading or printing the entire `events.jsonl`.
   - COMMENT: worth making a command or documenting how to read events.jsonl efficiently so the manager can give an update?
 
+- **feat: Add worker timeout and cancellation controls**
+  - Detect workers that remain alive without useful progress and let the manager or user cancel the whole sandboxed process tree.
+  - Persist terminal job status, exit information, and a canonical cancellation or timeout event instead of leaving work indefinitely `running`.
+  - Make timeout policy configurable without treating every long-running worker as hung.
+
+- **feat: Retry or resume failed workers safely**
+  - Add manager operations that either retry from durable task/job context or resume a retained native harness session in the original worktree and sandbox boundary.
+  - Preserve the failed attempt, its transcript, and its relationship to the new attempt; allow policy to continue after provider-credit or transient harness failures.
+  - Support opening a retained Pi conversation for follow-up without silently granting the resumed agent unrestricted interactive permissions.
+  - COMMENT: If a worker runs out of credits and suddenly stops, we need to recover; I'm also curious about loading its Pi session and talking to it.
+
 - **feat: Add a Windows worker sandbox backend**
   - Detect native Windows and fail closed for writable workers until an approved sandbox backend is configured.
   - Investigate and prototype WSL2, Windows Sandbox, and AppContainer against the same filesystem, process, network, path-translation, startup, and operational requirements.
@@ -29,7 +40,22 @@
 
 ## refactor
 
+- **refactor: Allow multiple worker sessions per job**
+  - The architecture permits multiple worker attempts, but `workerSessions.jobId` is currently unique and the runtime assumes one session per job.
+  - Make attempts explicit enough for retry and resume while preserving each session's events, native harness identity, and terminal result.
+  - Define which attempt determines the job's current status without losing earlier failure evidence.
+
 ## fix
+
+- **fix: Reconcile orphaned running jobs after process loss**
+  - On manager or host restart, detect persisted `running` jobs whose worker process no longer exists and settle or recover them according to policy.
+  - Preserve the absence of a normal exit as a distinct diagnostic rather than fabricating an exit code.
+  - Integrate reconciliation with completion notification so the manager can choose retry, resume, cancellation, or abandonment.
+
+- **fix: Preserve complete harness failure diagnostics**
+  - Record structured provider or harness error details when exposed, plus process exit code, stderr, and transcript events available before failure.
+  - Ensure exceptions during startup, output parsing, cancellation, and cleanup still leave a useful canonical terminal record.
+  - Avoid reducing credit exhaustion and other retryable provider failures to an ambiguous generic worker failure.
 
 ## test
 

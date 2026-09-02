@@ -92,7 +92,7 @@ Keep exactly these second-level sections, with bullet points beneath each:
   - Relevant context and completion considerations.
 ```
 
-Each top-level bullet must be a short, scannable, bold headline prefixed with the matching Conventional Commit type: `feat:`, `refactor:`, `fix:`, `test:`, or `chore:`. A reader should get the gist from the headline alone. Put details in a small number of short nested bullets: usually the current problem, why it matters, and a promising direction. Include files or concepts only when they help someone resume the thread; avoid exhaustive design notes. Prefix nested user comments with `COMMENT: ` and preserve the user's wording where possible.
+Each top-level bullet must be a short, scannable, bold headline prefixed with the matching Conventional Commit type: `feat:`, `refactor:`, `fix:`, `test:`, or `chore:`. Within each section, order entries by descending priority: an item higher in the file has higher priority. Reorder entries when priorities change. A reader should get the gist from the headline alone. Put details in a small number of short nested bullets: usually the current problem, why it matters, and a promising direction. Include files or concepts only when they help someone resume the thread; avoid exhaustive design notes. Prefix nested user comments with `COMMENT: ` and preserve the user's wording where possible.
 
 Prefer two to four nested bullets per item. Each item should contain enough detail to resume later without becoming a specification. Do not create empty task records for backlog items. When an item becomes current work, refine it into the **Next** slice's intent, outcomes, and `Try it`, create tasks as needed, and remove or update the backlog bullet.
 
