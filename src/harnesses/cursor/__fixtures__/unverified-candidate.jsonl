@@ -1,4 +1,0 @@
-{"type":"system","subtype":"init","session_id":"cursor-chat-123"}
-{"type":"assistant","session_id":"cursor-chat-123","message":{"role":"assistant","content":[{"type":"text","text":"Implemented it."},{"type":"tool_use","id":"native-tool-7","name":"Write","input":{"path":"src/a.ts"}}]}}
-{"type":"tool","subtype":"completed","session_id":"cursor-chat-123","tool_call":{"id":"native-tool-7","name":"Write"},"result":"done","is_error":false}
-{"type":"result","subtype":"success","session_id":"cursor-chat-123","is_error":false,"result":"Implemented it."}

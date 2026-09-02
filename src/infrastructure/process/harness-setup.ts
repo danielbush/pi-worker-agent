@@ -1,8 +1,8 @@
-import { accessSync, constants, existsSync, realpathSync } from "node:fs";
+import { accessSync, constants, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
 import { toolsForCapability, type CapabilityProfile, type HarnessName, type WorkerProfile } from "../../domain/execution-profile.ts";
 import { CursorHarnessContract } from "../../harnesses/cursor/cursor-harness-contract.ts";
+import { CURSOR_VERIFIED_VERSION } from "../../harnesses/cursor/cursor-stream-json.ts";
 import { requireHarnessOutput, type HarnessCommandResult, type HarnessContract, type HarnessSetupResult } from "../../harnesses/harness-contract.ts";
 import { PiHarnessContract } from "../../harnesses/pi/pi-harness-contract.ts";
 import { WorkerSandbox } from "./worker-sandbox.ts";
@@ -44,21 +44,16 @@ export class HarnessSetup {
   }
 
   static create(): HarnessSetup {
-    const environmentAuthentication = Boolean(process.env.CURSOR_API_KEY || process.env.CURSOR_AUTH_TOKEN);
-    const fileAuthentication = existsSync(join(process.env.CURSOR_DATA_DIR ?? join(homedir(), ".cursor"), "auth.json"));
     return new HarnessSetup({
       which: (command) => Bun.which(command),
       home: homedir(),
       isExecutable: (path) => { try { accessSync(path, constants.X_OK); return true; } catch { return false; } },
       canonicalPath: (path) => { try { return realpathSync(path); } catch { return path; } },
       run: (command, cwd) => {
-        const env = isCursorCli(command[0]) && !environmentAuthentication && fileAuthentication
-          ? { ...process.env, AGENT_CLI_CREDENTIAL_STORE: "file" }
-          : process.env;
-        const result = Bun.spawnSync(command, { cwd, stdout: "pipe", stderr: "pipe", env });
+        const result = Bun.spawnSync(command, { cwd, stdout: "pipe", stderr: "pipe", env: process.env });
         return { exitCode: result.exitCode, stdout: result.stdout.toString(), stderr: result.stderr.toString() };
       },
-    }, WorkerSandbox.create(), productionContracts(new Set(), environmentAuthentication || fileAuthentication));
+    }, WorkerSandbox.create(), productionContracts(new Set([CURSOR_VERIFIED_VERSION])));
   }
 
   static createNull(result: NullHarnessSetupResult = {}): HarnessSetup {
@@ -85,7 +80,7 @@ export class HarnessSetup {
         }
         return fail("unexpected command");
       },
-    }, WorkerSandbox.createNull(), result.contracts ?? productionContracts(verifiedCursorVersions, authenticated));
+    }, WorkerSandbox.createNull(), result.contracts ?? productionContracts(verifiedCursorVersions));
   }
 
   verify(profile: WorkerProfile, capability: CapabilityProfile, cwd: string, workspacePath = cwd): HarnessSetupResult {
@@ -104,16 +99,11 @@ export class HarnessSetup {
   }
 }
 
-function productionContracts(verifiedCursorVersions: ReadonlySet<string>, cursorPrivateAuthenticationAvailable: boolean): HarnessContract[] {
+function productionContracts(verifiedCursorVersions: ReadonlySet<string>): HarnessContract[] {
   return [
     PiHarnessContract.create(),
-    CursorHarnessContract.create({ verifiedVersions: verifiedCursorVersions, privateAuthenticationAvailable: cursorPrivateAuthenticationAvailable }),
+    CursorHarnessContract.create({ verifiedVersions: verifiedCursorVersions }),
   ];
-}
-
-function isCursorCli(executable: string | undefined): boolean {
-  const name = executable?.split("/").at(-1);
-  return name === "cursor-agent" || name === "agent" || Boolean(executable?.includes("cursor-agent"));
 }
 
 function ok(stdout: string): HarnessCommandResult { return { exitCode: 0, stdout, stderr: "" }; }

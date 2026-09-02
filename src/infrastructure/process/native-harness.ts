@@ -59,17 +59,9 @@ export class NativeHarness {
         }
       },
       provisionCursor: async (privateHome) => {
-        const target = join(privateHome, ".cursor");
-        await mkdir(target, { recursive: true, mode: 0o700 });
-        // File-store login is the only persistent Cursor store copied. Key/token auth
-        // remains environment-only and never reads the manager's keychain at runtime.
-        if (process.env.CURSOR_API_KEY || process.env.CURSOR_AUTH_TOKEN) return;
-        const sourceRoot = process.env.CURSOR_DATA_DIR ?? join(homedir(), ".cursor");
-        try {
-          const destination = join(target, "auth.json");
-          await copyFile(join(sourceRoot, "auth.json"), destination);
-          await chmod(destination, 0o600);
-        } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+        // CLI scratch only. Host login lives in the macOS keychain and is not a
+        // ~/.cursor/auth.json we can copy the way Pi copies ~/.pi/agent/auth.json.
+        await mkdir(join(privateHome, ".cursor"), { recursive: true, mode: 0o700 });
       },
       remove: async (path) => { await rm(path, { recursive: true, force: true }); },
       environment: () => process.env,
@@ -93,7 +85,7 @@ export class NativeHarness {
     const command = await this.sandbox.wrap(native, {
       writablePaths: [...invocation.writablePaths, invocation.temporaryDirectory],
       temporaryDirectory: invocation.temporaryDirectory,
-      deniedReadPaths: invocation.harness === "pi" ? ["~/.config/cursor", "~/.cursor"] : ["~/.pi"],
+      deniedReadPaths: invocation.harness === "pi" ? ["~/.config/cursor", "~/.cursor"] : ["~/.pi", "~/.config/cursor", "~/.cursor"],
     });
 
     let child: NativeProcess;
@@ -120,7 +112,9 @@ export class NativeHarness {
 }
 
 export function workerEnvironment(source: NodeJS.ProcessEnv, harness: HarnessName, temporaryDirectory: string, piDirectory: string, privateHome = join(temporaryDirectory, "home")): Record<string, string> {
-  const env: Record<string, string> = { PATH: source.PATH ?? "/usr/bin:/bin", HOME: privateHome, TMPDIR: temporaryDirectory };
+  const cursorKeys = Boolean(source.CURSOR_API_KEY || source.CURSOR_AUTH_TOKEN);
+  const env: Record<string, string> = { PATH: source.PATH ?? "/usr/bin:/bin", TMPDIR: temporaryDirectory };
+  env.HOME = harness === "cursor-agent" && !cursorKeys ? source.HOME ?? homedir() : privateHome;
   for (const key of ["LANG", "LC_ALL", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"] as const) {
     if (source[key]) env[key] = source[key]!;
   }
@@ -129,9 +123,11 @@ export function workerEnvironment(source: NodeJS.ProcessEnv, harness: HarnessNam
     env.XDG_CONFIG_HOME = join(privateHome, ".config");
     env.CURSOR_CONFIG_DIR = join(privateHome, ".config", "cursor");
     env.CURSOR_DATA_DIR = join(privateHome, ".cursor");
-    env.AGENT_CLI_CREDENTIAL_STORE = source.CURSOR_API_KEY || source.CURSOR_AUTH_TOKEN ? "memory" : "file";
-    if (source.CURSOR_API_KEY) env.CURSOR_API_KEY = source.CURSOR_API_KEY;
-    if (source.CURSOR_AUTH_TOKEN) env.CURSOR_AUTH_TOKEN = source.CURSOR_AUTH_TOKEN;
+    if (cursorKeys) {
+      env.AGENT_CLI_CREDENTIAL_STORE = "memory";
+      if (source.CURSOR_API_KEY) env.CURSOR_API_KEY = source.CURSOR_API_KEY;
+      if (source.CURSOR_AUTH_TOKEN) env.CURSOR_AUTH_TOKEN = source.CURSOR_AUTH_TOKEN;
+    }
   }
   return env;
 }

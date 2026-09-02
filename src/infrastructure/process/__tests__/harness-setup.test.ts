@@ -87,7 +87,7 @@ test("matches Cursor catalog ids and rejects label tokens from the same listing"
       if (command.includes("status")) return { exitCode: 0, stdout: "Login successful", stderr: "" };
       if (command.includes("--list-models")) return { exitCode: 0, stdout: catalog, stderr: "" };
       return { exitCode: 1, stdout: "", stderr: "unexpected" };
-    }), WorkerSandbox.createNull(), [CursorHarnessContract.create({ verifiedVersions: new Set(["1.0.0-test"]), privateAuthenticationAvailable: true })]);
+    }), WorkerSandbox.createNull(), [CursorHarnessContract.create({ verifiedVersions: new Set(["1.0.0-test"]) })]);
 
   // act/assert
   expect(setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace").invocation.args).toContain("cursor-grok-4.5-high");
@@ -110,7 +110,7 @@ test("snapshots the stable Cursor launcher, not the versioned install target", (
     if (command.includes("--list-models")) return { exitCode: 0, stdout: "Available models\ncursor-grok-4.5-high - Cursor Grok 4.5\n", stderr: "" };
     return { exitCode: 1, stdout: "", stderr: "unexpected" };
   }, { canonicalPath: (path) => path === alias ? versioned : path }), WorkerSandbox.createNull(), [
-    CursorHarnessContract.create({ verifiedVersions: new Set(["1.0.0-test"]), privateAuthenticationAvailable: true }),
+    CursorHarnessContract.create({ verifiedVersions: new Set(["1.0.0-test"]) }),
   ]);
 
   expect(setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace").invocation.executable).toBe(alias);

@@ -24,7 +24,7 @@ test("runs Cursor in the implementation worktree and requires its terminal succe
     workerSessions: [{ id: "session", jobId: "job", harnessSessionId: null, harnessSessionPath: null, storagePath: "/session", createdAt: TIME }],
   });
   const store = TaskStore.createNull({ requests: [{ taskId: "task", jobId: "job", text: "Implement it." }], eventLogs: [{ taskId: "task", jobId: "job", workerSessionId: "session" }] });
-  const lines = (await Bun.file(new URL("../../harnesses/cursor/__fixtures__/unverified-candidate.jsonl", import.meta.url)).text()).trim().split("\n");
+  const lines = (await Bun.file(new URL("../../harnesses/cursor/__fixtures__/2026.08.25-3e8eec8-stream-json.jsonl", import.meta.url)).text()).trim().split("\n");
   const harness = NativeHarness.createNull({ stdoutLines: lines });
   const runner = new WorkerRunner(registry, store, harness, Clock.createNull(TIME));
 

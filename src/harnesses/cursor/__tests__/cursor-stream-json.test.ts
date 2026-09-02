@@ -3,9 +3,9 @@ import { CursorStreamJsonNormalizer } from "../cursor-stream-json.ts";
 
 const TIMESTAMP = "2026-09-01T00:00:00Z";
 
-test("normalizes the unverified candidate Cursor variants without duplicating final output", async () => {
+test("normalizes the captured Cursor stream-json envelope without duplicating replayed assistant text", async () => {
   // arrange
-  const fixture = await Bun.file(new URL("../__fixtures__/unverified-candidate.jsonl", import.meta.url)).text();
+  const fixture = await Bun.file(new URL("../__fixtures__/2026.08.25-3e8eec8-stream-json.jsonl", import.meta.url)).text();
   const normalizer = new CursorStreamJsonNormalizer();
 
   // act
@@ -14,9 +14,17 @@ test("normalizes the unverified candidate Cursor variants without duplicating fi
 
   // assert
   expect(output[0]?.harnessSessionId).toBe("cursor-chat-123");
-  expect(events.filter((event) => event.type === "assistant.text")).toHaveLength(1);
-  expect(events.filter((event) => event.type === "assistant.completed")).toEqual([{ timestamp: TIMESTAMP, type: "assistant.completed", text: "Implemented it." }]);
-  expect(events.find((event) => event.type === "tool.started")).toMatchObject({ toolCallId: "native-tool-7", toolName: "Write" });
+  expect(events.filter((event) => event.type === "assistant.text").map((event) => event.type === "assistant.text" ? event.text : "")).toEqual([
+    "Created `ping",
+    ".txt` with the",
+    " content `pong",
+    "`.",
+  ]);
+  expect(events.filter((event) => event.type === "assistant.completed")).toEqual([
+    { timestamp: TIMESTAMP, type: "assistant.completed", text: "Created `ping.txt` with the content `pong`." },
+  ]);
+  expect(events.find((event) => event.type === "tool.started")).toMatchObject({ toolCallId: "native-tool-7", toolName: "edit" });
+  expect(events.find((event) => event.type === "tool.completed")).toMatchObject({ toolCallId: "native-tool-7", isError: false });
   expect(output.at(-1)).toMatchObject({ terminal: true, success: true });
 });
 

@@ -25,6 +25,14 @@ test("worker environment excludes manager and other-harness secrets", () => {
   });
 });
 
+test("keeps the host HOME for Cursor keychain login and does not invent a file store", () => {
+  const cursor = workerEnvironment({ PATH: "/bin", HOME: "/Users/me" }, "cursor-agent", "/tmp/private", "/tmp/private/agent");
+  expect(cursor.HOME).toBe("/Users/me");
+  expect(cursor.CURSOR_DATA_DIR).toBe("/tmp/private/home/.cursor");
+  expect(cursor.AGENT_CLI_CREDENTIAL_STORE).toBeUndefined();
+  expect(cursor.CURSOR_API_KEY).toBeUndefined();
+});
+
 test("removes selected credentials when native spawn throws", async () => {
   // arrange
   let provisioned = 0;
@@ -87,5 +95,6 @@ test("uses a non-canonical private directory for only the selected harness", asy
   expect(cursor.state.environments[0]?.MANAGER_SECRET).toBeUndefined();
   expect(pi.state.sandbox.configurations[0]?.filesystem?.denyRead).toContain("~/.config/cursor");
   expect(cursor.state.sandbox.configurations[0]?.filesystem?.denyRead).toContain("~/.pi");
+  expect(cursor.state.sandbox.configurations[0]?.filesystem?.denyRead).toContain("~/.cursor");
   expect(pi.state.invocations[0]?.temporaryDirectory.startsWith("/canonical/")).toBe(false);
 });

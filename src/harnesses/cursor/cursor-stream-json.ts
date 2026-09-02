@@ -1,6 +1,7 @@
 import type { WorkerEvent } from "../../domain/events.ts";
 
-export const CURSOR_STREAM_CONTRACT = "cursor-agent/unverified-stream-json-candidate";
+export const CURSOR_VERIFIED_VERSION = "2026.08.25-3e8eec8";
+export const CURSOR_STREAM_CONTRACT = `cursor-agent/${CURSOR_VERIFIED_VERSION}-stream-json`;
 
 export interface CursorNormalization {
   events: WorkerEvent[];
@@ -10,11 +11,10 @@ export interface CursorNormalization {
   failure?: string;
 }
 
-/** Stateful normalization for the unverified candidate stream-json shape; production setup cannot select this adapter. */
+/** Normalizes the captured Cursor `--print --output-format stream-json` envelope for CURSOR_VERIFIED_VERSION. */
 export class CursorStreamJsonNormalizer {
   private assistantStarted = false;
   private text = "";
-  private toolSequence = 0;
 
   consume(line: string, timestamp: string): CursorNormalization {
     let value: Record<string, unknown>;
@@ -22,40 +22,36 @@ export class CursorStreamJsonNormalizer {
     catch { throw new Error(`Invalid Cursor stream-json line: ${line}`); }
     const type = string(value.type);
     const session = string(value.session_id) ?? string(value.sessionId) ?? string(value.chatId);
-    if (type === "system" || type === "session") return { events: [], harnessSessionId: session };
+    if (type === "system" || type === "session" || type === "user" || type === "thinking") {
+      return { events: [], harnessSessionId: session };
+    }
 
     if (type === "assistant") {
       const events: WorkerEvent[] = [];
-      if (!this.assistantStarted) { events.push({ timestamp, type: "assistant.started" }); this.assistantStarted = true; }
       const message = object(value.message);
       const content = message?.content ?? value.content;
       for (const block of Array.isArray(content) ? content : [content]) {
         const item = object(block);
-        if (!item) continue;
-        if (item.type === "text" && typeof item.text === "string") {
-          this.text += item.text;
-          events.push({ timestamp, type: "assistant.text", text: item.text });
-        } else if (item.type === "tool_use" || item.type === "tool_call") {
-          events.push({ timestamp, type: "tool.started", toolCallId: string(item.id) ?? string(item.tool_call_id) ?? `cursor-tool-${++this.toolSequence}`, toolName: string(item.name) ?? "unknown", arguments: item.input ?? item.arguments });
-        }
+        if (item?.type === "text" && typeof item.text === "string") this.appendAssistantText(item.text, timestamp, events);
       }
       return { events, harnessSessionId: session };
     }
 
-    if (type === "tool" || type === "tool_result") {
-      const call = object(value.tool_call) ?? value;
-      const id = string(call.tool_call_id) ?? string(call.id) ?? "cursor-tool";
-      const subtype = string(value.subtype);
-      const result = value.result ?? value.output ?? call.result;
-      if (subtype === "started") return { events: [{ timestamp, type: "tool.started", toolCallId: id, toolName: string(call.name) ?? "unknown", arguments: call.arguments ?? call.input }], harnessSessionId: session };
-      return { events: [{ timestamp, type: "tool.completed", toolCallId: id, result, isError: Boolean(value.is_error ?? value.isError) }], harnessSessionId: session };
+    if (type === "tool_call") {
+      const call = object(value.tool_call) ?? {};
+      const variant = toolCallVariant(call);
+      const id = string(call.toolCallId) ?? string(value.call_id) ?? "cursor-tool";
+      if (string(value.subtype) === "started") {
+        return { events: [{ timestamp, type: "tool.started", toolCallId: id, toolName: variant?.name ?? "unknown", arguments: variant?.inner.args ?? variant?.inner.arguments }], harnessSessionId: session };
+      }
+      const result = variant?.inner.result;
+      return { events: [{ timestamp, type: "tool.completed", toolCallId: id, result, isError: isToolError(result) }], harnessSessionId: session };
     }
 
     if (type === "result") {
       const failed = Boolean(value.is_error) || value.subtype === "error" || value.subtype === "failure";
       const result = string(value.result) ?? string(value.error);
       const events: WorkerEvent[] = [];
-      // Result often repeats the streamed assistant text. Record exactly one canonical final.
       if (!this.assistantStarted) events.push({ timestamp, type: "assistant.started" });
       const finalText = this.text || result;
       if (!this.text && result) events.push({ timestamp, type: "assistant.text", text: result });
@@ -64,6 +60,33 @@ export class CursorStreamJsonNormalizer {
     }
     throw new Error(`Unsupported Cursor stream-json event type: ${type ?? "missing"}`);
   }
+
+  private appendAssistantText(text: string, timestamp: string, events: WorkerEvent[]): void {
+    if (!text || text === this.text) return;
+    let delta = text;
+    if (this.text && text.startsWith(this.text)) {
+      delta = text.slice(this.text.length);
+      this.text = text;
+    } else {
+      this.text += text;
+    }
+    if (!delta) return;
+    if (!this.assistantStarted) { events.push({ timestamp, type: "assistant.started" }); this.assistantStarted = true; }
+    events.push({ timestamp, type: "assistant.text", text: delta });
+  }
+}
+
+function toolCallVariant(call: Record<string, any>): { name: string; inner: Record<string, any> } | undefined {
+  for (const [key, value] of Object.entries(call)) {
+    if (key.endsWith("ToolCall") && value && typeof value === "object" && !Array.isArray(value)) {
+      return { name: key.slice(0, -"ToolCall".length) || key, inner: value };
+    }
+  }
+}
+
+function isToolError(result: unknown): boolean {
+  const value = object(result);
+  return Boolean(value?.error) && !value?.success;
 }
 
 function object(value: unknown): Record<string, any> | undefined {
