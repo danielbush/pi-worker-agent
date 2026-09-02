@@ -15,6 +15,12 @@
   - Keep trusted capabilities separate from worker profiles so task overrides cannot escalate permissions.
   - COMMENT: whilst the default is set by the workflow, I should be able to override it when setting the task, so the task should support overrides.
 
+- **feat: Expose concise live worker activity**
+  - Add a narrow manager query that efficiently tails recent canonical events for a task's active or selected job without requiring arbitrary filesystem access.
+  - Offer `/task-status <task-id> --activity` for timestamps and compact recent activity while keeping the default status limited to job ID, title, and status.
+  - Let the manager summarize recent tool, test, and assistant activity; avoid loading or printing the entire `events.jsonl`.
+  - COMMENT: worth making a command or documenting how to read events.jsonl efficiently so the manager can give an update?
+
 - **feat: Add a Windows worker sandbox backend**
   - Detect native Windows and fail closed for writable workers until an approved sandbox backend is configured.
   - Investigate and prototype WSL2, Windows Sandbox, and AppContainer against the same filesystem, process, network, path-translation, startup, and operational requirements.
