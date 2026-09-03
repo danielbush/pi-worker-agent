@@ -6,17 +6,17 @@ Concepts that underpin the design of this system.
 
 - HARD_CODED
   - things that are enshrined in code
-  - most of the task/job system is enshrined in code
+  - most of the task/job system is enshrined in code; this is the EXECUTIVE_LAYER of the system
 - STRUCTURED
-  - things are stored ina  strutured way but they can be edited;
+  - things are stored in a strutured way but they can be edited
   - most data in the database fits this category
+  - this gives a degree of freedom on top of the HARD_CODED part of the system
   - the requirement for subdirs $DATA_ROOT/projects/XXX/ is part of a structured approach to storing
   - TODO: job types should be put into job_types table for flexibility rather than hard coded
-- SOFT_CODED
+- UNSTRUCTURED / POLICY
   - things that the manager agent reads and applies; no code
-  - the project management layer that sits above the task/job execution layer is mostly SOFT_CODED via policy documents
-  - this gives 
-  - most of $DATA_ROOT/projects
+  - the project management layer that sits above the task/job execution layer is mostly POLICY / UNSTRUCTURED via policy documents
+  - most of $DATA_ROOT/projects is like this; it's free-wheeling and wordy; it's where a human interfaces with an agent
 
 ## DEVELOPMENT_MODE vs MANAGER_MODE
 
