@@ -24,7 +24,7 @@ The earlier `/worker-demo` direction above is retained as user-owned history. Th
 
 The system is now built by using it to manage this repository itself:
 
-- `PROJECT_MANAGEMENT.md` selects and defines the current vertical slice.
+- `PROJECT.md` selects and defines the current vertical slice.
 - The manager derives durable tasks from the slice's intent and outcomes.
 - `WORKFLOW.md` tells the manager how to sequence jobs and evaluate each result.
 - Workers operate against the registered repository workspace and use isolated worktrees for code changes.

@@ -206,7 +206,7 @@ export class WorkerAgentExtension {
       promptGuidelines: [
         "Call this before worker_list_projects at the start of managed-project work.",
         "If verification fails, stop and report every structural problem; do not silently ignore misplaced entries or improvise another project root.",
-        "This verifies hard structural invariants only. Read PROJECT_MANAGEMENT.md before interpreting policy-owned files inside project directories.",
+        "This verifies hard structural invariants only. Read PROJECT.md before interpreting policy-owned files inside project directories.",
       ],
       parameters: Type.Object({}),
       execute: async () => {
@@ -236,7 +236,7 @@ export class WorkerAgentExtension {
       promptGuidelines: [
         "Call this after worker_verify_project_structure at the start of managed-project work.",
         "If it fails, stop and report the error without probing or improvising.",
-        "Read the returned PROJECT_MANAGEMENT.md before interpreting project files.",
+        "Read the returned PROJECT.md before interpreting project files.",
       ],
       parameters: Type.Object({}),
       execute: async () => {
@@ -247,7 +247,7 @@ export class WorkerAgentExtension {
             type: "text",
             text: [
               `DATA_ROOT=${report.dataRoot}`,
-              `PROJECT_MANAGEMENT=${report.dataRoot}/PROJECT_MANAGEMENT.md`,
+              `PROJECT=${report.dataRoot}/PROJECT.md`,
               "Projects:",
               ...report.projects.map((project) => `- ${project.directoryName} | ${project.id} | ${project.title}`),
             ].join("\n"),
@@ -263,7 +263,7 @@ export class WorkerAgentExtension {
       description: "Create, update, or delete a text file inside a registered policy-owned project directory with containment and stale-content checks.",
       promptSnippet: "Manage policy-owned files for a registered project",
       promptGuidelines: [
-        "Read PROJECT_MANAGEMENT.md and the target file before deciding what its contents mean or how to change it.",
+        "Read PROJECT.md and the target file before deciding what its contents mean or how to change it.",
         "Use only project-relative paths and preserve user-owned comments and policy content.",
         "For update and delete, pass the exact current file content as expectedContent; stale changes must be inspected again rather than overwritten.",
         "Call the returned line-by-line output a diff and report it clearly to the user.",

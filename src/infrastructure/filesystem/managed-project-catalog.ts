@@ -13,7 +13,7 @@ export class ManagedProjectCatalog {
     return new ManagedProjectCatalog(dataRoot, {
       inspect: (root) => {
         requireDirectory(root, "DATA_ROOT");
-        requireFile(join(root, "PROJECT_MANAGEMENT.md"), "PROJECT_MANAGEMENT.md");
+        requireFile(join(root, "PROJECT.md"), "PROJECT.md");
         const projectsRoot = join(root, "projects");
         requireDirectory(projectsRoot, "DATA_ROOT/projects");
         return readdirSync(projectsRoot, { withFileTypes: true })

@@ -9,12 +9,12 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-test("inventories immediate DATA_ROOT/projects entries without hiding files", () => {
+test("requires PROJECT.md and inventories immediate project entries without hiding files", () => {
   // arrange
   const root = mkdtempSync(join(tmpdir(), "pi-worker-project-structure-"));
   roots.push(root);
   mkdirSync(join(root, "projects", "demo"), { recursive: true });
-  writeFileSync(join(root, "PROJECT_MANAGEMENT.md"), "# Policy\n");
+  writeFileSync(join(root, "PROJECT.md"), "# Policy\n");
   writeFileSync(join(root, "projects", "demo", "sequence.md"), "# Demo\n");
   writeFileSync(join(root, "projects", "misplaced.txt"), "not a project\n");
 

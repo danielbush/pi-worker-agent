@@ -5,9 +5,9 @@
 flowchart LR
     subgraph PolicyKernel[Agentic policy kernel]
         Agents["AGENTS.md<br/><br/>manager role and policy entry point"]
-        ProjectManagement["DATA_ROOT/PROJECT_MANAGEMENT.md<br/><br/>project structure and sequencing"]
+        ProjectManagement["DATA_ROOT/PROJECT.md<br/><br/>project structure and sequencing"]
         Workflow["DATA_ROOT/WORKFLOW.md<br/><br/>task, job, dependency, and review policy"]
-        Coding["DATA_ROOT/CODING.md<br/><br/>coding and codebase policy"]
+        Coding["DATA_ROOT/CODE.md<br/><br/>coding and codebase policy"]
 
         Agents --> ProjectManagement
         Agents --> Workflow
@@ -62,7 +62,7 @@ flowchart LR
 
             DataRoot["DATA_ROOT<br/><br/>default: work/<br/>override: DATA_ROOT, PI_WORKER_AGENT_DATA_ROOT"]
 
-            ProjectFiles["projects/project/<br/><br/>governed by PROJECT_MANAGEMENT.md"]
+            ProjectFiles["projects/project/<br/><br/>governed by PROJECT.md"]
 
             Worktree["worktrees/job_id/<br/><br/>isolated git checkout"]
 
@@ -147,9 +147,9 @@ flowchart LR
 The core Markdown files act as an agentic policy kernel: they define how the manager interprets work and uses the system without hardcoding one organization's process into application code.
 
 - `AGENTS.md` is the entry point for the manager role and policy set.
-- `DATA_ROOT/PROJECT_MANAGEMENT.md` governs project structure, sequencing, and feedback cycles under `DATA_ROOT/projects/`.
+- `DATA_ROOT/PROJECT.md` governs project structure, sequencing, and feedback cycles under `DATA_ROOT/projects/`.
 - `DATA_ROOT/WORKFLOW.md` governs how tasks, jobs, dependencies, results, revisions, and approvals are managed.
-- `DATA_ROOT/CODING.md` governs coding and codebase practices used when preparing and evaluating coding work.
+- `DATA_ROOT/CODE.md` governs coding and codebase practices used when preparing and evaluating coding work.
 - `examples/` contains policy templates that consumers can copy and customize. This maintainer checkout's `work/` directory symlinks to them only so the examples can be maintained and used in place; symlinking is not a system feature or the expected consumer setup.
 
 Users can revise these policies while the task, job, persistence, and execution mechanisms remain general.
@@ -227,9 +227,9 @@ SQLite stores structured metadata and query-friendly current-state projections.
 
 ### `projects`
 
-Each immediate `$DATA_ROOT/projects/<directoryName>` subdirectory maps to durable project metadata. `ProjectStructureVerifier` protects the structured boundary into this policy-owned area: its filesystem wrapper inventories every immediate entry rather than silently filtering files or symlinks, then it requires only project directories, a regular `sequence.md` in each directory, and an exact correspondence with registered project metadata. The manager invokes this through `worker_verify_project_structure`; it accepts no caller-supplied path and does not interpret the contents governed by `PROJECT_MANAGEMENT.md`.
+Each immediate `$DATA_ROOT/projects/<directoryName>` subdirectory maps to durable project metadata. `ProjectStructureVerifier` protects the structured boundary into this policy-owned area: its filesystem wrapper inventories every immediate entry rather than silently filtering files or symlinks, then it requires only project directories, a regular `sequence.md` in each directory, and an exact correspondence with registered project metadata. The manager invokes this through `worker_verify_project_structure`; it accepts no caller-supplied path and does not interpret the contents governed by `PROJECT.md`.
 
-`ProjectFileManager` gives manager mode a narrow mutation path into the same policy-owned area. It resolves registered project identity, derives the project path under the configured projects root, and applies project-specific restrictions before delegating to the generic `ConfinedTextFiles` wrapper. That wrapper accepts only relative text-file paths beneath its trusted, existing, non-symlink root and directory chain. Create fails when a target exists; update and delete require the exact previously inspected content; writes use same-directory temporary files and atomic rename; successful changes return a diff. This hardcoded boundary controls where and how the manager writes while leaving file meaning and organization to `PROJECT_MANAGEMENT.md`. Generic filesystem mutation remains unavailable in manager mode.
+`ProjectFileManager` gives manager mode a narrow mutation path into the same policy-owned area. It resolves registered project identity, derives the project path under the configured projects root, and applies project-specific restrictions before delegating to the generic `ConfinedTextFiles` wrapper. That wrapper accepts only relative text-file paths beneath its trusted, existing, non-symlink root and directory chain. Create fails when a target exists; update and delete require the exact previously inspected content; writes use same-directory temporary files and atomic rename; successful changes return a diff. This hardcoded boundary controls where and how the manager writes while leaving file meaning and organization to `PROJECT.md`. Generic filesystem mutation remains unavailable in manager mode.
 
 - `id` — synthetic project identity.
 - `directoryName` — unique directory mapping under `DATA_ROOT/projects/`.
@@ -325,11 +325,11 @@ Task, job, and worker-session content is stored under the task directory. Worktr
 
 ```text
 DATA_ROOT/
-├── PROJECT_MANAGEMENT.md    # project structure and sequencing policy
+├── PROJECT.md               # project structure and sequencing policy
 ├── WORKFLOW.md              # task, job, dependency, and review policy
-├── CODING.md                # coding policy
+├── CODE.md                  # coding policy
 ├── projects/
-│   └── <project>/           # structure governed by PROJECT_MANAGEMENT.md
+│   └── <project>/           # structure governed by PROJECT.md
 ├── tasks/
 │   └── <first-two-hex-digits>/
 │       └── <task-uuid>/

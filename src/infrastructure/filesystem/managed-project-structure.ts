@@ -49,7 +49,7 @@ export class ManagedProjectStructure {
 
 function productionSnapshot(dataRoot: string): ManagedProjectStructureSnapshot {
   requireDirectory(dataRoot, "DATA_ROOT");
-  requireFile(join(dataRoot, "PROJECT_MANAGEMENT.md"), "PROJECT_MANAGEMENT.md");
+  requireFile(join(dataRoot, "PROJECT.md"), "PROJECT.md");
   const projectsRoot = join(dataRoot, "projects");
   requireDirectory(projectsRoot, "DATA_ROOT/projects");
   const entries = readdirSync(projectsRoot, { withFileTypes: true })
