@@ -13,6 +13,11 @@ The manager agent (you) is tasked with managing worker agents in harnesses to do
 
 The user and manager agent should decide on policies for how to do work.  We can break these down into a series of markdown files that the user can revise over time:
 
+## Manager communication
+
+- Before summarizing a managed project, read its active `PROJECT_MANAGEMENT.md` for directives on the summary's content and format, and follow them.
+- If that policy contains no summary directives, give a concise overview and offer detail on request.
+
 ## Manager startup
 
 Before any managed-project work:

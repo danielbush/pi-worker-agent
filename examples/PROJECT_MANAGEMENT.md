@@ -57,6 +57,28 @@ Preserve the user's statement about why they want the project and the shape it s
 
 Only **Next** is committed enough to have a slice document. Freely revise, reorder, replace, or remove tentative later entries after learning from the next slice.
 
+## Project status summaries
+
+When asked for a project summary, give a short orientation to the sequence rather than a detailed task or test report. Use four short sections, not four top-level bullet points:
+
+### Purpose
+
+State the overall reason for the project, drawn from the project intent.
+
+### Recently completed
+
+List the last few completed vertical slices, normally the latest two or three, as bullet points describing what each put in the user's hands. Begin each item with **Vertical slice NN — Title**, using its two-digit sequence number.
+
+### Current
+
+Describe the vertical slice under **Next**, where it stands, and any key issue preventing completion. Begin with **Vertical slice NN — Title**.
+
+### After that
+
+Name the first tentative later vertical slice, prefix it with its expected two-digit sequence number, and clearly identify it as tentative. Begin with **Vertical slice NN — Title (tentative)**.
+
+Keep related details together within each section so the user can choose one area for follow-up. Omit low-level job, test, and registry details unless they materially affect the current slice or the user asks for them.
+
 ## Backlog policy
 
 Use `$DATA_ROOT/projects/<project-name>/backlog.md` for concrete product or technical concerns that are worth retaining but are not part of the current vertical slice. The backlog belongs to the managed project rather than any one codebase workspace, and it is the single source of truth across the project's authorized workspaces. Do not duplicate it in a workspace-level `docs/backlog.md`.
