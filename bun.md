@@ -7,7 +7,7 @@ alwaysApply: false
 Default to using Bun instead of Node.js.
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
+- Use Bun's test runner instead of `jest` or `vitest`
 - Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
 - Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
 - Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
@@ -26,7 +26,15 @@ Default to using Bun instead of Node.js.
 
 ## Testing
 
-Use `bun test` to run tests.
+Use `bun run test` for the default isolated code-test suite. The package script scopes discovery to `src/`; do not run bare `bun test` from the repository root because it can discover retained tests in ignored worktrees.
+
+Run a live integration test only when its specific infrastructure contract is relevant, and name the individual file explicitly:
+
+```sh
+(cd tests/integration && bun test <specific-test>.test.ts)
+```
+
+Do not run the whole `tests/integration/` directory as routine verification.
 
 ```ts#index.test.ts
 import { test, expect } from "bun:test";

@@ -6,7 +6,7 @@ import { NativeHarness } from "../../infrastructure/process/native-harness.ts";
 import { Registry } from "../../storage/registry.ts";
 import { TaskStore } from "../../storage/task-store.ts";
 import { Clock } from "../../infrastructure/system/clock.ts";
-import { WorkerRunner, reportedWorkerFailure, toolsForJob } from "../worker-runner.ts";
+import { WorkerRunner, reportedWorkerFailure, toolsForCapability } from "../worker-runner.ts";
 
 const TIMESTAMP = "2026-08-30T12:00:00Z";
 const REQUEST = "Inspect the project and produce an implementation plan.";
@@ -66,7 +66,7 @@ test("completes a planning job from Pi output", async () => {
 
 test("confines an implementation worker to its worktree and session directories", async () => {
   // arrange
-  const registry = createRegistry({ ...planningJob(), jobType: "implement", capabilityProfile: "code", nativeInvocation: JSON.stringify({ ...piInvocation(), args: piInvocation().args.map((item) => item === "read,grep,find,ls" ? "read,grep,find,ls,write,edit,bash" : item) }) });
+  const registry = createRegistry({ ...planningJob(), jobTypeId: "implement", capabilityProfile: "code", nativeInvocation: JSON.stringify({ ...piInvocation(), args: piInvocation().args.map((item) => item === "read,grep,find,ls" ? "read,grep,find,ls,write,edit,bash" : item) }) });
   const taskStore = createTaskStore();
   const harness = NativeHarness.createNull({
     stdoutLines: piOutput({ content: "Implemented.", stopReason: "stop" }),
@@ -90,8 +90,8 @@ test("confines an implementation worker to its worktree and session directories"
 
 test("runs review read-only against the implementation worktree", async () => {
   // arrange
-  const implementation = { ...planningJob(), id: "job_implement", jobType: "implement" as const, capabilityProfile: "code" };
-  const review = { ...planningJob(), id: "job_review", jobType: "review" as const };
+  const implementation = { ...planningJob(), id: "job_implement", jobTypeId: "implement" as const, capabilityProfile: "code" as const };
+  const review = { ...planningJob(), id: "job_review", jobTypeId: "review" as const };
   const registry = Registry.createNull({
     workspaces: [{
       id: "project_demo",
@@ -154,7 +154,7 @@ test("runs review read-only against the implementation worktree", async () => {
 test("fails closed when capability or profile snapshot is tampered", async () => {
   // arrange
   for (const changed of [
-    { ...planningJob(), capabilityProfile: "code" },
+    { ...planningJob(), capabilityProfile: "code" as const },
     { ...planningJob(), profileFingerprint: "0".repeat(64) },
   ]) {
     const registry = createRegistry(changed);
@@ -172,7 +172,7 @@ test("fails closed when capability or profile snapshot is tampered", async () =>
 });
 
 test("selects writable tools for implementation and recognizes reported failure", () => {
-  expect(toolsForJob("implement")).toEqual(["read", "grep", "find", "ls", "write", "edit", "bash"]);
+  expect(toolsForCapability("code")).toEqual(["read", "grep", "find", "ls", "write", "edit", "bash"]);
   expect(reportedWorkerFailure("Unable to implement because tools are read-only.\n\nNo files changed."))
     .toBe("Unable to implement because tools are read-only.");
   expect(reportedWorkerFailure("Implemented the requested change.")).toBeUndefined();
@@ -243,11 +243,12 @@ function planningJob(): Job {
   return {
     id: "job_plan",
     taskId: "task_demo",
-    jobType: "plan",
+    jobTypeId: "plan",
+    agentProfileId: "pi-test",
+    agentProfileSelectionSource: "job-type-default",
     parentSessionId: "manager-session",
     parentSessionFile: null,
     snapshotProvenance: "current",
-    workerProfile: "pi-test",
     profileFingerprint: profileFingerprint({ name: "pi-test", harness: "pi", model: "openai-codex/gpt-5.6-sol", options: { thinking: "high" } }),
     profileOptions: '{"thinking":"high"}',
     capabilityProfile: "read-only",

@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Job, JobType } from "../../src/domain/job.ts";
-import { capabilityForPurpose, profileFingerprint } from "../../src/domain/execution-profile.ts";
+import { profileFingerprint } from "../../src/domain/execution-profile.ts";
 import { Registry } from "../../src/storage/registry.ts";
 import { removeTestDirectory } from "../../__tests__/test-directory.ts";
 
@@ -12,17 +12,18 @@ afterEach(() => {
   for (const root of roots.splice(0)) removeTestDirectory(root);
 });
 
-function job(id: string, taskId: string, jobType: JobType, status: Job["status"]): Job {
-  const capability = capabilityForPurpose(jobType);
+function job(id: string, taskId: string, jobTypeId: JobType, status: Job["status"]): Job {
+  const capability = jobTypeId === "implement" ? "code" : "read-only";
   const profile = { name: "pi-medium", harness: "pi" as const, model: "default", options: { thinking: "medium" } };
   return {
     id,
     taskId,
-    jobType,
+    jobTypeId,
+    agentProfileId: "pi-medium",
+    agentProfileSelectionSource: "job-type-default",
     parentSessionId: "pi_manager",
     parentSessionFile: null,
     snapshotProvenance: "current",
-    workerProfile: profile.name,
     profileFingerprint: profileFingerprint(profile),
     profileOptions: JSON.stringify(profile.options),
     capabilityProfile: capability,
@@ -33,7 +34,7 @@ function job(id: string, taskId: string, jobType: JobType, status: Job["status"]
     effortLevel: "medium",
     modelName: "default",
     modelVersion: "unknown",
-    title: `${jobType} greeting CLI`,
+    title: `${jobTypeId} greeting CLI`,
     status,
     progress: null,
     createdAt: "2026-08-30T12:00:00Z",
@@ -50,6 +51,18 @@ test("composes project, task, job, session, and dependency repositories", () => 
   const registry = Registry.create(root);
 
   registry.transaction(() => {
+    registry.agentProfiles.create({
+      id: "pi-medium", description: null, harness: "pi", model: "default", options: '{"thinking":"medium"}',
+      retired: false, archiveDate: null, createdAt: "2026-08-30T12:00:00Z", updatedAt: "2026-08-30T12:00:00Z",
+    });
+    for (const [id, capabilityProfile, worktreeStrategy] of [
+      ["plan", "read-only", "workspace"],
+      ["implement", "code", "new-worktree"],
+      ["review", "read-only", "dependency-worktree"],
+    ] as const) registry.jobTypes.create({
+      id, description: null, capabilityProfile, worktreeStrategy, defaultAgentProfileId: "pi-medium",
+      retired: false, archiveDate: null, createdAt: "2026-08-30T12:00:00Z", updatedAt: "2026-08-30T12:00:00Z",
+    });
     registry.workspaces.create({
       id: "workspace_test",
       name: "Greeting demo",

@@ -8,6 +8,4 @@ export interface Task {
   status: TaskStatus;
   createdAt: string;
   finishedAt: string | null;
-  /** JSON object mapping policy purpose to configured profile name. */
-  profileOverrides?: string | null;
 }

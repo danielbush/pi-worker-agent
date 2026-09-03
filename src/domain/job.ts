@@ -1,6 +1,9 @@
-export const JOB_TYPES = ["investigate", "plan", "implement", "review", "test", "fix"] as const;
-/** A policy-defined purpose. Known capabilities are still resolved by application code. */
+import type { CapabilityProfile, HarnessName } from "./execution-profile.ts";
+
+/** Stable ID of a manager-configured job type. */
 export type JobType = string;
+
+export type AgentProfileSelectionSource = "job-type-default" | "task-override" | "migration-fossil";
 
 export type JobStatus = "blocked" | "queued" | "running" | "completed" | "failed" | "cancelled" | "skipped";
 
@@ -8,20 +11,20 @@ export type JobStatus = "blocked" | "queued" | "running" | "completed" | "failed
 export interface Job {
   id: string;
   taskId: string;
-  jobType: JobType;
+  jobTypeId: JobType;
+  agentProfileId: string;
+  agentProfileSelectionSource: AgentProfileSelectionSource;
   parentSessionId: string;
   parentSessionFile: string | null;
   /** Explicitly distinguishes historical pre-profile rows from current snapshots. */
-  snapshotProvenance?: "current" | "migration-fossil" | null;
-  /** Null only when snapshotProvenance is migration-fossil. */
-  workerProfile?: string | null;
-  profileFingerprint?: string | null;
+  snapshotProvenance: "current" | "migration-fossil";
+  profileFingerprint: string | null;
   /** Canonical JSON object of harness-native profile options; null only for migration fossils. */
-  profileOptions?: string | null;
-  capabilityProfile?: string | null;
-  harness: string;
-  harnessVersion?: string | null;
-  nativeInvocation?: string | null;
+  profileOptions: string | null;
+  capabilityProfile: CapabilityProfile | null;
+  harness: HarnessName;
+  harnessVersion: string | null;
+  nativeInvocation: string | null;
   model: string;
   effortLevel: string;
   modelName: string;

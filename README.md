@@ -14,7 +14,7 @@ See:
 
 ```bash
 bun install
-bun test
+bun run test
 bun run typecheck
 ```
 
@@ -64,7 +64,7 @@ When directly developing this system, the user can run `/development-mode` and c
 
 Quickly test the boundary with the harmless prompt `Use bash to run pwd. Do not use another tool.` It should be unavailable or blocked after startup and after `/manager-mode`, succeed after confirmed `/development-mode`, then become unavailable again after `/manager-mode`.
 
-The manager compiles `$DATA_ROOT/WORKFLOW.md` (default `work/WORKFLOW.md`). We ship the template as `examples/WORKFLOW.md`; consumers copy it into the data root. That file contains exactly one strictly parsed fenced YAML profile configuration. The example defaults use `pi-sol-high` for planning, implementation, and fixes, and `pi-sol-medium` for review/tests. Additional harness profiles may be configured as overrides; if a selected harness cannot start, stop and continue on a working profile. `worker_create_task` accepts optional purpose-to-profile overrides; these select only harness-native model options and cannot grant capabilities. Delegation verifies one resolved SDK-worker runtime, SDK version/help contract, authentication, model catalog, native options, selected process-isolation strategy, Bun, and runner before creating execution state.
+`$DATA_ROOT/WORKFLOW.md` (default `work/WORKFLOW.md`) remains human-readable task, dependency, review, and merge policy. Structured execution prerequisites live in durable `agentProfiles` and `jobTypes` catalogs configured through narrow manager tools. Every active job type has a trusted capability, worktree strategy, and non-null default agent profile. `worker_create_task` accepts optional job-type-to-profile overrides stored through relational foreign keys; these choose harness-native model options but cannot change capabilities or worktree placement. Delegation resolves the task override or job-type default, records both catalog IDs and assignment source on the job, and snapshots the exact verified invocation.
 
 Pi workers use `@earendil-works/pi-coding-agent`; Cursor workers use `@cursor/sdk`. Each SDK runs inside a dedicated, independently cancellable Bun subprocess. Pi uses whole-process OS sandboxing. Cursor currently uses the explicit `NullSandbox` trusted-process strategy because its local-agent stream stalls behind the sandbox runtime HTTP proxy; see `CURSOR_SDK_PROXY_STREAM_STALL` in [`ISSUES.md`](ISSUES.md). Cursor SDK authentication requires `CURSOR_API_KEY` or credentials created by `Cursor.auth.login()` in `~/.cursor/sdk/auth.json`; a Cursor Agent CLI keychain login is not reused by the SDK.
 

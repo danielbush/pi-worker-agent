@@ -1,4 +1,4 @@
-import { capabilityForPurpose, parseProfileOptions, profileFingerprint, toolsForCapability, type NativeInvocationSnapshot, type WorkerProfile } from "../domain/execution-profile.ts";
+import { parseProfileOptions, profileFingerprint, toolsForCapability, type NativeInvocationSnapshot, type WorkerProfile } from "../domain/execution-profile.ts";
 import { NativeHarness, type NullNativeHarnessOutput } from "../infrastructure/process/native-harness.ts";
 import { normalizePiJsonLine, parsePiJsonLine } from "../harnesses/pi/pi-json-line.ts";
 import { Registry, type NullRegistryState } from "../storage/registry.ts";
@@ -71,12 +71,14 @@ export class WorkerRunner {
     let privateRuntimeDirectory: string | undefined;
     try {
       const snapshot = validateSnapshot(job);
-      const capability = capabilityForPurpose(job.jobType);
+      const jobType = this.registry.jobTypes.get(job.jobTypeId);
+      if (!jobType) throw new Error(`Unknown job type for job ${job.id}: ${job.jobTypeId}`);
+      const capability = jobType.capabilityProfile;
       if (job.capabilityProfile !== capability) {
-        throw new Error(`Capability snapshot mismatch for ${job.jobType}: expected ${capability}, found ${job.capabilityProfile}`);
+        throw new Error(`Capability snapshot mismatch for ${job.jobTypeId}: expected ${capability}, found ${job.capabilityProfile}`);
       }
       const baseProfile: Omit<WorkerProfile, "fingerprint"> = {
-        name: job.workerProfile!,
+        name: job.agentProfileId,
         harness: job.harness as WorkerProfile["harness"],
         model: job.model,
         options: parseProfileOptions(job.profileOptions!),
@@ -84,10 +86,10 @@ export class WorkerRunner {
       const fingerprint = profileFingerprint(baseProfile);
       if (fingerprint !== job.profileFingerprint) throw new Error(`Worker profile fingerprint mismatch for job ${job.id}`);
       const profile: WorkerProfile = { ...baseProfile, fingerprint };
-      const requiresWorktree = ["implement", "review", "fix", "test"].includes(job.jobType);
+      const requiresWorktree = jobType.worktreeStrategy !== "workspace";
       const worktreePath = requiresWorktree ? new JobWorktreeLocator(this.registry, this.taskStore).locate(job) : null;
       if (requiresWorktree && !worktreePath) {
-        throw new Error(`${job.jobType} job has no implementation worktree: ${job.id}`);
+        throw new Error(`${job.jobTypeId} job has no implementation worktree: ${job.id}`);
       }
       const cwd = worktreePath ?? workspace.rootDir;
       const verified = this.setup.verify(profile, capability, workspace.rootDir, cwd);
@@ -98,7 +100,7 @@ export class WorkerRunner {
       privateRuntimeDirectory = await this.taskStore.createPrivateRuntimeDirectory();
       this.registry.transaction(() => {
         this.registry.tasks.updateStatus(task.id, "running");
-        this.registry.jobs.updateStatus(job.id, "running", `${job.harness} ${job.jobType} worker is running`);
+        this.registry.jobs.updateStatus(job.id, "running", `${job.harness} ${job.jobTypeId} worker is running`);
       });
       const temporaryDirectory = privateRuntimeDirectory;
       const process = await this.harness.start({
@@ -179,7 +181,7 @@ export class WorkerRunner {
         && !assistantFailure
         && !reportedFailure;
       if (succeeded) {
-        this.registry.jobs.updateStatus(job.id, "completed", `${job.jobType} completed`, finishedAt);
+        this.registry.jobs.updateStatus(job.id, "completed", `${job.jobTypeId} completed`, finishedAt);
         return 0;
       }
 
@@ -215,15 +217,12 @@ export class WorkerRunner {
 }
 
 export { toolsForCapability };
-export function toolsForJob(jobType: string): string[] {
-  return toolsForCapability(jobType === "implement" || jobType === "fix" ? "code" : jobType === "test" ? "test" : "read-only");
-}
 
 function validateSnapshot(job: import("../domain/job.ts").Job): NativeInvocationSnapshot {
   if (job.snapshotProvenance !== "current") {
     throw new Error(`Job ${job.id} is not a current execution snapshot and cannot be launched`);
   }
-  if (!job.workerProfile || !job.profileFingerprint || job.profileOptions == null || !job.capabilityProfile || !job.harnessVersion || !job.nativeInvocation) {
+  if (!job.agentProfileId || !job.profileFingerprint || job.profileOptions == null || !job.capabilityProfile || !job.harnessVersion || !job.nativeInvocation) {
     throw new Error(`Job ${job.id} has an incomplete current execution snapshot and cannot be launched`);
   }
   if (!["pi", "cursor-agent"].includes(job.harness)) throw new Error(`Unknown snapshotted harness: ${job.harness}`);

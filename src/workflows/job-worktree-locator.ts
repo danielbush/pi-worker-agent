@@ -14,7 +14,9 @@ export class JobWorktreeLocator {
   }
 
   private locateFrom(job: Job, visited: Set<string>): string | null {
-    if (job.jobType === "implement") return this.taskStore.paths.worktree(job.id);
+    const jobType = this.registry.jobTypes.get(job.jobTypeId);
+    if (!jobType) throw new Error(`Unknown job type for job ${job.id}: ${job.jobTypeId}`);
+    if (jobType.worktreeStrategy === "new-worktree") return this.taskStore.paths.worktree(job.id);
     if (visited.has(job.id)) throw new Error(`Cyclic job dependency at ${job.id}`);
     visited.add(job.id);
 

@@ -16,8 +16,8 @@ test("runs Cursor in the implementation worktree and requires its terminal succe
     workspaces: [{ id: "workspace", name: "demo", rootDir: "/workspace", createdAt: TIME, lastUsedAt: TIME }],
     tasks: [{ id: "task", workspaceId: "workspace", title: "Implement", status: "queued", createdAt: TIME, finishedAt: null }],
     jobs: [{
-      id: "job", taskId: "task", jobType: "implement", parentSessionId: "manager", parentSessionFile: null,
-      snapshotProvenance: "current", workerProfile: "cursor-grok-high", profileFingerprint: profileFingerprint({ name: "cursor-grok-high", harness: "cursor-agent", model: "grok-4.5", options: { effort: "high", fast: "false" } }), profileOptions: '{"effort":"high","fast":"false"}', capabilityProfile: "code",
+      id: "job", taskId: "task", jobTypeId: "implement", agentProfileId: "cursor-grok-high", agentProfileSelectionSource: "job-type-default", parentSessionId: "manager", parentSessionFile: null,
+      snapshotProvenance: "current", profileFingerprint: profileFingerprint({ name: "cursor-grok-high", harness: "cursor-agent", model: "grok-4.5", options: { effort: "high", fast: "false" } }), profileOptions: '{"effort":"high","fast":"false"}', capabilityProfile: "code",
       harness: "cursor-agent", harnessVersion: "1.0.0-test", nativeInvocation: JSON.stringify(invocation),
       model: "grok-4.5", effortLevel: "high", modelName: "grok-4.5", modelVersion: "grok-4.5",
       title: "Implement", status: "queued", progress: null, createdAt: TIME, finishedAt: null, bundlePath: "/job", userNotified: false, agentNotified: false,

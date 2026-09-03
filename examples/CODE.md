@@ -62,19 +62,14 @@ Specific to this project
   - instantiate INFRASTRUCTURE_DEPENDENCY's of class-based code under test with .createNull
   - for value objects, a static .createTestInstance can be used
   - mark sections of the test as: `// arrange`, `// act`, `// assert`
-  - use Bun's test runner and TypeScript checker.
   - Be cautious with destructive operations. Never use an unrestricted recursive delete in tests; validate that cleanup targets are known test directories under the OS temporary directory.
-  - Run `bun test` and `bun run typecheck` after code changes.
+  - Run the isolated code tests and static checks after code changes.
 
-- Live integration tests (tests that interact with their environment, fs, network)
-  - should go in project-level `tests/integration/`
-  - INFRASTRUCTURE_WRAPPER's should be narrowly tested in isolation against a real or close-to-real resource to verify the contract with the outside world
-  - .create should be exercised for INFRASTRUCTURE_CODE in general
-
-## Technology
-
-- Use Bun and follow `bun.md`.
-- Keep TypeScript 7. Do not downgrade TypeScript to accommodate Cursor's older language server.
+- Live integration tests (tests that interact with their environment, filesystem, network, credentials, or external processes)
+  - keep each test narrowly focused on one `INFRASTRUCTURE_WRAPPER` contract against a real or close-to-real resource
+  - selectively exercise a small number of production `.create()` composition roots only far enough to verify that their infrastructure dependencies are wired correctly
+  - do not use broad live integration suites as routine verification; invoke each required live test explicitly
+  - do not exercise complete workflows, unrelated infrastructure, or every `.create()` method merely to increase integration coverage
 
 ## Communication
 

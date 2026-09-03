@@ -26,21 +26,29 @@ test("locates the implementation worktree through a review dependency", () => {
   expect(path).toBe("/null-worker-agent/worktrees/job_implementation");
 });
 
-function job(id: string, jobType: Job["jobType"]): Job {
+function job(id: string, jobTypeId: Job["jobTypeId"]): Job {
   return {
     id,
     taskId: "task_review",
-    jobType,
+    jobTypeId,
+    agentProfileId: "pi-test",
+    agentProfileSelectionSource: "migration-fossil",
     parentSessionId: "manager-session",
     parentSessionFile: null,
+    snapshotProvenance: "migration-fossil",
+    profileFingerprint: null,
+    profileOptions: null,
+    capabilityProfile: null,
     harness: "pi",
+    harnessVersion: null,
+    nativeInvocation: null,
     model: "anthropic/test",
     effortLevel: "high",
     modelName: "Test",
     modelVersion: "test",
     title: id,
     status: "completed",
-    progress: `${jobType} completed`,
+    progress: `${jobTypeId} completed`,
     createdAt: TIMESTAMP,
     finishedAt: TIMESTAMP,
     bundlePath: `/jobs/${id}`,

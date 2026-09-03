@@ -26,6 +26,15 @@ class FixedIds {
 test("creates a dependent implementation job, worktree, and detached launch", async () => {
   // arrange
   const registry = Registry.createNull({
+    agentProfiles: [
+      { id: "pi-test", description: null, harness: "pi", model: "openai-codex/gpt-5.6-sol", options: '{"thinking":"high"}', retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+      { id: "pi-override", description: null, harness: "pi", model: "openai-codex/gpt-5.6-sol", options: '{"thinking":"high"}', retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+    ],
+    jobTypes: [
+      { id: "plan", description: null, capabilityProfile: "read-only", worktreeStrategy: "workspace", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+      { id: "implement", description: null, capabilityProfile: "code", worktreeStrategy: "new-worktree", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+    ],
+    taskAgentProfileOverrides: [{ taskId: TASK_ID, jobTypeId: "implement", agentProfileId: "pi-override" }],
     workspaces: [{
       id: "workspace_demo",
       name: "pi-worker-agent",
@@ -44,11 +53,19 @@ test("creates a dependent implementation job, worktree, and detached launch", as
     jobs: [{
       id: "job_plan",
       taskId: TASK_ID,
-      jobType: "plan",
+      jobTypeId: "plan",
+      agentProfileId: "pi-test",
+      agentProfileSelectionSource: "migration-fossil",
       parentSessionId: "manager-session",
       parentSessionFile: null,
+      snapshotProvenance: "migration-fossil",
+      profileFingerprint: null,
+      profileOptions: null,
+      capabilityProfile: null,
       harness: "pi",
-      model: "anthropic/test",
+      harnessVersion: null,
+      nativeInvocation: null,
+      model: "openai-codex/gpt-5.6-sol",
       effortLevel: "high",
       modelName: "Test",
       modelVersion: "test",
@@ -94,7 +111,7 @@ test("creates a dependent implementation job, worktree, and detached launch", as
     worktreePath: "/null-worker-agent/worktrees/job_implement",
   }]);
   expect(registry.tasks.get(TASK_ID)).toMatchObject({ status: "queued", finishedAt: null });
-  expect(registry.jobs.get("job_implement")).toMatchObject({ status: "queued", jobType: "implement" });
+  expect(registry.jobs.get("job_implement")).toMatchObject({ status: "queued", jobTypeId: "implement", agentProfileId: "pi-override", agentProfileSelectionSource: "task-override" });
   expect(registry.jobDependencies.listForJob("job_implement")).toEqual([{
     jobId: "job_implement",
     dependsOnJobId: "job_plan",
@@ -172,11 +189,19 @@ test("creates a read-only review against its implementation dependency's worktre
     jobs: [{
       id: "job_implement",
       taskId: TASK_ID,
-      jobType: "implement",
+      jobTypeId: "implement",
+      agentProfileId: "pi-test",
+      agentProfileSelectionSource: "migration-fossil",
       parentSessionId: "manager-session",
       parentSessionFile: null,
+      snapshotProvenance: "migration-fossil",
+      profileFingerprint: null,
+      profileOptions: null,
+      capabilityProfile: null,
       harness: "pi",
-      model: "anthropic/test",
+      harnessVersion: null,
+      nativeInvocation: null,
+      model: "openai-codex/gpt-5.6-sol",
       effortLevel: "high",
       modelName: "Test",
       modelVersion: "test",
@@ -217,7 +242,7 @@ test("creates a read-only review against its implementation dependency's worktre
   // assert
   expect(delegated.worktreePath).toBe("/null-worker-agent/worktrees/job_implement");
   expect(createdWorktrees).toEqual([]);
-  expect(registry.jobs.get("job_review")).toMatchObject({ jobType: "review", status: "queued" });
+  expect(registry.jobs.get("job_review")).toMatchObject({ jobTypeId: "review", status: "queued" });
   expect(registry.jobDependencies.listForJob("job_review")).toEqual([{
     jobId: "job_review",
     dependsOnJobId: "job_implement",

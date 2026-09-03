@@ -15,7 +15,8 @@ export interface TaskJobStatus {
   requestPath: string;
   eventsPath: string | null;
   result: string | null;
-  workerProfile: string | null;
+  agentProfile: string;
+  agentProfileSelectionSource: string;
   profileFingerprint: string | null;
   profileOptions: string | null;
   capabilityProfile: string | null;
@@ -67,12 +68,12 @@ export class TaskStatusReporter {
       const failed = events.findLast((event) => event.type === "error");
       return {
         id: job.id,
-        type: job.jobType,
+        type: job.jobTypeId,
         title: job.title,
         status: job.status,
         progress: job.progress,
         workerSessionId: session?.id ?? null,
-        worktreePath: ["implement", "review", "fix", "test"].includes(job.jobType)
+        worktreePath: this.registry.jobTypes.get(job.jobTypeId)?.worktreeStrategy !== "workspace"
           ? new JobWorktreeLocator(this.registry, this.taskStore).locate(job)
           : null,
         requestPath: this.taskStore.paths.request(task.id, job.id),
@@ -80,7 +81,8 @@ export class TaskStatusReporter {
           ? this.taskStore.paths.events(task.id, job.id, session.id)
           : null,
         result: completed?.text ?? failed?.error ?? null,
-        workerProfile: job.workerProfile ?? null,
+        agentProfile: job.agentProfileId,
+        agentProfileSelectionSource: job.agentProfileSelectionSource,
         profileFingerprint: job.profileFingerprint ?? null,
         profileOptions: job.profileOptions ?? null,
         capabilityProfile: job.capabilityProfile ?? null,
@@ -118,7 +120,8 @@ export function formatTaskStatus(
       "",
       `${job.type} job ${job.id}: ${job.status}`,
       `Progress: ${job.progress ?? "none"}`,
-      `Profile: ${job.workerProfile ?? "migration-fossil"}${job.profileFingerprint ? ` (${job.profileFingerprint.slice(0, 12)})` : ""}`,
+      `Agent profile: ${job.agentProfile}${job.profileFingerprint ? ` (${job.profileFingerprint.slice(0, 12)})` : ""}`,
+      `Profile assignment: ${job.agentProfileSelectionSource}`,
       `Profile options: ${job.profileOptions ?? "not recorded"}`,
       `Capability: ${job.capabilityProfile ?? "unknown"}`,
       `Harness: ${job.harness}${job.harnessVersion ? ` ${job.harnessVersion}` : ""}`,

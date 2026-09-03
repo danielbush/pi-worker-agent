@@ -55,7 +55,7 @@ test("delivers a settled worker result once", async () => {
 
 test("prompts the manager to offer merge choices after an implementation completes", async () => {
   // arrange
-  const implementation = { ...completedJob(), id: "job_implement", jobType: "implement" };
+  const implementation = { ...completedJob(), id: "job_implement", jobTypeId: "implement" };
   const registry = Registry.createNull({
     jobs: [implementation],
     workerSessions: [{
@@ -90,10 +90,18 @@ function completedJob(): Job {
   return {
     id: "job_plan",
     taskId: "task_demo",
-    jobType: "plan",
+    jobTypeId: "plan",
+    agentProfileId: "pi-test",
+    agentProfileSelectionSource: "migration-fossil",
     parentSessionId: "manager-session",
     parentSessionFile: null,
+    snapshotProvenance: "migration-fossil",
+    profileFingerprint: null,
+    profileOptions: null,
+    capabilityProfile: null,
     harness: "pi",
+    harnessVersion: null,
+    nativeInvocation: null,
     model: "anthropic/claude-test",
     effortLevel: "high",
     modelName: "Claude Test",

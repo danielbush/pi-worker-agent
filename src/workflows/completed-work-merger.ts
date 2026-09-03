@@ -151,7 +151,8 @@ export class CompletedWorkMerger {
   } {
     const job = this.registry.jobs.get(jobId);
     if (!job) throw new Error(`Unknown job: ${jobId}`);
-    if (job.jobType !== "implement") throw new Error(`Job is not an implementation: ${job.id}`);
+    const jobType = this.registry.jobTypes.get(job.jobTypeId);
+    if (!jobType || jobType.worktreeStrategy !== "new-worktree") throw new Error(`Job does not own an implementation worktree: ${job.id}`);
     if (job.status !== "completed") throw new Error(`Implementation job is not completed: ${job.id}`);
     const task = this.registry.tasks.get(job.taskId);
     if (!task?.workspaceId) throw new Error(`Task has no registered workspace: ${job.taskId}`);

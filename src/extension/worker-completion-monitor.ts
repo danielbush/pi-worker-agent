@@ -105,13 +105,13 @@ export class WorkerCompletionMonitor {
     }
     if (!job.agentNotified) {
       await this.notifications.notifyAgent([
-        `Delegated ${job.jobType} job ${job.id} ${job.status} for task ${job.taskId}.`,
+        `Delegated ${job.jobTypeId} job ${job.id} ${job.status} for task ${job.taskId}.`,
         "",
         "Worker result:",
         result,
         "",
         "Re-read the active project and workflow policies, evaluate this result, and perform the next required transition. Stop for failures or ambiguous results.",
-        job.jobType === "implement" && job.status === "completed"
+        this.registry.jobTypes.get(job.jobTypeId)?.worktreeStrategy === "new-worktree" && job.status === "completed"
           ? "When the implementation is ready under that workflow, tell the user the job has finished and ask whether they want to merge it into the project. If they ask to look at it, inspect it without merging."
           : "",
       ].filter(Boolean).join("\n"));

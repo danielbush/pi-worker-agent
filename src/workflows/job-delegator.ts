@@ -1,15 +1,14 @@
+import { executableAgentProfile } from "../domain/agent-profile.ts";
 import type { Id } from "../domain/id.ts";
 import type { Job, JobType } from "../domain/job.ts";
-import { capabilityForPurpose } from "../domain/execution-profile.ts";
 import type { WorkerSession } from "../domain/worker-session.ts";
 import { GitRepository } from "../infrastructure/git/git-repository.ts";
-import { HarnessSetup } from "../infrastructure/process/harness-setup.ts";
 import { DetachedRunnerLauncher } from "../infrastructure/process/detached-runner-launcher.ts";
+import { HarnessSetup } from "../infrastructure/process/harness-setup.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 import { JobWorktreeLocator } from "./job-worktree-locator.ts";
-import { WorkflowProfileLoader } from "./workflow-profiles.ts";
 
 export interface DelegateJobInput {
   taskId: string;
@@ -21,17 +20,10 @@ export interface DelegateJobInput {
   parentSessionId: string;
   parentSessionFile: string | null;
 }
-
-export interface DelegatedJob {
-  job: Job;
-  workerSession: WorkerSession;
-  worktreePath: string | null;
-  pid: number;
-}
-
+export interface DelegatedJob { job: Job; workerSession: WorkerSession; worktreePath: string | null; pid: number; }
 interface Worktrees { create(workspaceRoot: string, worktreePath: string): void; }
 
-/** Resolves policy and trusted capability, preflights, then persists and launches one job. */
+/** Resolves catalog configuration, preflights, persists, and launches one job. */
 export class JobDelegator {
   constructor(
     private readonly root: string,
@@ -41,7 +33,6 @@ export class JobDelegator {
     private readonly runner: DetachedRunnerLauncher,
     private readonly worktrees: Worktrees,
     private readonly clock: Clock,
-    private readonly profiles: WorkflowProfileLoader = WorkflowProfileLoader.createNull(TEST_POLICY),
     private readonly setup: HarnessSetup = HarnessSetup.createNull(),
   ) {}
 
@@ -49,7 +40,7 @@ export class JobDelegator {
     return new JobDelegator(
       root, registry, taskStore, ids, runner,
       { create: (workspaceRoot, worktreePath) => GitRepository.create(workspaceRoot).createWorktree(worktreePath) },
-      Clock.create(), WorkflowProfileLoader.create(root), HarnessSetup.create(),
+      Clock.create(), HarnessSetup.create(),
     );
   }
 
@@ -63,36 +54,41 @@ export class JobDelegator {
     if (dependency && dependency.status !== "completed") throw new Error(`Dependency is not completed: ${dependency.id}`);
     if (dependency && !input.relationship) throw new Error("A dependency relationship is required");
 
-    const policy = this.profiles.load();
-    const overrides = parseOverrides(task.profileOverrides);
-    const profileName = overrides[input.jobType] ?? policy.defaults[input.jobType];
-    if (!profileName) throw new Error(`WORKFLOW.md has no default worker profile for purpose: ${input.jobType}`);
-    const profile = policy.profiles[profileName];
-    if (!profile) throw new Error(`Task override references unavailable worker profile: ${profileName}`);
-    const capability = capabilityForPurpose(input.jobType);
-    // Every executable identity and environment contract is resolved before persistence.
+    const jobType = this.registry.jobTypes.get(input.jobType);
+    if (!jobType || jobType.retired) throw new Error(`Unknown or retired job type: ${input.jobType}`);
+    const override = this.registry.taskAgentProfileOverrides.get(task.id, jobType.id);
+    const agentProfileId = override?.agentProfileId ?? jobType.defaultAgentProfileId;
+    const storedProfile = this.registry.agentProfiles.get(agentProfileId);
+    if (!storedProfile || storedProfile.retired) throw new Error(`Selected agent profile is unknown or retired: ${agentProfileId}`);
+    const profile = executableAgentProfile(storedProfile);
+    const selectionSource = override ? "task-override" as const : "job-type-default" as const;
+
     const preparedRunner = this.runner.preflight();
     const jobId = this.ids.createJobId();
     const workerSessionId = this.ids.createWorkerSessionId();
     const timestamp = this.clock.now();
-    const worktreePath = input.jobType === "implement"
+    const worktreePath = jobType.worktreeStrategy === "new-worktree"
       ? this.taskStore.paths.worktree(jobId)
-      : dependency ? new JobWorktreeLocator(this.registry, this.taskStore).locate(dependency) : null;
-    if (["review", "fix", "test"].includes(input.jobType) && !worktreePath) throw new Error(`A ${input.jobType} job requires a dependency with an implementation worktree`);
-    const prepared = this.setup.verify(profile, capability, workspace.rootDir, worktreePath ?? workspace.rootDir);
-    if (input.jobType === "implement" && worktreePath) this.worktrees.create(workspace.rootDir, worktreePath);
+      : jobType.worktreeStrategy === "dependency-worktree" && dependency
+        ? new JobWorktreeLocator(this.registry, this.taskStore).locate(dependency)
+        : null;
+    if (jobType.worktreeStrategy === "dependency-worktree" && !worktreePath) {
+      throw new Error(`Job type ${jobType.id} requires a dependency with an implementation worktree`);
+    }
+    const executionPath = worktreePath ?? workspace.rootDir;
+    const prepared = this.setup.verify(profile, jobType.capabilityProfile, workspace.rootDir, executionPath);
+    if (jobType.worktreeStrategy === "new-worktree" && worktreePath) this.worktrees.create(workspace.rootDir, worktreePath);
 
     const bundlePath = await this.taskStore.jobs.create({ taskId: task.id, jobId, request: input.request });
     const eventLog = this.taskStore.events(task.id, jobId, workerSessionId);
     await eventLog.create();
     const job: Job = {
-      id: jobId, taskId: task.id, jobType: input.jobType,
+      id: jobId, taskId: task.id, jobTypeId: jobType.id,
+      agentProfileId: storedProfile.id, agentProfileSelectionSource: selectionSource,
       parentSessionId: input.parentSessionId, parentSessionFile: input.parentSessionFile,
-      snapshotProvenance: "current",
-      workerProfile: profile.name, profileFingerprint: profile.fingerprint,
-      profileOptions: JSON.stringify(profile.options),
-      capabilityProfile: capability, harness: profile.harness,
-      harnessVersion: prepared.version, nativeInvocation: JSON.stringify(prepared.invocation),
+      snapshotProvenance: "current", profileFingerprint: profile.fingerprint,
+      profileOptions: JSON.stringify(profile.options), capabilityProfile: jobType.capabilityProfile,
+      harness: profile.harness, harnessVersion: prepared.version, nativeInvocation: JSON.stringify(prepared.invocation),
       model: profile.model, effortLevel: profile.options.thinking ?? profile.options.effort ?? "",
       modelName: profile.model, modelVersion: profile.model,
       title: input.title, status: "queued", progress: `Waiting to start ${profile.harness} worker`,
@@ -116,20 +112,14 @@ export class JobDelegator {
       const finishedAt = this.clock.now();
       let persistenceFailure: unknown;
       let eventFailure: unknown;
-      // SQLite settlement is mandatory and always precedes the best-effort event projection.
       try {
         this.registry.transaction(() => {
           this.registry.jobs.updateStatus(job.id, "failed", detail, finishedAt);
           this.registry.tasks.updateStatus(task.id, "failed", finishedAt);
         });
-      } catch (settlementError) {
-        persistenceFailure = settlementError;
-      }
-      try {
-        await eventLog.append({ timestamp: finishedAt, type: "error", error: detail });
-      } catch (appendError) {
-        eventFailure = appendError;
-      }
+      } catch (settlementError) { persistenceFailure = settlementError; }
+      try { await eventLog.append({ timestamp: finishedAt, type: "error", error: detail }); }
+      catch (appendError) { eventFailure = appendError; }
       const secondary = [
         persistenceFailure && `state settlement failed: ${errorText(persistenceFailure)}`,
         eventFailure && `canonical error append failed: ${errorText(eventFailure)}`,
@@ -138,16 +128,4 @@ export class JobDelegator {
     }
   }
 }
-
-const TEST_POLICY = `\n\`\`\`yaml\nprofiles:\n  pi-test:\n    harness: pi\n    model: openai-codex/gpt-5.6-sol\n    thinking: high\ndefaults:\n  plan: pi-test\n  implement: pi-test\n  review: pi-test\n\`\`\`\n`;
-
 function errorText(error: unknown): string { return error instanceof Error ? error.message : String(error); }
-
-function parseOverrides(value: string | null | undefined): Record<string, string> {
-  if (!value) return {};
-  let parsed: unknown;
-  try { parsed = JSON.parse(value); } catch { throw new Error("Task worker profile overrides are corrupt"); }
-  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error("Task worker profile overrides are corrupt");
-  for (const [key, item] of Object.entries(parsed)) if (!key || typeof item !== "string") throw new Error("Task worker profile overrides are corrupt");
-  return parsed as Record<string, string>;
-}

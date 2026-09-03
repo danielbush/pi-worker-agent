@@ -13,6 +13,7 @@ import { WorktreeEditor } from "../infrastructure/process/worktree-editor.ts";
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 import { CompletedWorkMerger } from "../workflows/completed-work-merger.ts";
+import { ExecutionCatalogManager } from "../workflows/execution-catalog-manager.ts";
 import { JobDelegator } from "../workflows/job-delegator.ts";
 import { ProjectCatalogReporter } from "../workflows/project-catalog-reporter.ts";
 import { ProjectFileManager } from "../workflows/project-file-manager.ts";
@@ -24,7 +25,6 @@ import { TaskCompleter } from "../workflows/task-completer.ts";
 import { TaskCreator } from "../workflows/task-creator.ts";
 import { WorkspaceRegistrar } from "../workflows/workspace-registrar.ts";
 import { formatModelCatalog, ModelCatalog } from "../workflows/model-catalog.ts";
-import { WorkflowProfileLoader } from "../workflows/workflow-profiles.ts";
 import { ManagerPermissions } from "./manager-permissions.ts";
 import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
 import { formatTaskStatus, TaskStatusReporter } from "./task-status-reporter.ts";
@@ -105,6 +105,7 @@ export class WorkerAgentExtension {
     this.registerLifecycle();
     this.registerWorkspaceTool();
     this.registerProjectTools();
+    this.registerExecutionCatalogTools();
     this.registerTaskTool();
     this.registerTaskCompletionTool();
     this.registerCompletedWorkTools();
@@ -372,6 +373,128 @@ export class WorkerAgentExtension {
     });
   }
 
+  private registerExecutionCatalogTools(): void {
+    this.pi.registerTool({
+      name: "worker_list_agent_profiles",
+      label: "List agent profiles",
+      description: "List durable manager-configured agent profiles and archival state.",
+      promptSnippet: "List configured agent profiles",
+      parameters: Type.Object({}),
+      execute: async () => {
+        const registry = this.registry ??= this.services.registry();
+        const profiles = ExecutionCatalogManager.create(registry).listAgentProfiles();
+        const text = profiles.length ? profiles.map((profile) =>
+          `${profile.id} | ${profile.retired ? "retired" : "active"} | ${profile.harness} | ${profile.model} | ${profile.options} | ${profile.description ?? ""}`,
+        ).join("\n") : "No agent profiles configured.";
+        return { content: [{ type: "text", text }], details: profiles };
+      },
+    });
+    this.pi.registerTool({
+      name: "worker_manage_agent_profile",
+      label: "Manage agent profile",
+      description: "Create, describe, retire, or reactivate one durable agent profile. Referenced execution settings are immutable.",
+      promptSnippet: "Configure an agent profile before task execution",
+      parameters: Type.Object({
+        operation: Type.Union([Type.Literal("create"), Type.Literal("update"), Type.Literal("describe"), Type.Literal("retire"), Type.Literal("reactivate")]),
+        id: Type.String(),
+        description: Type.Optional(Type.String()),
+        harness: Type.Optional(Type.Union([Type.Literal("pi"), Type.Literal("cursor-agent")])),
+        model: Type.Optional(Type.String()),
+        options: Type.Optional(Type.Record(Type.String(), Type.String())),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const manager = ExecutionCatalogManager.create(registry);
+        const profile = params.operation === "create"
+          ? manager.createAgentProfile({
+            id: params.id, description: params.description,
+            harness: required(params.harness, "harness"), model: required(params.model, "model"),
+            options: required(params.options, "options"),
+          })
+          : params.operation === "update" ? manager.updateAgentProfile(
+            params.id, required(params.harness, "harness"), required(params.model, "model"), required(params.options, "options"),
+          )
+          : params.operation === "describe" ? manager.describeAgentProfile(params.id, params.description)
+          : params.operation === "retire" ? manager.retireAgentProfile(params.id)
+          : manager.reactivateAgentProfile(params.id);
+        return { content: [{ type: "text", text: `Agent profile ${profile.id} is ${profile.retired ? "retired" : "active"}.` }], details: profile };
+      },
+    });
+    this.pi.registerTool({
+      name: "worker_set_task_agent_profile",
+      label: "Set task agent profile",
+      description: "Set or remove one task-specific agent-profile override for a configured job type.",
+      promptSnippet: "Change a task-specific agent assignment",
+      parameters: Type.Object({
+        operation: Type.Union([Type.Literal("set"), Type.Literal("remove")]),
+        taskId: Type.String(),
+        jobTypeId: Type.String(),
+        agentProfileId: Type.Optional(Type.String()),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const manager = ExecutionCatalogManager.create(registry);
+        if (params.operation === "set") manager.setTaskOverride(params.taskId, params.jobTypeId, required(params.agentProfileId, "agentProfileId"));
+        else manager.removeTaskOverride(params.taskId, params.jobTypeId);
+        const override = registry.taskAgentProfileOverrides.get(params.taskId, params.jobTypeId);
+        return {
+          content: [{ type: "text", text: override
+            ? `Task ${params.taskId} uses ${override.agentProfileId} for ${params.jobTypeId}.`
+            : `Task ${params.taskId} uses the job-type default for ${params.jobTypeId}.` }],
+          details: override ?? { taskId: params.taskId, jobTypeId: params.jobTypeId, agentProfileId: null },
+        };
+      },
+    });
+    this.pi.registerTool({
+      name: "worker_list_job_types",
+      label: "List job types",
+      description: "List durable manager-configured job types, capabilities, worktree strategies, defaults, and archival state.",
+      promptSnippet: "List configured job types",
+      parameters: Type.Object({}),
+      execute: async () => {
+        const registry = this.registry ??= this.services.registry();
+        const jobTypes = ExecutionCatalogManager.create(registry).listJobTypes();
+        const text = jobTypes.length ? jobTypes.map((jobType) =>
+          `${jobType.id} | ${jobType.retired ? "retired" : "active"} | ${jobType.capabilityProfile} | ${jobType.worktreeStrategy} | ${jobType.defaultAgentProfileId} | ${jobType.description ?? ""}`,
+        ).join("\n") : "No job types configured.";
+        return { content: [{ type: "text", text }], details: jobTypes };
+      },
+    });
+    this.pi.registerTool({
+      name: "worker_manage_job_type",
+      label: "Manage job type",
+      description: "Create, describe, set the default for, retire, or reactivate one durable job type.",
+      promptSnippet: "Configure a job type before task execution",
+      parameters: Type.Object({
+        operation: Type.Union([Type.Literal("create"), Type.Literal("update"), Type.Literal("describe"), Type.Literal("set-default"), Type.Literal("retire"), Type.Literal("reactivate")]),
+        id: Type.String(),
+        description: Type.Optional(Type.String()),
+        capabilityProfile: Type.Optional(Type.Union([Type.Literal("read-only"), Type.Literal("code"), Type.Literal("test")])),
+        worktreeStrategy: Type.Optional(Type.Union([Type.Literal("workspace"), Type.Literal("new-worktree"), Type.Literal("dependency-worktree")])),
+        defaultAgentProfileId: Type.Optional(Type.String()),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const manager = ExecutionCatalogManager.create(registry);
+        const jobType = params.operation === "create"
+          ? manager.createJobType({
+            id: params.id, description: params.description,
+            capabilityProfile: required(params.capabilityProfile, "capabilityProfile"),
+            worktreeStrategy: required(params.worktreeStrategy, "worktreeStrategy"),
+            defaultAgentProfileId: required(params.defaultAgentProfileId, "defaultAgentProfileId"),
+          })
+          : params.operation === "update" ? manager.updateJobType(
+            params.id, required(params.capabilityProfile, "capabilityProfile"), required(params.worktreeStrategy, "worktreeStrategy"), required(params.defaultAgentProfileId, "defaultAgentProfileId"),
+          )
+          : params.operation === "describe" ? manager.describeJobType(params.id, params.description)
+          : params.operation === "set-default" ? manager.setJobTypeDefault(params.id, required(params.defaultAgentProfileId, "defaultAgentProfileId"))
+          : params.operation === "retire" ? manager.retireJobType(params.id)
+          : manager.reactivateJobType(params.id);
+        return { content: [{ type: "text", text: `Job type ${jobType.id} is ${jobType.retired ? "retired" : "active"}; default ${jobType.defaultAgentProfileId}.` }], details: jobType };
+      },
+    });
+  }
+
   private registerTaskTool(): void {
     this.pi.registerTool({
       name: "worker_create_task",
@@ -390,7 +513,7 @@ export class WorkerAgentExtension {
         background: Type.String(),
         workspaceId: Type.String({ description: "Exact authorized workspace ID or unique leading shorthand" }),
         projectId: Type.String({ description: "Exact registered project ID or unique leading shorthand" }),
-        profileOverrides: Type.Optional(Type.Record(Type.String(), Type.String(), { description: "Optional job-purpose to named worker-profile selections" })),
+        profileOverrides: Type.Optional(Type.Record(Type.String(), Type.String(), { description: "Optional active job-type IDs to active agent-profile IDs" })),
       }),
       execute: async (_toolCallId, params) => {
         const registry = this.registry ??= this.services.registry();
@@ -398,7 +521,6 @@ export class WorkerAgentExtension {
           registry,
           this.services.taskStore(),
           Id.create(),
-          WorkflowProfileLoader.create(this.root),
         ).create({
           workspaceId: params.workspaceId,
           projectId: params.projectId,
@@ -513,11 +635,11 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_list_models",
       label: "List worker models",
-      description: "List live Pi and Cursor Agent model catalogs outside the worker sandbox and compare them to WORKFLOW.md profile pins.",
-      promptSnippet: "List live harness model catalogs and check WORKFLOW.md pins",
+      description: "List live Pi and Cursor Agent model catalogs outside the worker sandbox and compare them to active agent-profile pins.",
+      promptSnippet: "List live harness model catalogs and compare active agent-profile pins",
       promptGuidelines: [
         "Call worker_list_models before overriding a task onto Cursor or inventing a model id.",
-        "Use only ids returned by the live catalog; WORKFLOW.md pins that are missing from the listing cannot be launched.",
+        "Use only ids returned by the live catalog; agent-profile pins that are missing from the listing cannot be launched.",
         "A harness probe failure must be reported as-is; do not invent substitute model ids.",
       ],
       parameters: Type.Object({
@@ -526,7 +648,8 @@ export class WorkerAgentExtension {
         })),
       }),
       execute: async (_toolCallId, params) => {
-        const reports = ModelCatalog.create(this.root).discover(params.harness);
+        const registry = this.registry ??= this.services.registry();
+        const reports = ModelCatalog.create(registry.agentProfiles).discover(params.harness);
         return {
           content: [{ type: "text", text: formatModelCatalog(reports) || "No harness catalogs available." }],
           details: reports,
@@ -563,8 +686,8 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_delegate_job",
       label: "Delegate worker job",
-      description: "Create and launch the next plan, implement, or review job for an existing task. Implement jobs receive isolated worktrees; review jobs inspect their dependency's worktree read-only.",
-      promptSnippet: "Create and launch a plan, implement, or review worker job",
+      description: "Create and launch a configured job type for an existing task using its trusted capability, worktree strategy, and selected agent profile.",
+      promptSnippet: "Create and launch the next configured worker job",
       promptGuidelines: [
         "Use worker_delegate_job instead of temporary scripts, direct SQLite writes, manual worktree creation, or direct runner invocation.",
         "Before worker_delegate_job, read the target workspace's agent instructions and include relevant guidance in the canonical worker request.",
@@ -573,7 +696,7 @@ export class WorkerAgentExtension {
       ],
       parameters: Type.Object({
         taskId: Type.String({ description: "Exact task UUID or unique leading shorthand" }),
-        jobType: Type.String({ description: "plan, implement, or review" }),
+        jobType: Type.String({ description: "Active configured job-type ID" }),
         title: Type.String(),
         request: Type.String({ description: "Complete canonical worker prompt, including relevant task context and accepted dependency results" }),
         dependsOnJobId: Type.Optional(Type.String()),
@@ -610,18 +733,20 @@ export class WorkerAgentExtension {
           content: [{
             type: "text",
             text: [
-              `Started ${delegated.job.jobType} job ${delegated.job.id} (pid ${delegated.pid}) for task ${task.id}.`,
-              `Profile: ${delegated.job.workerProfile} (${delegated.job.harness} ${delegated.job.model})`,
+              `Started ${delegated.job.jobTypeId} job ${delegated.job.id} (pid ${delegated.pid}) for task ${task.id}.`,
+              `Agent profile: ${delegated.job.agentProfileId} (${delegated.job.harness} ${delegated.job.model})`,
               delegated.worktreePath ? `Worktree: ${delegated.worktreePath}` : "",
             ].filter(Boolean).join("\n"),
           }],
           details: {
             taskId: task.id,
             jobId: delegated.job.id,
+            jobTypeId: delegated.job.jobTypeId,
             workerSessionId: delegated.workerSession.id,
             worktreePath: delegated.worktreePath,
             pid: delegated.pid,
-            workerProfile: delegated.job.workerProfile,
+            agentProfileId: delegated.job.agentProfileId,
+            agentProfileSelectionSource: delegated.job.agentProfileSelectionSource,
             profileFingerprint: delegated.job.profileFingerprint,
             capabilityProfile: delegated.job.capabilityProfile,
             harness: delegated.job.harness,
@@ -687,4 +812,9 @@ export class WorkerAgentExtension {
       },
     });
   }
+}
+
+function required<T>(value: T | undefined, name: string): T {
+  if (value === undefined) throw new Error(`${name} is required for this operation`);
+  return value;
 }

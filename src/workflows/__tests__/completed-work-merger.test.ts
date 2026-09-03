@@ -70,7 +70,7 @@ test("rejects jobs that are not completed implementations", () => {
   const running = CompletedWorkMerger.createNull({ registry: registryState(job("implement", "running")) });
 
   // act / assert
-  expect(() => planning.inspect("job_implement")).toThrow("Job is not an implementation");
+  expect(() => planning.inspect("job_implement")).toThrow("Job does not own an implementation worktree");
   expect(() => running.inspect("job_implement")).toThrow("Implementation job is not completed");
 });
 
@@ -97,14 +97,22 @@ function registryState(implementation = job("implement", "completed")) {
   };
 }
 
-function job(jobType: string, status: Job["status"]): Job {
+function job(jobTypeId: string, status: Job["status"]): Job {
   return {
     id: "job_implement",
     taskId: "task_demo",
-    jobType,
+    jobTypeId,
+    agentProfileId: "pi-test",
+    agentProfileSelectionSource: "migration-fossil",
     parentSessionId: "manager-session",
     parentSessionFile: null,
+    snapshotProvenance: "migration-fossil",
+    profileFingerprint: null,
+    profileOptions: null,
+    capabilityProfile: null,
     harness: "cursor-agent",
+    harnessVersion: null,
+    nativeInvocation: null,
     model: "grok-4.5",
     effortLevel: "high",
     modelName: "Grok 4.5",

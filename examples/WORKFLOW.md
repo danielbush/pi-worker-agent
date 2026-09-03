@@ -24,39 +24,16 @@ Address specific review findings in the implementation worktree and rerun releva
 
 Run focused verification against an existing worktree without making product changes. Depend on the implementation or fix being tested.
 
-## Worker profiles
+## Execution configuration
 
-Worker profiles expose each harness's native configuration rather than attempting to normalize model and effort options across harnesses:
+Agent profiles and job types are durable manager-configured prerequisites rather than structured data embedded in this policy. Before creating task work, use the execution-catalog manager tools to configure:
 
-```yaml
-profiles:
-  pi-sol-high:
-    harness: pi
-    model: openai-codex/gpt-5.6-sol
-    thinking: high
+- active agent profiles with harness-native model and option values;
+- active job types with trusted capabilities, worktree strategies, and non-null default agent profiles.
 
-  cursor-grok-high:
-    harness: cursor-agent
-    model: grok-4.5
-    effort: high
-    fast: false
+Default profiles should use a harness that already launches. If creating or running a job fails because its harness is unavailable, unverified, or otherwise cannot start, stop that transition. Do not retry the same failing harness. Report the failure and suggest an active profile on a harness that already works, typically Pi; continue only after an explicit task override or a later successful verification of the harness.
 
-  pi-sol-medium:
-    harness: pi
-    model: openai-codex/gpt-5.6-sol
-    thinking: medium
-
-defaults:
-  plan: pi-sol-high
-  implement: pi-sol-high
-  review: pi-sol-medium
-  fix: pi-sol-high
-  test: pi-sol-medium
-```
-
-Default profiles should use a harness that already launches. If creating or running a job fails because its harness is unavailable, unverified, or otherwise cannot start, stop that transition. Do not retry the same failing harness. Report the failure and suggest a configured profile on a harness that already works, typically Pi; continue only after an explicit profile override or a later successful verification of the new harness.
-
-Tasks may override a job purpose by selecting another configured worker profile. For example, `worker_create_task` may receive `profileOverrides: { implement: cursor-grok-high }`; the override is validated and applies only to that task. Named profile pins must exist in the live harness catalog. Call `worker_list_models` before a Cursor override and use only a returned id; do not invent or freeze model ids. Job creation still fail-closes if a selected pin is missing. Trusted execution capabilities such as `read-only`, `code`, and `test` remain separate, application-enforced, and unavailable to task overrides.
+Tasks may override a job type by selecting another active agent profile. For example, `worker_create_task` may receive `profileOverrides: { implement: cursor-grok-high }`; the choice is stored relationally and applies only to that task. Call `worker_list_models` before configuring or selecting a Cursor profile and use only a returned model id. Job creation still fails closed if a selected pin is missing. Trusted execution capabilities and worktree strategies belong to job types and cannot be changed by task profile overrides.
 
 ## Coding flow
 
