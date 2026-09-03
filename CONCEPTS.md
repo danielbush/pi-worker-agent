@@ -18,6 +18,7 @@ Concepts that underpin the design of this system.
   - the project management layer that sits above the task/job execution layer is mostly POLICY / UNSTRUCTURED via policy documents
   - most of $DATA_ROOT/projects is like this; it's free-wheeling and wordy; it's where a human interfaces with an agent
   - `worker_verify_project_structure` reinforces the STRUCTURED boundary around this area (immediate project subdirectories, `sequence.md`, and registered identity) without interpreting the policy-owned contents
+  - `worker_manage_project_file` crosses that boundary deliberately: hardcoded containment and atomic/stale-write safety grant manager mode a narrow text mutation capability, while policy still determines what the files mean and how they should change
   - if the user mentions "policy" it's this level
 
 HARD_CODED is completely controlled by developers of this project.

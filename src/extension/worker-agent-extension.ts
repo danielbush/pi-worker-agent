@@ -15,6 +15,7 @@ import { TaskStore } from "../storage/task-store.ts";
 import { CompletedWorkMerger } from "../workflows/completed-work-merger.ts";
 import { JobDelegator } from "../workflows/job-delegator.ts";
 import { ProjectCatalogReporter } from "../workflows/project-catalog-reporter.ts";
+import { ProjectFileManager } from "../workflows/project-file-manager.ts";
 import { ProjectRegistrar } from "../workflows/project-registrar.ts";
 import { ProjectTaskLinker } from "../workflows/project-task-linker.ts";
 import { ProjectTaskReporter } from "../workflows/project-task-reporter.ts";
@@ -252,6 +253,41 @@ export class WorkerAgentExtension {
             ].join("\n"),
           }],
           details: report,
+        };
+      },
+    });
+
+    this.pi.registerTool({
+      name: "worker_manage_project_file",
+      label: "Manage project file",
+      description: "Create, update, or delete a text file inside a registered policy-owned project directory with containment and stale-content checks.",
+      promptSnippet: "Manage policy-owned files for a registered project",
+      promptGuidelines: [
+        "Read PROJECT_MANAGEMENT.md and the target file before deciding what its contents mean or how to change it.",
+        "Use only project-relative paths and preserve user-owned comments and policy content.",
+        "For update and delete, pass the exact current file content as expectedContent; stale changes must be inspected again rather than overwritten.",
+        "Call the returned line-by-line output a diff and report it clearly to the user.",
+      ],
+      parameters: Type.Object({
+        project: Type.String({ description: "Project directory name, exact ID, or unique leading shorthand" }),
+        relativePath: Type.String({ description: "Text-file path relative to the registered project directory" }),
+        operation: Type.Union([Type.Literal("create"), Type.Literal("update"), Type.Literal("delete")]),
+        expectedContent: Type.Optional(Type.String({ description: "Exact inspected content required for update or delete" })),
+        content: Type.Optional(Type.String({ description: "Complete replacement content required for create or update" })),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const result = ProjectFileManager.create(this.root, registry).manage(params);
+        return {
+          content: [{
+            type: "text",
+            text: [
+              `${result.operation}d ${result.project.directoryName}/${result.relativePath}`,
+              "diff:",
+              result.diff,
+            ].join("\n"),
+          }],
+          details: result,
         };
       },
     });

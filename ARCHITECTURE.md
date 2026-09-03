@@ -229,6 +229,8 @@ SQLite stores structured metadata and query-friendly current-state projections.
 
 Each immediate `$DATA_ROOT/projects/<directoryName>` subdirectory maps to durable project metadata. `ProjectStructureVerifier` protects the structured boundary into this policy-owned area: its filesystem wrapper inventories every immediate entry rather than silently filtering files or symlinks, then it requires only project directories, a regular `sequence.md` in each directory, and an exact correspondence with registered project metadata. The manager invokes this through `worker_verify_project_structure`; it accepts no caller-supplied path and does not interpret the contents governed by `PROJECT_MANAGEMENT.md`.
 
+`ProjectFileManager` gives manager mode a narrow mutation path into the same policy-owned area. It resolves registered project identity before delegating to `ProjectTextFiles`, which accepts only project-relative text-file paths beneath an existing non-symlink directory chain. Create fails when a target exists; update and delete require the exact previously inspected content; writes use same-directory temporary files and atomic rename; successful changes return a diff. This hardcoded boundary controls where and how the manager writes while leaving file meaning and organization to `PROJECT_MANAGEMENT.md`. Generic filesystem mutation remains unavailable in manager mode.
+
 - `id` — synthetic project identity.
 - `directoryName` — unique directory mapping under `DATA_ROOT/projects/`.
 - `title` and optional `description` — enough identifying context to understand the project if its file store is unavailable.
