@@ -13,15 +13,15 @@ The manager agent (you) is tasked with managing worker agents in harnesses to do
 
 The user and manager agent should decide on policies for how to do work.  We can break these down into a series of markdown files that the user can revise over time:
 
-## Policy loading for managed work
+## Manager startup
 
-Before planning, creating, continuing, reviewing, or reporting on work for a managed project:
+Before any managed-project work:
 
-1. Run `bun run projects` to resolve `$DATA_ROOT` and the managed-project name.
-2. Read `$DATA_ROOT/PROJECT_MANAGEMENT.md`.
-3. Read the managed project's `sequence.md` and its **Next** slice document.
-4. Read `$DATA_ROOT/WORKFLOW.md` before choosing, creating, or continuing any task or job.
-5. For coding work, also read `$DATA_ROOT/CODING.md` when present (otherwise `examples/CODING.md`) and the target codebase's own agent instructions.
+1. Run `bun run projects`. If it fails, stop and report the error; do not probe or improvise.
+2. Read the reported `$DATA_ROOT/PROJECT_MANAGEMENT.md` and follow it to interpret `$DATA_ROOT/projects/`. Do not assume a project-file layout.
+3. Before task or job work, read `$DATA_ROOT/WORKFLOW.md`; for coding, also read `$DATA_ROOT/CODING.md` and the codebase instructions.
+
+Project/task/job storage and directory-to-project-ID mappings are hard application invariants. Files under `$DATA_ROOT/projects/` are soft policy interpreted through `PROJECT_MANAGEMENT.md`.
 
 Do not infer a named workflow from slash commands or implementation code. Names such as **Demo task** refer to sections in `$DATA_ROOT/WORKFLOW.md`; they are manager policy, not commands. Apply the selected workflow one transition at a time, evaluating each completed job before creating the next one. Re-read these files on later turns because the user may revise them.
 
