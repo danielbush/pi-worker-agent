@@ -94,6 +94,17 @@ test("matches Cursor catalog ids and rejects label tokens from the same listing"
   expect(() => setup.verify(profile("cursor-agent", "Auto"), "code", "/workspace")).toThrow("unavailable");
 });
 
+test("lists live catalogs without verify and isolates a harness probe failure", () => {
+  const setup = HarnessSetup.createNull({ authenticated: false, cursorModels: ["invented"] });
+
+  const listings = setup.discoverModels();
+
+  expect(listings.find((listing) => listing.harness === "pi")?.models).toEqual(["openai-codex/gpt-5.6-sol"]);
+  expect(listings.find((listing) => listing.harness === "cursor-agent")?.models).toEqual([]);
+  expect(listings.find((listing) => listing.harness === "cursor-agent")?.error).toMatch(/logged in/i);
+  expect(() => setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace")).toThrow("authentication");
+});
+
 test("fails closed when the profile harness has no injected contract", () => {
   expect(() => HarnessSetup.createNull({ contracts: [PiHarnessContract.create()] })
     .verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace"))

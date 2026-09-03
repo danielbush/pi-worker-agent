@@ -18,6 +18,7 @@ import { ProjectTaskReporter } from "../workflows/project-task-reporter.ts";
 import { TaskCompleter } from "../workflows/task-completer.ts";
 import { TaskCreator } from "../workflows/task-creator.ts";
 import { WorkspaceRegistrar } from "../workflows/workspace-registrar.ts";
+import { formatModelCatalog, ModelCatalog } from "../workflows/model-catalog.ts";
 import { WorkflowProfileLoader } from "../workflows/workflow-profiles.ts";
 import { ManagerPermissions } from "./manager-permissions.ts";
 import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
@@ -101,6 +102,7 @@ export class WorkerAgentExtension {
     this.registerProjectTools();
     this.registerTaskTool();
     this.registerTaskCompletionTool();
+    this.registerModelCatalogTool();
     this.registerJobTool();
     this.registerStatusCommand();
     new ManagerPermissions(this.pi).register();
@@ -300,6 +302,32 @@ export class WorkerAgentExtension {
             text: `Created task ${created.task.id} for workspace ${created.workspace.name} and project ${created.projectId}.\nWorkspace: ${created.workspace.rootDir}`,
           }],
           details: { taskId: created.task.id, projectId: created.projectId, workspaceId: created.workspace.id, workspaceRoot: created.workspace.rootDir },
+        };
+      },
+    });
+  }
+
+  private registerModelCatalogTool(): void {
+    this.pi.registerTool({
+      name: "worker_list_models",
+      label: "List worker models",
+      description: "List live Pi and Cursor Agent model catalogs outside the worker sandbox and compare them to WORKFLOW.md profile pins.",
+      promptSnippet: "List live harness model catalogs and check WORKFLOW.md pins",
+      promptGuidelines: [
+        "Call worker_list_models before overriding a task onto Cursor or inventing a model id.",
+        "Use only ids returned by the live catalog; WORKFLOW.md pins that are missing from the listing cannot be launched.",
+        "A harness probe failure must be reported as-is; do not invent substitute model ids.",
+      ],
+      parameters: Type.Object({
+        harness: Type.Optional(Type.Union([Type.Literal("pi"), Type.Literal("cursor-agent")], {
+          description: "Optional harness to list; omit to list every configured harness",
+        })),
+      }),
+      execute: async (_toolCallId, params) => {
+        const reports = ModelCatalog.create(this.root).discover(params.harness);
+        return {
+          content: [{ type: "text", text: formatModelCatalog(reports) || "No harness catalogs available." }],
+          details: reports,
         };
       },
     });

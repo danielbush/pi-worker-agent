@@ -200,7 +200,7 @@ The manager decomposes the task into jobs. Each job has:
 
 Workflow purpose, worker configuration, and execution capability are separate concepts. `WORKFLOW.md` defines the default sequence and assigns a named worker profile to each job purpose. A worker profile selects a harness, such as `pi` or `cursor-agent`, plus that harness's native model and option values.
 
-The system does not impose a universal model or effort vocabulary. Pi profiles can use a model such as `openai-codex/gpt-5.6-sol` with separate `thinking: high`, while Cursor profiles can use an effort-bearing model selector such as `cursor-grok-4.5-high`. Each harness adapter exposes and validates its native configuration and model catalog directly.
+The system does not impose a universal model or effort vocabulary. Pi profiles can use a model such as `openai-codex/gpt-5.6-sol` with separate `thinking: high`, while Cursor profiles can use an effort-bearing model selector such as `cursor-grok-4.5-high`. Each harness adapter exposes and validates its native configuration and model catalog directly. The manager lists those live catalogs outside the worker sandbox through `worker_list_models`; job `verify()` still fail-closes if a selected pin is missing.
 
 Tasks may override a job purpose by selecting another configured worker profile. The manager resolves the workflow default plus any task override when creating each job. The profile identity and exact native invocation values are snapshotted on the job so later policy or catalog changes do not rewrite the audit history of completed work.
 

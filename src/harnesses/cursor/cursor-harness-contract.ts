@@ -1,5 +1,5 @@
 import { createCursorExecutableLocator, resolveCursorExecutable } from "./cursor-executable.ts";
-import { cursorCatalogHasModel } from "./cursor-model-catalog.ts";
+import { cursorCatalogHasModel, parseCursorModelCatalog } from "./cursor-model-catalog.ts";
 import { CURSOR_STREAM_CONTRACT } from "./cursor-stream-json.ts";
 import { requireHarnessOutput, type HarnessContract, type HarnessFinishInput, type HarnessResolveInput, type HarnessSetupResult } from "../harness-contract.ts";
 
@@ -27,6 +27,10 @@ export class CursorHarnessContract implements HarnessContract {
       isExecutable: input.isExecutable,
       canonicalPath: input.canonicalPath,
     });
+  }
+
+  listModels(input: Pick<HarnessFinishInput, "executable" | "cwd" | "run">): string[] {
+    return parseCursorModelCatalog(requireHarnessOutput(input.run, input.executable, ["--list-models"], input.cwd, "model catalog"));
   }
 
   finish(input: HarnessFinishInput): HarnessSetupResult {

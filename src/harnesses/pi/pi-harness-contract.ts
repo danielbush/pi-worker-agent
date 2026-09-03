@@ -1,5 +1,6 @@
 import { toolsForCapability } from "../../domain/execution-profile.ts";
 import { requireHarnessOutput, type HarnessContract, type HarnessFinishInput, type HarnessResolveInput, type HarnessSetupResult } from "../harness-contract.ts";
+import { parsePiModelCatalog } from "./pi-model-catalog.ts";
 
 const THINKING = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 
@@ -17,6 +18,10 @@ export class PiHarnessContract implements HarnessContract {
     const resolved = input.which(this.executableName);
     if (!resolved || !resolved.startsWith("/")) throw new Error(`${this.executableName} executable is unavailable as an absolute path`);
     return resolved;
+  }
+
+  listModels(input: Pick<HarnessFinishInput, "executable" | "cwd" | "run">): string[] {
+    return parsePiModelCatalog(requireHarnessOutput(input.run, input.executable, ["--list-models"], input.cwd, "model catalog"));
   }
 
   finish(input: HarnessFinishInput): HarnessSetupResult {

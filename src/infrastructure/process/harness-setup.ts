@@ -24,6 +24,12 @@ export interface NullHarnessSetupResult {
   contracts?: readonly HarnessContract[];
 }
 
+export interface HarnessModelListing {
+  harness: HarnessName;
+  models: string[];
+  error?: string;
+}
+
 export type { HarnessSetupResult };
 
 export { CURSOR_CONTRACT_DIAGNOSTIC } from "../../harnesses/cursor/cursor-harness-contract.ts";
@@ -76,6 +82,7 @@ export class HarnessSetup {
         if (executable === "pi" && args[0] === "--list-models") return ok((result.piModels ?? ["openai-codex/gpt-5.6-sol"]).join("\n"));
         if (cursor && args[0] === "status") return authenticated ? ok("Login successful") : fail("not logged in");
         if (cursor && args[0] === "--list-models") {
+          if (!authenticated) return fail("not logged in");
           return ok(["Available models", ...(result.cursorModels ?? ["cursor-grok-4.5-high"]).map((id) => `${id} - ${id}`)].join("\n"));
         }
         return fail("unexpected command");
@@ -96,6 +103,21 @@ export class HarnessSetup {
       if (!help.includes(option)) throw new Error(`${contract.executableName} does not support required option ${option}`);
     }
     return contract.finish({ profile, capability, cwd, workspacePath, executable: resolved, version, run: this.driver.run });
+  }
+
+  discoverModels(harness?: HarnessName, cwd = process.cwd()): HarnessModelListing[] {
+    const selected = harness ? [harness] : [...this.contracts.keys()];
+    return selected.map((name) => {
+      const contract = this.contracts.get(name);
+      if (!contract) throw new Error(`Unknown harness: ${name}`);
+      try {
+        const resolved = contract.resolveExecutable(this.driver);
+        if (!resolved.startsWith("/")) throw new Error(`${contract.executableName} executable is unavailable as an absolute path`);
+        return { harness: contract.harness, models: contract.listModels({ executable: resolved, cwd, run: this.driver.run }) };
+      } catch (error) {
+        return { harness: contract.harness, models: [], error: error instanceof Error ? error.message : String(error) };
+      }
+    });
   }
 }
 

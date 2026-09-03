@@ -31,6 +31,7 @@ export interface HarnessContract {
   readonly executableName: string;
   readonly requiredHelpOptions: readonly string[];
   resolveExecutable(input: HarnessResolveInput): string;
+  listModels(input: Pick<HarnessFinishInput, "executable" | "cwd" | "run">): string[];
   finish(input: HarnessFinishInput): HarnessSetupResult;
 }
 
