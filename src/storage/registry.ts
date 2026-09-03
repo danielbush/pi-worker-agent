@@ -4,7 +4,6 @@ import type { Job } from "../domain/job.ts";
 import type { JobTypeConfiguration } from "../domain/job-type.ts";
 import type { Project } from "../domain/project.ts";
 import type { ProjectTask } from "../domain/project-task.ts";
-import type { TaskAgentProfileOverride } from "../domain/task-agent-profile-override.ts";
 import type { Task } from "../domain/task.ts";
 import type { Workspace } from "../domain/workspace.ts";
 import type { WorkerSession } from "../domain/worker-session.ts";
@@ -15,7 +14,6 @@ import { JobRepository } from "./job-repository.ts";
 import { JobTypeRepository } from "./job-type-repository.ts";
 import { ProjectRepository } from "./project-repository.ts";
 import { ProjectTaskRepository } from "./project-task-repository.ts";
-import { TaskAgentProfileOverrideRepository } from "./task-agent-profile-override-repository.ts";
 import { TaskRepository } from "./task-repository.ts";
 import { WorkspaceRepository } from "./workspace-repository.ts";
 import { WorkerSessionRepository } from "./worker-session-repository.ts";
@@ -27,7 +25,6 @@ export interface NullRegistryState {
   tasks?: Task[];
   agentProfiles?: AgentProfile[];
   jobTypes?: JobTypeConfiguration[];
-  taskAgentProfileOverrides?: TaskAgentProfileOverride[];
   jobs?: Job[];
   workerSessions?: WorkerSession[];
   jobDependencies?: JobDependency[];
@@ -51,7 +48,6 @@ export class Registry {
     readonly tasks: TaskRepository,
     readonly agentProfiles: AgentProfileRepository,
     readonly jobTypes: JobTypeRepository,
-    readonly taskAgentProfileOverrides: TaskAgentProfileOverrideRepository,
     readonly jobs: JobRepository,
     readonly workerSessions: WorkerSessionRepository,
     readonly jobDependencies: JobDependencyRepository,
@@ -67,7 +63,6 @@ export class Registry {
       TaskRepository.create(database),
       AgentProfileRepository.create(database),
       JobTypeRepository.create(database),
-      TaskAgentProfileOverrideRepository.create(database),
       JobRepository.create(database),
       WorkerSessionRepository.create(database),
       JobDependencyRepository.create(database),
@@ -86,7 +81,6 @@ export class Registry {
       tasks,
       AgentProfileRepository.createNull(agentProfiles),
       JobTypeRepository.createNull(jobTypes),
-      TaskAgentProfileOverrideRepository.createNull(state.taskAgentProfileOverrides),
       JobRepository.createNull(state.jobs),
       WorkerSessionRepository.createNull(state.workerSessions),
       JobDependencyRepository.createNull(state.jobDependencies),

@@ -25,26 +25,6 @@ test("creates binding profiles and job types and preserves them through retireme
   expect(manager.reactivateJobType("plan")).toMatchObject({ retired: false, archiveDate: null });
 });
 
-test("sets and removes only active task overrides", () => {
-  // arrange
-  const registry = Registry.createNull({
-    tasks: [{ id: "task", workspaceId: null, title: "Task", status: "queued", createdAt: NOW, finishedAt: null }],
-    agentProfiles: [], jobTypes: [],
-  });
-  const manager = ExecutionCatalogManager.createNull(registry, NOW);
-  manager.createAgentProfile({ id: "pi-high", harness: "pi", model: "model", options: { thinking: "high" } });
-  manager.createAgentProfile({ id: "pi-medium", harness: "pi", model: "model", options: { thinking: "medium" } });
-  manager.createJobType({ id: "plan", capabilityProfile: "read-only", worktreeStrategy: "workspace", defaultAgentProfileId: "pi-high" });
-
-  // act
-  manager.setTaskOverride("task", "plan", "pi-medium");
-
-  // assert
-  expect(registry.taskAgentProfileOverrides.get("task", "plan")?.agentProfileId).toBe("pi-medium");
-  manager.removeTaskOverride("task", "plan");
-  expect(registry.taskAgentProfileOverrides.get("task", "plan")).toBeUndefined();
-});
-
 test("rejects incomplete or mutable-in-place execution configuration", () => {
   // arrange
   const manager = ExecutionCatalogManager.createNull(Registry.createNull({ agentProfiles: [], jobTypes: [] }), NOW);

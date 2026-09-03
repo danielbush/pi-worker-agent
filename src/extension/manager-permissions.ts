@@ -13,7 +13,6 @@ const MANAGER_TOOL_NAMES = new Set([
   "worker_manage_project_file",
   "worker_list_agent_profiles",
   "worker_manage_agent_profile",
-  "worker_set_task_agent_profile",
   "worker_list_job_types",
   "worker_manage_job_type",
   "worker_register_project",

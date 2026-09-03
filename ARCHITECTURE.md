@@ -58,8 +58,6 @@ flowchart LR
 
             Task["tasks<br/><br/>id<br/>workspaceId?<br/>title<br/>status<br/>createdAt<br/>finishedAt"]
 
-            TaskProfileOverride["taskAgentProfileOverrides<br/><br/>taskId<br/>jobTypeId<br/>agentProfileId"]
-
             Job["jobs<br/><br/>id<br/>taskId<br/>jobTypeId<br/>agentProfileId<br/>agentProfileSelectionSource<br/>parentSessionId<br/>parentSessionFile<br/>profile fingerprint + options<br/>capabilityProfile<br/>harness + version<br/>nativeInvocation<br/>model metadata<br/>title<br/>status + progress<br/>lifetime + delivery metadata"]
 
             WorkerSession["workerSessions<br/><br/>id<br/>jobId<br/>harnessSessionId?<br/>harnessSessionPath?<br/>storagePath<br/>createdAt"]
@@ -128,9 +126,6 @@ flowchart LR
     Project -.->|projectId| ProjectTask
     Task -.->|taskId| ProjectTask
     Task -.->|id referenced by jobs.taskId| Job
-    Task -.->|taskId| TaskProfileOverride
-    JobType -.->|jobTypeId| TaskProfileOverride
-    AgentProfile -.->|agentProfileId| TaskProfileOverride
     JobType -.->|jobTypeId and trusted execution policy| Job
     AgentProfile -.->|agentProfileId| Job
     Job -.->|id referenced by workerSessions.jobId| WorkerSession
@@ -198,7 +193,6 @@ The user and manager agent discuss a piece of work. The manager translates the r
 - Optional **`intent`** — why the user wants the work and the shape they want it to take, ideally preserved in their own words.
 - Optional **`outcomes`** — a checklist of what should be observable when the task is complete.
 - **`background`** — relevant facts, decisions, constraints, or a conversation summary needed to understand the task.
-- Optional **agent-profile overrides** — task-specific relational selections that replace a job type's configured default agent profile.
 
 The manager harvests `intent` from the conversation rather than requiring the user to write a formal specification. It should preserve the user's wording even when that wording is informal or woolly. Technical specifications in the user's intent should remain intact because they may determine the shape of the result. If the user does not want to formalize intent, the manager writes a minimal faithful statement without adding ceremony.
 
@@ -219,11 +213,11 @@ Execution prerequisites are durable manager configuration rather than prose poli
 
 The system does not impose a universal model or effort vocabulary. Pi profiles can use a model such as `openai-codex/gpt-5.6-sol` with `thinking: high`, while Cursor SDK profiles can use a catalog ID such as `grok-4.5` with native parameters such as `effort: high` and `fast: false`. Each harness adapter validates its native configuration and model catalog directly. The manager lists live catalogs outside the worker sandbox through `worker_list_models`; job preflight fails closed when a pin or option is invalid.
 
-Task-specific preferences are sparse rows in `taskAgentProfileOverrides`. Delegation chooses `task override → job-type default`, requires both rows to be active, and records non-null `jobTypeId`, `agentProfileId`, and assignment source on the job. It also snapshots the profile fingerprint, canonical options, capability, harness/version, model, and exact native invocation so later catalog retirement does not rewrite historical execution.
+Delegation uses an explicitly selected active agent profile when supplied, otherwise the job type's active default. It records non-null `jobTypeId`, `agentProfileId`, and assignment source on the job, then snapshots the profile fingerprint, canonical options, capability, harness/version, model, and exact native invocation so later catalog retirement does not rewrite historical execution.
 
 Trusted capabilities (`read-only`, `code`, and `test`) and worktree strategies (`workspace`, `new-worktree`, and `dependency-worktree`) belong to job types and are constrained by the application and database. Selecting an agent profile cannot expand them. The runner reloads the referenced job type, verifies its capability against the immutable job snapshot, and derives tools and workspace placement from those trusted values rather than from hardcoded purpose names.
 
-Agent profile execution fields become immutable once referenced; changing harness, model, or options requires a new ID. Retirement preserves foreign keys but prevents new defaults, overrides, and job assignments. Historical pre-catalog jobs receive explicit archived migration identities and retain the `migration-fossil` snapshot provenance when their exact execution configuration cannot be reconstructed.
+Agent profile execution fields become immutable once referenced; changing harness, model, or options requires a new ID. Retirement preserves foreign keys but prevents new defaults and job assignments. Historical pre-catalog jobs receive explicit archived migration identities and retain the `migration-fossil` snapshot provenance when their exact execution configuration cannot be reconstructed.
 
 Delegation checks the selected process-isolation strategy and runner, then asks the selected `HarnessContract` to own its complete SDK-worker preflight: runtime resolution, version/help protocol, authentication, catalog, native options, and immutable invocation construction. Pi uses `@earendil-works/pi-coding-agent`; Cursor uses `@cursor/sdk` and its typed message/run-result stream. Cursor SDK authentication is a selected `CURSOR_API_KEY` or the SDK credential file created by `Cursor.auth.login()`, copied into the private worker home after preflight.
 
@@ -294,7 +288,6 @@ Workspaces are user-authorized codebase locations, independent of management-pro
 - `status` — overall task state.
 - `createdAt` and `finishedAt` — task lifetime.
 - One task can contain multiple jobs, such as implementation, review, and fixes.
-- Optional rows in `taskAgentProfileOverrides` select active agent profiles for specific job types without changing catalog defaults.
 - Example title: `Investigate flaky authentication tests`.
 
 Task statuses:
@@ -307,19 +300,13 @@ Task statuses:
 
 Typical transitions are `queued → running → completed | failed | cancelled`. Starting a job moves the task to `running`, and a failed required job may move it to `failed`. The runner does not mark a task complete merely because every currently existing job has completed: the manager applies `WORKFLOW.md`, determines whether more jobs are required, evaluates the outcomes, and explicitly settles the task.
 
-### `taskAgentProfileOverrides`
-
-- Non-null `taskId`, `jobTypeId`, and `agentProfileId` foreign keys form one sparse task preference.
-- The `(taskId, jobTypeId)` primary key allows at most one override per job type.
-- Removing a row restores the job type's default; retired configuration cannot be newly assigned.
-
 ### `jobs`
 
 - `id` — job identity.
 - `taskId` — required reference to `tasks.id`.
 - `jobTypeId` — required reference to the configured `jobTypes.id`.
 - `agentProfileId` — required reference to the selected `agentProfiles.id`.
-- `agentProfileSelectionSource` — non-null record of `job-type-default`, `task-override`, or an explicit migration fossil.
+- `agentProfileSelectionSource` — non-null record of `job-type-default`, `explicit`, or an explicit migration fossil.
 - `parentSessionId` and `parentSessionFile` — managing Pi session that owns notifications.
 - `capabilityProfile` — trusted capability copied from the job type into the immutable execution snapshot.
 - `harness` — resolved worker harness, such as `pi` or `cursor-agent`.
@@ -330,7 +317,7 @@ Typical transitions are `queued → running → completed | failed | cancelled`.
 - `createdAt` and `finishedAt` — overall job lifetime.
 - `bundlePath` — job's file-storage directory.
 - `userNotified` and `agentNotified` — completion-delivery state.
-- Job purposes, capabilities, worktree placement, defaults, and profile assignments come from binding catalogs. Task overrides can select an active agent profile but cannot change the job type's capability or worktree strategy.
+- Job purposes, capabilities, and worktree placement come from binding job types. An explicit active agent profile may replace the default for one job but cannot change the job type's capability or worktree strategy.
 
 Job statuses:
 

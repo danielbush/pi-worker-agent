@@ -15,6 +15,8 @@ test("fresh schema binds catalog relationships and complete snapshots", () => {
   Registry.create(root).close();
   const db = new Database(join(root, "registry.sqlite"));
   db.exec("PRAGMA foreign_keys = ON");
+  expect(db.query("PRAGMA user_version").get()).toEqual({ user_version: 9 });
+  expect(db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'taskAgentProfileOverrides'").get()).toBeNull();
   const jobColumns = db.query("PRAGMA table_info(jobs)").all() as Array<{ name: string; notnull: number }>;
   for (const name of ["jobTypeId", "agentProfileId", "agentProfileSelectionSource"]) {
     expect(jobColumns.find((column) => column.name === name)?.notnull).toBe(1);
@@ -55,7 +57,7 @@ test("fresh schema makes job assignment and execution snapshot immutable", () =>
   `);
 
   // act/assert
-  expect(() => db.query("UPDATE jobs SET agentProfileSelectionSource = 'task-override' WHERE id = 'job'").run())
+  expect(() => db.query("UPDATE jobs SET agentProfileSelectionSource = 'explicit' WHERE id = 'job'").run())
     .toThrow("job assignment is immutable");
   expect(() => db.query("UPDATE jobs SET profileOptions = '{}' WHERE id = 'job'").run())
     .toThrow("job execution snapshot is immutable");

@@ -31,9 +31,9 @@ Agent profiles and job types are durable manager-configured prerequisites rather
 - active agent profiles with harness-native model and option values;
 - active job types with trusted capabilities, worktree strategies, and non-null default agent profiles.
 
-Default profiles should use a harness that already launches. If creating or running a job fails because its harness is unavailable, unverified, or otherwise cannot start, stop that transition. Do not retry the same failing harness. Report the failure and suggest an active profile on a harness that already works, typically Pi; continue only after an explicit task override or a later successful verification of the harness.
+Default profiles should use a harness that already launches. If creating or running a job fails because its harness is unavailable, unverified, or otherwise cannot start, stop that transition. Do not retry the same failing harness. Report the failure and suggest an active profile on a harness that already works, typically Pi; continue only after explicitly selecting another profile for the next job or after a later successful verification of the harness.
 
-Tasks may override a job type by selecting another active agent profile. For example, `worker_create_task` may receive `profileOverrides: { implement: cursor-grok-high }`; the choice is stored relationally and applies only to that task. Call `worker_list_models` before configuring or selecting a Cursor profile and use only a returned model id. Job creation still fails closed if a selected pin is missing. Trusted execution capabilities and worktree strategies belong to job types and cannot be changed by task profile overrides.
+A delegation may explicitly select another active agent profile for that job; otherwise it uses the job type's default. Call `worker_list_models` before configuring or explicitly selecting a Cursor profile and use only a returned model id. Job creation fails closed if a selected pin is missing. Trusted execution capabilities and worktree strategies belong to job types and cannot be changed by selecting another profile.
 
 ## Coding flow
 

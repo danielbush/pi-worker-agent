@@ -3,7 +3,7 @@ import type { CapabilityProfile, HarnessName } from "./execution-profile.ts";
 /** Stable ID of a manager-configured job type. */
 export type JobType = string;
 
-export type AgentProfileSelectionSource = "job-type-default" | "task-override" | "migration-fossil";
+export type AgentProfileSelectionSource = "job-type-default" | "explicit" | "migration-fossil";
 
 export type JobStatus = "blocked" | "queued" | "running" | "completed" | "failed" | "cancelled" | "skipped";
 

@@ -48,16 +48,3 @@ test("requires active execution configuration before task work", async () => {
   await expect(creator.create({ workspaceId: "workspace_demo", projectId: "project_demo", title: "Task", background: "Background" })).rejects.toThrow("no active job types");
   expect(registry.tasks.get(TASK_ID)).toBeUndefined();
 });
-
-test("validates and persists relational task agent-profile overrides", async () => {
-  // arrange
-  const registry = Registry.createNull(state());
-  const creator = new TaskCreator(registry, TaskStore.createNull(), new FixedIds(), Clock.createNull(TIMESTAMP));
-
-  // act
-  const created = await creator.create({ workspaceId: "workspace_demo", projectId: "project_demo", title: "Task", background: "Background", profileOverrides: { implement: "pi-high" } });
-
-  // assert
-  expect(registry.taskAgentProfileOverrides.listForTask(created.task.id)).toEqual([{ taskId: TASK_ID, jobTypeId: "implement", agentProfileId: "pi-high" }]);
-  await expect(creator.create({ workspaceId: "workspace_demo", projectId: "project_demo", title: "Bad", background: "Bad", profileOverrides: { implement: "missing" } })).rejects.toThrow("Unknown or retired agent profile");
-});

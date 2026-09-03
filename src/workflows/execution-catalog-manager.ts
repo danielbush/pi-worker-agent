@@ -30,20 +30,6 @@ export class ExecutionCatalogManager {
   listAgentProfiles(): AgentProfile[] { return this.registry.agentProfiles.list(); }
   listJobTypes(): JobTypeConfiguration[] { return this.registry.jobTypes.list(); }
 
-  setTaskOverride(taskId: string, jobTypeId: string, agentProfileId: string): void {
-    if (!this.registry.tasks.get(taskId)) throw new Error(`Unknown task: ${taskId}`);
-    const jobType = this.requireJobType(jobTypeId);
-    if (jobType.retired) throw new Error(`Job type is retired: ${jobTypeId}`);
-    this.requireActiveAgentProfile(agentProfileId);
-    this.registry.taskAgentProfileOverrides.set({ taskId, jobTypeId, agentProfileId });
-  }
-
-  removeTaskOverride(taskId: string, jobTypeId: string): void {
-    if (!this.registry.tasks.get(taskId)) throw new Error(`Unknown task: ${taskId}`);
-    this.requireJobType(jobTypeId);
-    this.registry.taskAgentProfileOverrides.delete(taskId, jobTypeId);
-  }
-
   createAgentProfile(input: CreateAgentProfileInput): AgentProfile {
     const now = this.clock.now();
     const profile: AgentProfile = {
@@ -64,7 +50,6 @@ export class ExecutionCatalogManager {
   updateAgentProfile(id: string, harness: HarnessName, model: string, options: Record<string, string>): AgentProfile {
     const current = this.requireAgentProfile(id);
     if (this.registry.jobTypes.list().some((value) => value.defaultAgentProfileId === id)
-      || this.registry.tasks.list().some((task) => this.registry.taskAgentProfileOverrides.listForTask(task.id).some((value) => value.agentProfileId === id))
       || this.registry.tasks.list().some((task) => this.registry.jobs.listForTask(task.id).some((job) => job.agentProfileId === id))) {
       throw new Error(`Referenced agent profile execution fields are immutable: ${id}`);
     }

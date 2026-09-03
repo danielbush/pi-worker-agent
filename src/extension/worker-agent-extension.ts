@@ -421,31 +421,6 @@ export class WorkerAgentExtension {
       },
     });
     this.pi.registerTool({
-      name: "worker_set_task_agent_profile",
-      label: "Set task agent profile",
-      description: "Set or remove one task-specific agent-profile override for a configured job type.",
-      promptSnippet: "Change a task-specific agent assignment",
-      parameters: Type.Object({
-        operation: Type.Union([Type.Literal("set"), Type.Literal("remove")]),
-        taskId: Type.String(),
-        jobTypeId: Type.String(),
-        agentProfileId: Type.Optional(Type.String()),
-      }),
-      execute: async (_toolCallId, params) => {
-        const registry = this.registry ??= this.services.registry();
-        const manager = ExecutionCatalogManager.create(registry);
-        if (params.operation === "set") manager.setTaskOverride(params.taskId, params.jobTypeId, required(params.agentProfileId, "agentProfileId"));
-        else manager.removeTaskOverride(params.taskId, params.jobTypeId);
-        const override = registry.taskAgentProfileOverrides.get(params.taskId, params.jobTypeId);
-        return {
-          content: [{ type: "text", text: override
-            ? `Task ${params.taskId} uses ${override.agentProfileId} for ${params.jobTypeId}.`
-            : `Task ${params.taskId} uses the job-type default for ${params.jobTypeId}.` }],
-          details: override ?? { taskId: params.taskId, jobTypeId: params.jobTypeId, agentProfileId: null },
-        };
-      },
-    });
-    this.pi.registerTool({
       name: "worker_list_job_types",
       label: "List job types",
       description: "List durable manager-configured job types, capabilities, worktree strategies, defaults, and archival state.",
@@ -513,7 +488,6 @@ export class WorkerAgentExtension {
         background: Type.String(),
         workspaceId: Type.String({ description: "Exact authorized workspace ID or unique leading shorthand" }),
         projectId: Type.String({ description: "Exact registered project ID or unique leading shorthand" }),
-        profileOverrides: Type.Optional(Type.Record(Type.String(), Type.String(), { description: "Optional active job-type IDs to active agent-profile IDs" })),
       }),
       execute: async (_toolCallId, params) => {
         const registry = this.registry ??= this.services.registry();
@@ -528,7 +502,6 @@ export class WorkerAgentExtension {
           intent: params.intent,
           outcomes: params.outcomes,
           background: params.background,
-          profileOverrides: params.profileOverrides,
         });
         return {
           content: [{
@@ -697,6 +670,7 @@ export class WorkerAgentExtension {
       parameters: Type.Object({
         taskId: Type.String({ description: "Exact task UUID or unique leading shorthand" }),
         jobType: Type.String({ description: "Active configured job-type ID" }),
+        agentProfileId: Type.Optional(Type.String({ description: "Optional active profile ID; omit to use the job type default" })),
         title: Type.String(),
         request: Type.String({ description: "Complete canonical worker prompt, including relevant task context and accepted dependency results" }),
         dependsOnJobId: Type.Optional(Type.String()),
@@ -722,6 +696,7 @@ export class WorkerAgentExtension {
         ).delegate({
           taskId: task.id,
           jobType: params.jobType as JobType,
+          agentProfileId: params.agentProfileId,
           title: params.title,
           request: params.request,
           dependsOnJobId: params.dependsOnJobId,

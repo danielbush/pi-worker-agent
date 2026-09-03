@@ -23,7 +23,7 @@ class FixedIds {
   createWorkerSessionId(): string { return this.sessionId; }
 }
 
-test("creates a dependent implementation job, worktree, and detached launch", async () => {
+test("creates a dependent implementation job with an explicit profile, worktree, and detached launch", async () => {
   // arrange
   const registry = Registry.createNull({
     agentProfiles: [
@@ -34,7 +34,6 @@ test("creates a dependent implementation job, worktree, and detached launch", as
       { id: "plan", description: null, capabilityProfile: "read-only", worktreeStrategy: "workspace", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
       { id: "implement", description: null, capabilityProfile: "code", worktreeStrategy: "new-worktree", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
     ],
-    taskAgentProfileOverrides: [{ taskId: TASK_ID, jobTypeId: "implement", agentProfileId: "pi-override" }],
     workspaces: [{
       id: "workspace_demo",
       name: "pi-worker-agent",
@@ -96,6 +95,7 @@ test("creates a dependent implementation job, worktree, and detached launch", as
   const delegated = await delegator.delegate({
     taskId: TASK_ID,
     jobType: "implement",
+    agentProfileId: "pi-override",
     title: "Implement greeting CLI",
     request: "Implement the accepted plan.",
     dependsOnJobId: "job_plan",
@@ -111,7 +111,7 @@ test("creates a dependent implementation job, worktree, and detached launch", as
     worktreePath: "/null-worker-agent/worktrees/job_implement",
   }]);
   expect(registry.tasks.get(TASK_ID)).toMatchObject({ status: "queued", finishedAt: null });
-  expect(registry.jobs.get("job_implement")).toMatchObject({ status: "queued", jobTypeId: "implement", agentProfileId: "pi-override", agentProfileSelectionSource: "task-override" });
+  expect(registry.jobs.get("job_implement")).toMatchObject({ status: "queued", jobTypeId: "implement", agentProfileId: "pi-override", agentProfileSelectionSource: "explicit" });
   expect(registry.jobDependencies.listForJob("job_implement")).toEqual([{
     jobId: "job_implement",
     dependsOnJobId: "job_plan",

@@ -12,7 +12,6 @@ export interface CreateTaskInput {
   intent?: string;
   outcomes?: string;
   background: string;
-  profileOverrides?: Record<string, string>;
 }
 export interface CreatedTask { projectId: string; workspace: Workspace; task: Task; }
 
@@ -38,13 +37,6 @@ export class TaskCreator {
     if (!this.registry.jobTypes.list().some((jobType) => !jobType.retired)) {
       throw new Error("Execution configuration has no active job types");
     }
-    const overrides = Object.entries(input.profileOverrides ?? {}).sort(([a], [b]) => a.localeCompare(b));
-    for (const [jobTypeId, agentProfileId] of overrides) {
-      const jobType = this.registry.jobTypes.get(jobTypeId);
-      if (!jobType || jobType.retired) throw new Error(`Unknown or retired job type override: ${jobTypeId}`);
-      const profile = this.registry.agentProfiles.get(agentProfileId);
-      if (!profile || profile.retired) throw new Error(`Unknown or retired agent profile for ${jobTypeId}: ${agentProfileId}`);
-    }
     const task: Task = {
       id: this.ids.createTaskId(), workspaceId: workspace.id, title: input.title,
       status: "queued", createdAt: timestamp, finishedAt: null,
@@ -56,9 +48,6 @@ export class TaskCreator {
       this.registry.projects.touch(project.id, timestamp);
       this.registry.tasks.create(task);
       this.registry.projectTasks.create({ projectId: project.id, taskId: task.id, addedAt: timestamp });
-      for (const [jobTypeId, agentProfileId] of overrides) {
-        this.registry.taskAgentProfileOverrides.set({ taskId: task.id, jobTypeId, agentProfileId });
-      }
     });
     return { projectId: project.id, workspace: { ...workspace, lastUsedAt: timestamp }, task };
   }

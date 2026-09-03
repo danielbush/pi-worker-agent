@@ -13,6 +13,7 @@ import { JobWorktreeLocator } from "./job-worktree-locator.ts";
 export interface DelegateJobInput {
   taskId: string;
   jobType: JobType;
+  agentProfileId?: string;
   title: string;
   request: string;
   dependsOnJobId?: string;
@@ -56,12 +57,11 @@ export class JobDelegator {
 
     const jobType = this.registry.jobTypes.get(input.jobType);
     if (!jobType || jobType.retired) throw new Error(`Unknown or retired job type: ${input.jobType}`);
-    const override = this.registry.taskAgentProfileOverrides.get(task.id, jobType.id);
-    const agentProfileId = override?.agentProfileId ?? jobType.defaultAgentProfileId;
+    const agentProfileId = input.agentProfileId ?? jobType.defaultAgentProfileId;
     const storedProfile = this.registry.agentProfiles.get(agentProfileId);
     if (!storedProfile || storedProfile.retired) throw new Error(`Selected agent profile is unknown or retired: ${agentProfileId}`);
     const profile = executableAgentProfile(storedProfile);
-    const selectionSource = override ? "task-override" as const : "job-type-default" as const;
+    const selectionSource = input.agentProfileId ? "explicit" as const : "job-type-default" as const;
 
     const preparedRunner = this.runner.preflight();
     const jobId = this.ids.createJobId();

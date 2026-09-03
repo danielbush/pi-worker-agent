@@ -35,10 +35,11 @@ export class RegistryDatabase {
       if (version > 0 && version < 6) this.migrateExecutionSnapshotProvenance();
       if (version > 0 && version < 7) this.migrateProfileOptions();
       if (version > 0 && version < 8) this.migrateExecutionCatalogs();
+      if (version > 0 && version < 9) this.migrateTaskOverridesToExplicitJobAssignments();
       this.createIndexes();
       this.createCatalogGuards();
       this.createExecutionSnapshotGuards();
-      this.exec("PRAGMA user_version = 8");
+      this.exec("PRAGMA user_version = 9");
     } catch (error) {
       this.db.close();
       throw error;
@@ -107,12 +108,6 @@ export class RegistryDatabase {
         addedAt TEXT NOT NULL,
         PRIMARY KEY (projectId, taskId)
       ) STRICT;
-      CREATE TABLE IF NOT EXISTS taskAgentProfileOverrides (
-        taskId TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-        jobTypeId TEXT NOT NULL REFERENCES jobTypes(id),
-        agentProfileId TEXT NOT NULL REFERENCES agentProfiles(id),
-        PRIMARY KEY (taskId, jobTypeId)
-      ) STRICT;
     `);
     this.createJobsTable("jobs");
     this.exec(`
@@ -135,7 +130,6 @@ export class RegistryDatabase {
       CREATE INDEX IF NOT EXISTS jobs_task_created ON jobs(taskId, createdAt);
       CREATE INDEX IF NOT EXISTS jobs_parent_created ON jobs(parentSessionId, createdAt DESC);
       CREATE INDEX IF NOT EXISTS dependencies_parent ON jobDependencies(dependsOnJobId);
-      CREATE INDEX IF NOT EXISTS task_profile_overrides_profile ON taskAgentProfileOverrides(agentProfileId);
     `);
   }
 
@@ -156,7 +150,7 @@ export class RegistryDatabase {
       taskId TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
       jobTypeId TEXT NOT NULL REFERENCES jobTypes(id),
       agentProfileId TEXT NOT NULL REFERENCES agentProfiles(id),
-      agentProfileSelectionSource TEXT NOT NULL CHECK (agentProfileSelectionSource IN ('job-type-default', 'task-override', 'migration-fossil')),
+      agentProfileSelectionSource TEXT NOT NULL CHECK (agentProfileSelectionSource IN ('job-type-default', 'explicit', 'migration-fossil')),
       parentSessionId TEXT NOT NULL,
       parentSessionFile TEXT,
       snapshotProvenance TEXT NOT NULL CHECK (snapshotProvenance IN ('current', 'migration-fossil')),
@@ -213,6 +207,12 @@ export class RegistryDatabase {
   }
 
   private migrateExecutionCatalogs(): void {
+    this.exec(`CREATE TABLE IF NOT EXISTS taskAgentProfileOverrides (
+      taskId TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      jobTypeId TEXT NOT NULL REFERENCES jobTypes(id),
+      agentProfileId TEXT NOT NULL REFERENCES agentProfiles(id),
+      PRIMARY KEY (taskId, jobTypeId)
+    ) STRICT;`);
     const conflict = this.db.query(`SELECT workerProfile AS id FROM jobs
       WHERE snapshotProvenance = 'current'
       GROUP BY workerProfile HAVING count(DISTINCT profileFingerprint) > 1 LIMIT 1`).get() as { id?: string } | null;
@@ -281,6 +281,30 @@ export class RegistryDatabase {
     this.exec("PRAGMA foreign_keys = ON");
   }
 
+  private migrateTaskOverridesToExplicitJobAssignments(): void {
+    this.exec("PRAGMA foreign_keys = OFF");
+    this.exec("PRAGMA legacy_alter_table = ON");
+    this.exec("ALTER TABLE jobs RENAME TO jobs_v8");
+    this.createJobsTable("jobs");
+    this.exec(`INSERT INTO jobs (
+      id, taskId, jobTypeId, agentProfileId, agentProfileSelectionSource,
+      parentSessionId, parentSessionFile, snapshotProvenance, profileFingerprint, profileOptions,
+      capabilityProfile, harness, harnessVersion, nativeInvocation, model, effortLevel, modelName,
+      modelVersion, title, status, progress, createdAt, finishedAt, bundlePath, userNotified, agentNotified
+    ) SELECT id, taskId, jobTypeId, agentProfileId,
+      CASE agentProfileSelectionSource WHEN 'task-override' THEN 'explicit' ELSE agentProfileSelectionSource END,
+      parentSessionId, parentSessionFile, snapshotProvenance, profileFingerprint, profileOptions,
+      capabilityProfile, harness, harnessVersion, nativeInvocation, model, effortLevel, modelName,
+      modelVersion, title, status, progress, createdAt, finishedAt, bundlePath, userNotified, agentNotified
+      FROM jobs_v8`);
+    this.exec("DROP TABLE jobs_v8");
+    this.exec("DROP TABLE IF EXISTS taskAgentProfileOverrides");
+    this.exec("PRAGMA legacy_alter_table = OFF");
+    const broken = this.db.query("PRAGMA foreign_key_check").get() as { table?: string } | null;
+    if (broken?.table) throw new Error(`Task override removal broke a foreign key in ${broken.table}`);
+    this.exec("PRAGMA foreign_keys = ON");
+  }
+
   private createIndexes(): void {
     this.exec(`
       CREATE INDEX IF NOT EXISTS tasks_workspace_created ON tasks(workspaceId, createdAt DESC);
@@ -288,7 +312,6 @@ export class RegistryDatabase {
       CREATE INDEX IF NOT EXISTS jobs_task_created ON jobs(taskId, createdAt);
       CREATE INDEX IF NOT EXISTS jobs_parent_created ON jobs(parentSessionId, createdAt DESC);
       CREATE INDEX IF NOT EXISTS dependencies_parent ON jobDependencies(dependsOnJobId);
-      CREATE INDEX IF NOT EXISTS task_profile_overrides_profile ON taskAgentProfileOverrides(agentProfileId);
     `);
   }
 
@@ -309,7 +332,6 @@ export class RegistryDatabase {
       BEFORE UPDATE OF harness, model, options ON agentProfiles
       WHEN EXISTS (SELECT 1 FROM jobs WHERE agentProfileId = OLD.id)
         OR EXISTS (SELECT 1 FROM jobTypes WHERE defaultAgentProfileId = OLD.id)
-        OR EXISTS (SELECT 1 FROM taskAgentProfileOverrides WHERE agentProfileId = OLD.id)
       BEGIN SELECT RAISE(ABORT, 'referenced agent profile execution fields are immutable'); END;
 
       DROP TRIGGER IF EXISTS agent_profiles_retire_active_default;
@@ -336,27 +358,12 @@ export class RegistryDatabase {
       WHEN EXISTS (SELECT 1 FROM jobs WHERE jobTypeId = OLD.id)
       BEGIN SELECT RAISE(ABORT, 'referenced job type execution fields are immutable'); END;
 
-      DROP TRIGGER IF EXISTS task_overrides_active_insert;
-      CREATE TRIGGER task_overrides_active_insert BEFORE INSERT ON taskAgentProfileOverrides
-      WHEN NOT EXISTS (SELECT 1 FROM jobTypes WHERE id = NEW.jobTypeId AND retired = 0)
-        OR NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = NEW.agentProfileId AND retired = 0)
-      BEGIN SELECT RAISE(ABORT, 'task override requires active configuration'); END;
-
-      DROP TRIGGER IF EXISTS task_overrides_active_update;
-      CREATE TRIGGER task_overrides_active_update BEFORE UPDATE ON taskAgentProfileOverrides
-      WHEN NOT EXISTS (SELECT 1 FROM jobTypes WHERE id = NEW.jobTypeId AND retired = 0)
-        OR NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = NEW.agentProfileId AND retired = 0)
-      BEGIN SELECT RAISE(ABORT, 'task override requires active configuration'); END;
-
       DROP TRIGGER IF EXISTS jobs_active_assignment_insert;
       CREATE TRIGGER jobs_active_assignment_insert BEFORE INSERT ON jobs
       WHEN NOT EXISTS (SELECT 1 FROM jobTypes WHERE id = NEW.jobTypeId AND retired = 0 AND capabilityProfile = NEW.capabilityProfile)
         OR NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = NEW.agentProfileId AND retired = 0)
         OR (NEW.agentProfileSelectionSource = 'job-type-default' AND NOT EXISTS (
           SELECT 1 FROM jobTypes WHERE id = NEW.jobTypeId AND defaultAgentProfileId = NEW.agentProfileId
-        ))
-        OR (NEW.agentProfileSelectionSource = 'task-override' AND NOT EXISTS (
-          SELECT 1 FROM taskAgentProfileOverrides WHERE taskId = NEW.taskId AND jobTypeId = NEW.jobTypeId AND agentProfileId = NEW.agentProfileId
         ))
         OR NEW.agentProfileSelectionSource = 'migration-fossil'
       BEGIN SELECT RAISE(ABORT, 'job assignment requires active binding configuration'); END;
