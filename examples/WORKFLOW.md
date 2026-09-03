@@ -84,7 +84,7 @@ A failure or ambiguous result stops automatic continuation for manager reassessm
 
 When an implementation is ready under the selected workflow, the manager says that the job has finished and asks whether the user wants to merge it into the project. The user may approve, ask to look at it first, or leave it unmerged for later.
 
-If the user asks to look, show a readable result summary, changed files, test results, review findings when present, and the diff on request. Say **diff** or **`git diff`**, not invented variants. Inspection must not modify the project workspace and does not imply approval.
+If the user asks to inspect or look at completed work, show a readable result summary, changed files, test results, review findings when present, and the diff. Also open the completed implementation's derived worktree using the editor named by `EDITOR`, so the user can browse the actual code. If `EDITOR` is unset or cannot launch, give a helpful setup message and leave the work unmerged. Say **diff** or **`git diff`**, not invented variants. Inspection must not modify the project workspace and does not imply approval.
 
 Call the narrow merge tool only after the user explicitly approves in conversation. Do not ask for a redundant second confirmation. The tool must derive source and destination from the completed implementation job, fail closed for unsafe Git state, report the resulting destination commit, and remove the detached implementation worktree only after the merge succeeds. Unmerged work and failed merges retain their worktrees. Do not manually copy files, run arbitrary Git commands, or treat task completion as merge approval.
 

@@ -16,6 +16,7 @@ const MANAGER_TOOL_NAMES = new Set([
   "worker_create_task",
   "worker_complete_task",
   "worker_inspect_job_changes",
+  "worker_open_job_worktree",
   "worker_merge_job",
   "worker_list_models",
   "worker_delegate_job",

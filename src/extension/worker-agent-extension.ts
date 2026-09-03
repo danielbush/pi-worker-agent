@@ -9,6 +9,7 @@ import {
   DetachedRunnerLauncher,
   type DetachedRunnerLaunch,
 } from "../infrastructure/process/detached-runner-launcher.ts";
+import { WorktreeEditor } from "../infrastructure/process/worktree-editor.ts";
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 import { CompletedWorkMerger } from "../workflows/completed-work-merger.ts";
@@ -382,6 +383,33 @@ export class WorkerAgentExtension {
             ].join("\n"),
           }],
           details: inspection,
+        };
+      },
+    });
+
+    this.pi.registerTool({
+      name: "worker_open_job_worktree",
+      label: "Open completed job worktree",
+      description: "Open a completed implementation job's derived worktree using the user's EDITOR configuration.",
+      promptSnippet: "Open completed implementation work in the user's editor",
+      promptGuidelines: [
+        "Use this as part of inspection when the user asks to view completed implementation code in their editor.",
+        "The worktree path must come from the completed job; never accept or invent an arbitrary directory.",
+        "If EDITOR is unavailable, report the setup error and keep the work unmerged.",
+      ],
+      parameters: Type.Object({
+        jobId: Type.String({ description: "Exact completed implementation job ID" }),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const inspection = CompletedWorkMerger.create(registry, this.services.taskStore()).inspect(params.jobId);
+        const launch = WorktreeEditor.create().open(inspection.worktreePath);
+        return {
+          content: [{
+            type: "text",
+            text: `Opened completed job ${inspection.jobId} in ${launch.editor}.\nWorktree: ${launch.worktreePath}`,
+          }],
+          details: { ...inspection, editor: launch.editor, editorExecutable: launch.executable, pid: launch.pid },
         };
       },
     });
