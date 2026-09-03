@@ -12,6 +12,7 @@ import {
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 import { JobDelegator } from "../workflows/job-delegator.ts";
+import { ProjectCatalogReporter } from "../workflows/project-catalog-reporter.ts";
 import { ProjectRegistrar } from "../workflows/project-registrar.ts";
 import { ProjectTaskLinker } from "../workflows/project-task-linker.ts";
 import { ProjectTaskReporter } from "../workflows/project-task-reporter.ts";
@@ -104,6 +105,7 @@ export class WorkerAgentExtension {
     this.registerTaskCompletionTool();
     this.registerModelCatalogTool();
     this.registerJobTool();
+    this.registerTaskStatusTool();
     this.registerStatusCommand();
     new ManagerPermissions(this.pi).register();
   }
@@ -192,6 +194,35 @@ export class WorkerAgentExtension {
 
   private registerProjectTools(): void {
     this.pi.registerTool({
+      name: "worker_list_projects",
+      label: "List managed projects",
+      description: "Validate manager configuration and list registered projects with the DATA_ROOT policy path.",
+      promptSnippet: "Start managed-project work by listing configured projects",
+      promptGuidelines: [
+        "Call this first before any managed-project work.",
+        "If it fails, stop and report the error without probing or improvising.",
+        "Read the returned PROJECT_MANAGEMENT.md before interpreting project files.",
+      ],
+      parameters: Type.Object({}),
+      execute: async () => {
+        const registry = this.registry ??= this.services.registry();
+        const report = ProjectCatalogReporter.create(this.root, registry).inspect();
+        return {
+          content: [{
+            type: "text",
+            text: [
+              `DATA_ROOT=${report.dataRoot}`,
+              `PROJECT_MANAGEMENT=${report.dataRoot}/PROJECT_MANAGEMENT.md`,
+              "Projects:",
+              ...report.projects.map((project) => `- ${project.directoryName} | ${project.id} | ${project.title}`),
+            ].join("\n"),
+          }],
+          details: report,
+        };
+      },
+    });
+
+    this.pi.registerTool({
       name: "worker_register_project",
       label: "Register managed project",
       description: "Index an existing immediate subdirectory of $DATA_ROOT/projects with durable identifying metadata.",
@@ -249,12 +280,23 @@ export class WorkerAgentExtension {
           params.project,
           params.outstandingOnly ?? false,
         );
-        const lines = report.tasks.length === 0
+        const tasks = report.tasks.map((task) => {
+          const jobs = registry.jobs.listForTask(task.id);
+          return {
+            ...task,
+            jobs: jobs.length,
+            activeJobs: jobs.filter((job) => ["blocked", "queued", "running"].includes(job.status)).length,
+          };
+        });
+        const lines = tasks.length === 0
           ? ["No matching tasks."]
-          : report.tasks.map((task) => `${task.id} | ${task.status} | ${task.title}`);
+          : [
+            "Task ID | Status | Jobs | Active | Title",
+            ...tasks.map((task) => `${task.id} | ${task.status} | ${task.jobs} | ${task.activeJobs} | ${task.title}`),
+          ];
         return {
           content: [{ type: "text", text: [`Project: ${report.project.title} (${report.project.id})`, ...lines].join("\n") }],
-          details: report,
+          details: { project: report.project, tasks },
         };
       },
     });
@@ -426,6 +468,30 @@ export class WorkerAgentExtension {
             harnessVersion: delegated.job.harnessVersion,
             nativeInvocation: delegated.job.nativeInvocation,
           },
+        };
+      },
+    });
+  }
+
+  private registerTaskStatusTool(): void {
+    this.pi.registerTool({
+      name: "worker_task_status",
+      label: "Show task status",
+      description: "Show durable task and job status using an exact task ID or unique shorthand.",
+      promptSnippet: "Inspect task status",
+      parameters: Type.Object({
+        taskId: Type.String({ description: "Exact task UUID or unique leading shorthand" }),
+        verbose: Type.Optional(Type.Boolean()),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const task = registry.tasks.resolve(params.taskId);
+        if (!task) throw new Error(`Unknown worker task: ${params.taskId}`);
+        const status = await TaskStatusReporter.create(registry, this.services.taskStore()).inspect(task.id);
+        if (!status) throw new Error(`Unknown worker task: ${params.taskId}`);
+        return {
+          content: [{ type: "text", text: formatTaskStatus(status, { includeResults: params.verbose ?? false }) }],
+          details: status,
         };
       },
     });
