@@ -12,8 +12,10 @@
 ## Design and structure
 
 - Prefer OOP composition: small stateful “Lego bricks” with clear ownership and injected dependencies.
-- Use classes for lifecycle, persis- Focus on modelling the data first; data is primary, the code that receives, transforms, stores, emits this data can change over time.  Encourage strong clear modelling of the data from enum types to database tables.  Encourage the user to model the data in a diagram in ARCHITECTURE.md.  Then build the appropriate code constructs around this data model.tence, orchestration, and other stateful services.
+- Strive to establish and document a clear data model for the system using a file like ARCHITECTURE.md.  This is primary and comes before any code. Modelling includes the typed representations of the data from enums to value objects to data structures to persisted structures that the coding system interfaces directly with eg database tables.  Ask: what are the inputs into the system/sub-system, how are they transformed, stored, emitted.  Code around these data-structures is secondary and can always be rewritten or improved.
+- Use classes for lifecycle, persistence, orchestration, and other stateful services.
 - Pure algorithmic, formatting and conversion logic can be functions that are used by classes.
+- Prefer polymorphism and composition over branching on implementation identities. Consumers of a shared abstraction should not reconstruct provider-specific behavior with `if` or `switch` statements on names such as a harness, backend, or vendor. Put variation behind the owning interface or adapter, and persist or pass shared data in an implementation-neutral shape. Discriminant checks remain appropriate at composition, validation, serialization, and protocol-routing boundaries when the identity itself is the data being handled.
 - Use a system similar to James Shore's nullable architecture
   - Classes that directly interact with the outside world (DOM, fs, network) are INFRASTRUCTURE_WRAPPER's
     - code that talks to the outside world (DRIVER_CODE) should be injected into the INFRASTRUCTURE_WRAPPER via .create
@@ -29,6 +31,7 @@
   - Constructors should NOT receive null flags, nullable backends, or null-specific state.  The class instance should NEVER know it is using a NULL_VARIANT or not.
   - createNull() configuration is confined to each class’s static createNull().
   - Production DRIVER_CODE is injected by create().
+  - Static `create()` and `createNull()` methods are shallow composition roots. They instantiate and connect named dependencies; they do not contain substantial filesystem, network, credential, provider-specific, or lifecycle behavior in inline callbacks. Extract that behavior into the INFRASTRUCTURE_WRAPPER or adapter that owns it.
   - DRIVER_CODE invocation and coordination must remain in instance methods and constructors.
   - NULL_VARIANT's use EMBEDDED_STUB's implementing the same driver interfaces.
 - Name source files after major domain constructs, such as `job.ts`, `task.ts`, and `worker-session.ts`; avoid generic names such as `types.ts` or `utils.ts`.
