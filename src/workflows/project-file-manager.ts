@@ -1,44 +1,47 @@
+import { isAbsolute, join, win32 } from "node:path";
 import type { Project } from "../domain/project.ts";
 import {
-  ProjectTextFiles,
-  type ProjectFileChange,
-  type ProjectFileMutation,
-} from "../infrastructure/filesystem/project-text-files.ts";
+  ConfinedTextFiles,
+  type TextFileChange,
+  type TextFileMutation,
+} from "../infrastructure/filesystem/confined-text-files.ts";
 import { Registry } from "../storage/registry.ts";
 
-export interface ManageProjectFileInput extends Omit<ProjectFileMutation, "directoryName"> {
+export interface ManageProjectFileInput extends Omit<TextFileMutation, "relativePath"> {
   project: string;
+  relativePath: string;
 }
 
-export interface ManagedProjectFileChange extends ProjectFileChange {
+export interface ManagedProjectFileChange extends TextFileChange {
   project: Project;
   diff: string;
 }
 
 /** INFRASTRUCTURE_CONSUMER: resolves registered identity before mutating a policy-owned project text file. */
 export class ProjectFileManager {
-  constructor(private readonly registry: Registry, private readonly files: ProjectTextFiles) {}
+  constructor(private readonly registry: Registry, private readonly files: ConfinedTextFiles) {}
 
   static create(dataRoot: string, registry: Registry): ProjectFileManager {
-    return new ProjectFileManager(registry, ProjectTextFiles.create(dataRoot));
+    return new ProjectFileManager(registry, ConfinedTextFiles.create(join(dataRoot, "projects")));
   }
 
   manage(input: ManageProjectFileInput): ManagedProjectFileChange {
     const project = this.registry.projects.getByDirectoryName(input.project)
       ?? this.registry.projects.resolve(input.project);
     if (!project) throw new Error(`Unknown project: ${input.project}`);
-    const change = this.files.mutate({
-      directoryName: project.directoryName,
-      relativePath: input.relativePath,
+    requireProjectRelativePath(input.relativePath);
+    const confinedChange = this.files.mutate({
+      relativePath: `${project.directoryName}/${input.relativePath}`,
       operation: input.operation,
       expectedContent: input.expectedContent,
       content: input.content,
     });
+    const change = { ...confinedChange, relativePath: input.relativePath };
     return { project, ...change, diff: formatProjectFileDiff(project.directoryName, change) };
   }
 }
 
-export function formatProjectFileDiff(directoryName: string, change: ProjectFileChange): string {
+export function formatProjectFileDiff(directoryName: string, change: TextFileChange): string {
   const path = `${directoryName}/${change.relativePath}`;
   const beforePath = change.before === null ? "/dev/null" : `a/${path}`;
   const afterPath = change.after === null ? "/dev/null" : `b/${path}`;
@@ -49,6 +52,16 @@ export function formatProjectFileDiff(directoryName: string, change: ProjectFile
     ...diffLines(change.before, "-"),
     ...diffLines(change.after, "+"),
   ].join("\n");
+}
+
+function requireProjectRelativePath(relativePath: string): void {
+  if (!relativePath || isAbsolute(relativePath) || win32.isAbsolute(relativePath) || relativePath.includes("\\")) {
+    throw new Error(`Project file path must be relative: ${relativePath}`);
+  }
+  const segments = relativePath.split("/");
+  if (segments.some((segment) => !segment || segment === "." || segment === ".." || segment === ".git")) {
+    throw new Error(`Project file path contains an invalid segment: ${relativePath}`);
+  }
 }
 
 function diffLines(content: string | null, prefix: "-" | "+"): string[] {

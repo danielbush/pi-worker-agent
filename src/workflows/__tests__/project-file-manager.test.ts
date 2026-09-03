@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ProjectTextFiles } from "../../infrastructure/filesystem/project-text-files.ts";
+import { ConfinedTextFiles } from "../../infrastructure/filesystem/confined-text-files.ts";
 import { Registry } from "../../storage/registry.ts";
 import { ProjectFileManager } from "../project-file-manager.ts";
 
@@ -13,7 +13,7 @@ const PROJECT = {
 };
 
 function setup() {
-  const files = ProjectTextFiles.createNull({
+  const files = ConfinedTextFiles.createNull({
     "demo/sequence.md": "# Before\n",
   });
   return {
@@ -44,7 +44,7 @@ test("updates a registered project file and returns its diff", () => {
     diff: "--- a/demo/sequence.md\n+++ b/demo/sequence.md\n@@\n-# Before\n+# After",
   });
   expect(files.state.changes).toEqual([{
-    relativePath: "sequence.md",
+    relativePath: "demo/sequence.md",
     operation: "update",
     before: "# Before\n",
     after: "# After\n",
@@ -85,6 +85,12 @@ test("rejects unknown projects, traversal, and stale updates", () => {
     relativePath: "../outside.md",
     operation: "create",
     content: "escape\n",
+  })).toThrow("invalid segment");
+  expect(() => manager.manage({
+    project: "demo",
+    relativePath: ".git/config",
+    operation: "create",
+    content: "unsafe\n",
   })).toThrow("invalid segment");
   expect(() => manager.manage({
     project: "demo",
