@@ -16,6 +16,8 @@ export interface Job {
   /** Null only when snapshotProvenance is migration-fossil. */
   workerProfile?: string | null;
   profileFingerprint?: string | null;
+  /** Canonical JSON object of harness-native profile options; null only for migration fossils. */
+  profileOptions?: string | null;
   capabilityProfile?: string | null;
   harness: string;
   harnessVersion?: string | null;

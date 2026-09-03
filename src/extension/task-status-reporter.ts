@@ -17,6 +17,7 @@ export interface TaskJobStatus {
   result: string | null;
   workerProfile: string | null;
   profileFingerprint: string | null;
+  profileOptions: string | null;
   capabilityProfile: string | null;
   harness: string;
   harnessVersion: string | null;
@@ -81,6 +82,7 @@ export class TaskStatusReporter {
         result: completed?.text ?? failed?.error ?? null,
         workerProfile: job.workerProfile ?? null,
         profileFingerprint: job.profileFingerprint ?? null,
+        profileOptions: job.profileOptions ?? null,
         capabilityProfile: job.capabilityProfile ?? null,
         harness: job.harness,
         harnessVersion: job.harnessVersion ?? null,
@@ -117,6 +119,7 @@ export function formatTaskStatus(
       `${job.type} job ${job.id}: ${job.status}`,
       `Progress: ${job.progress ?? "none"}`,
       `Profile: ${job.workerProfile ?? "migration-fossil"}${job.profileFingerprint ? ` (${job.profileFingerprint.slice(0, 12)})` : ""}`,
+      `Profile options: ${job.profileOptions ?? "not recorded"}`,
       `Capability: ${job.capabilityProfile ?? "unknown"}`,
       `Harness: ${job.harness}${job.harnessVersion ? ` ${job.harnessVersion}` : ""}`,
       `Native invocation: ${job.nativeInvocation ?? "not recorded"}`,

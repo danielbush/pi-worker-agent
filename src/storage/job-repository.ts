@@ -1,5 +1,5 @@
 import type { Job, JobStatus } from "../domain/job.ts";
-import { capabilityForPurpose, profileFingerprint } from "../domain/execution-profile.ts";
+import { capabilityForPurpose, parseProfileOptions, profileFingerprint } from "../domain/execution-profile.ts";
 import type { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 
 interface JobRow extends Omit<Job, "userNotified" | "agentNotified"> {
@@ -28,13 +28,13 @@ export class JobRepository {
         database.db.query(`
           INSERT INTO jobs (
             id, taskId, jobType, parentSessionId, parentSessionFile, snapshotProvenance,
-            workerProfile, profileFingerprint, capabilityProfile, harness, harnessVersion, nativeInvocation, model,
+            workerProfile, profileFingerprint, profileOptions, capabilityProfile, harness, harnessVersion, nativeInvocation, model,
             effortLevel, modelName, modelVersion, title, status, progress, createdAt,
             finishedAt, bundlePath, userNotified, agentNotified
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           job.id, job.taskId, job.jobType, job.parentSessionId, job.parentSessionFile,
-          job.snapshotProvenance, job.workerProfile, job.profileFingerprint, job.capabilityProfile,
+          job.snapshotProvenance, job.workerProfile, job.profileFingerprint, job.profileOptions, job.capabilityProfile,
           job.harness, job.harnessVersion, job.nativeInvocation,
           job.model, job.effortLevel, job.modelName, job.modelVersion,
           job.title, job.status, job.progress, job.createdAt, job.finishedAt,
@@ -98,7 +98,7 @@ function mapJob(row: JobRow): Job {
 }
 
 function validateNewJobSnapshot(job: Job): void {
-  const fields = [job.workerProfile, job.profileFingerprint, job.capabilityProfile, job.harnessVersion, job.nativeInvocation];
+  const fields = [job.workerProfile, job.profileFingerprint, job.profileOptions, job.capabilityProfile, job.harnessVersion, job.nativeInvocation];
   if (job.snapshotProvenance !== "current" || fields.some((value) => value == null)) {
     throw new Error(`New job ${job.id} requires a complete current execution snapshot`);
   }
@@ -106,7 +106,7 @@ function validateNewJobSnapshot(job: Job): void {
 }
 
 function validatePersistedJobSnapshot(job: Job): void {
-  const fields = [job.workerProfile, job.profileFingerprint, job.capabilityProfile, job.harnessVersion, job.nativeInvocation];
+  const fields = [job.workerProfile, job.profileFingerprint, job.profileOptions, job.capabilityProfile, job.harnessVersion, job.nativeInvocation];
   if (job.snapshotProvenance === "migration-fossil") {
     if (fields.some((value) => value != null)) throw new Error(`Migration fossil job ${job.id} contains execution snapshot values`);
     return;
@@ -120,8 +120,6 @@ function validateCompleteSnapshot(job: Job): void {
   if (job.harness !== "pi" && job.harness !== "cursor-agent") throw new Error(`Job ${job.id} has an invalid harness snapshot`);
   const capability = capabilityForPurpose(job.jobType);
   if (job.capabilityProfile !== capability) throw new Error(`Job ${job.id} has an inconsistent capability snapshot`);
-  const base = { name: job.workerProfile!, harness: job.harness as "pi" | "cursor-agent", model: job.model, options: job.harness === "pi" ? { thinking: job.effortLevel } : {} as Record<string, string> };
-  if (!/^[a-f0-9]{64}$/.test(job.profileFingerprint!) || profileFingerprint(base) !== job.profileFingerprint) throw new Error(`Job ${job.id} has an inconsistent profile fingerprint`);
   let invocation: unknown;
   try { invocation = JSON.parse(job.nativeInvocation!); } catch { throw new Error(`Job ${job.id} has malformed native invocation JSON`); }
   if (!invocation || typeof invocation !== "object" || Array.isArray(invocation)) throw new Error(`Job ${job.id} has an invalid native invocation snapshot`);
@@ -129,6 +127,9 @@ function validateCompleteSnapshot(job: Job): void {
   if (Object.keys(value).sort().join(",") !== "args,executable" || typeof value.executable !== "string" || !value.executable.startsWith("/") || !Array.isArray(value.args) || !value.args.every((arg) => typeof arg === "string")) {
     throw new Error(`Job ${job.id} has an invalid native invocation snapshot`);
   }
+  const harness = job.harness as "pi" | "cursor-agent";
+  const base = { name: job.workerProfile!, harness, model: job.model, options: parseProfileOptions(job.profileOptions!) };
+  if (!/^[a-f0-9]{64}$/.test(job.profileFingerprint!) || profileFingerprint(base) !== job.profileFingerprint) throw new Error(`Job ${job.id} has an inconsistent profile fingerprint`);
 }
 function mapOptional(row: JobRow | null): Job | undefined { return row ? mapJob(row) : undefined; }
 function clone<T>(value: T | undefined): T | undefined {

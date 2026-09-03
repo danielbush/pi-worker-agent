@@ -1,8 +1,7 @@
-import { chmod, copyFile, mkdir, rm } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import type { HarnessName, NativeInvocationSnapshot } from "../../domain/execution-profile.ts";
-import { WorkerSandbox, type WorkerSandboxState } from "./worker-sandbox.ts";
+import { HarnessEnvironmentCatalog, type PreparedHarnessEnvironment } from "./harness-environment.ts";
+import { HarnessSandboxCatalog } from "./harness-sandbox.ts";
+import type { WorkerSandboxState } from "./worker-sandbox.ts";
 
 export interface NativeHarnessInvocation {
   cwd: string;
@@ -18,7 +17,7 @@ export interface NativeHarnessInvocation {
 }
 
 export interface NullNativeHarnessOutput { pid?: number; stdoutLines?: string[]; stderr?: string; exitCode?: number; }
-export interface NativeHarnessState { invocations: NativeHarnessInvocation[]; environments: Record<string, string>[]; sandbox: WorkerSandboxState; killed: boolean; }
+export interface NativeHarnessState { invocations: NativeHarnessInvocation[]; environments: Record<string, string>[]; sandboxes: Partial<Record<HarnessName, WorkerSandboxState>>; killed: boolean; }
 export interface NativeHarnessProcess {
   pid: number;
   consumeLines(consume: (line: string) => Promise<void>): Promise<void>;
@@ -30,76 +29,58 @@ interface NativeProcess { pid: number; stdout: ReadableStream<Uint8Array>; stder
 interface NativeProcessDriver {
   spawn(command: string[], options: { cwd: string; stdin: "ignore"; stdout: "pipe"; stderr: "pipe"; env: Record<string, string>; }): NativeProcess;
 }
-interface PrivateConfigDriver {
-  provisionPi(target: string): Promise<void>;
-  provisionCursor(privateHome: string): Promise<void>;
-  remove(path: string): Promise<void>;
-  environment(): NodeJS.ProcessEnv;
-}
 
-/** INFRASTRUCTURE_WRAPPER: owns one native process, selected-harness credentials, and JSONL/stdout. */
+/** INFRASTRUCTURE_WRAPPER: owns one sandboxed native process and delegates harness-specific environment preparation. */
 export class NativeHarness {
   private readonly invocations: NativeHarnessInvocation[] = [];
   private readonly environments: Record<string, string>[] = [];
   private killed = false;
 
-  constructor(private readonly driver: NativeProcessDriver, private readonly sandbox: WorkerSandbox, private readonly privateConfig: PrivateConfigDriver) {}
+  constructor(
+    private readonly driver: NativeProcessDriver,
+    private readonly sandboxCatalog: HarnessSandboxCatalog,
+    private readonly environmentCatalog: HarnessEnvironmentCatalog,
+  ) {}
 
   static create(): NativeHarness {
-    return new NativeHarness(Bun as unknown as NativeProcessDriver, WorkerSandbox.create(), {
-      provisionPi: async (target) => {
-        await mkdir(target, { recursive: true, mode: 0o700 });
-        const source = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
-        for (const name of ["auth.json", "settings.json", "models-store.json"]) {
-          try {
-            const destination = join(target, name);
-            await copyFile(join(source, name), destination);
-            await chmod(destination, 0o600);
-          } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-        }
-      },
-      provisionCursor: async (privateHome) => {
-        // CLI scratch only. Host login lives in the macOS keychain and is not a
-        // ~/.cursor/auth.json we can copy the way Pi copies ~/.pi/agent/auth.json.
-        await mkdir(join(privateHome, ".cursor"), { recursive: true, mode: 0o700 });
-      },
-      remove: async (path) => { await rm(path, { recursive: true, force: true }); },
-      environment: () => process.env,
-    });
+    return new NativeHarness(
+      Bun as unknown as NativeProcessDriver,
+      HarnessSandboxCatalog.create(),
+      HarnessEnvironmentCatalog.create(),
+    );
   }
 
   static createNull(output: NullNativeHarnessOutput = {}): NativeHarness {
-    return new NativeHarness({
-      spawn: () => ({ pid: output.pid ?? 1234, stdout: textStream(`${(output.stdoutLines ?? []).join("\n")}\n`), stderr: textStream(output.stderr ?? ""), exited: Promise.resolve(output.exitCode ?? 0), kill: () => {} }),
-    }, WorkerSandbox.createNull(), { provisionPi: async () => {}, provisionCursor: async () => {}, remove: async () => {}, environment: () => ({ PATH: "/null/bin", MANAGER_SECRET: "must-not-leak", CURSOR_API_KEY: "cursor-selected" }) });
+    return new NativeHarness(
+      new NullNativeProcessDriver(output),
+      HarnessSandboxCatalog.createNull(),
+      HarnessEnvironmentCatalog.createNull(),
+    );
   }
 
-  get state(): NativeHarnessState { return { invocations: structuredClone(this.invocations), environments: structuredClone(this.environments), sandbox: this.sandbox.state, killed: this.killed }; }
+  get state(): NativeHarnessState { return { invocations: structuredClone(this.invocations), environments: structuredClone(this.environments), sandboxes: this.sandboxCatalog.state, killed: this.killed }; }
 
   async start(invocation: NativeHarnessInvocation): Promise<NativeHarnessProcess> {
     this.invocations.push(structuredClone(invocation));
-    const privateHome = join(invocation.temporaryDirectory, "home");
-    const privateConfigDirectory = join(privateHome, ".pi", "agent");
-    const native = [invocation.nativeInvocation.executable, ...invocation.nativeInvocation.args];
-    native.push(...(invocation.harness === "cursor-agent" ? [invocation.prompt] : ["--session-dir", invocation.sessionDirectory, "--", invocation.prompt]));
-    const command = await this.sandbox.wrap(native, {
+    const sandbox = this.sandboxCatalog.sandbox(invocation.harness);
+    const native = [invocation.nativeInvocation.executable, ...invocation.nativeInvocation.args, "--session-dir", invocation.sessionDirectory, "--", invocation.prompt];
+    const command = await sandbox.wrap(native, {
       writablePaths: [...invocation.writablePaths, invocation.temporaryDirectory],
       temporaryDirectory: invocation.temporaryDirectory,
-      deniedReadPaths: invocation.harness === "pi" ? ["~/.config/cursor", "~/.cursor"] : ["~/.pi", "~/.config/cursor", "~/.cursor"],
+      deniedReadPaths: this.environmentCatalog.deniedReadPaths(invocation.harness),
     });
 
+    let prepared: PreparedHarnessEnvironment | undefined;
     let child: NativeProcess;
     try {
-      // Provision only the selected harness after executable/contract/sandbox preflight.
-      await mkdirPrivateHome(this.privateConfig, privateHome, invocation.harness, privateConfigDirectory);
-      const env = workerEnvironment(this.privateConfig.environment(), invocation.harness, invocation.temporaryDirectory, privateConfigDirectory, privateHome);
-      this.environments.push({ ...env });
-      child = this.driver.spawn(command, { cwd: invocation.cwd, stdin: "ignore", stdout: "pipe", stderr: "pipe", env });
+      prepared = await this.environmentCatalog.prepare(invocation.harness, { temporaryDirectory: invocation.temporaryDirectory });
+      this.environments.push({ ...prepared.env });
+      child = this.driver.spawn(command, { cwd: invocation.cwd, stdin: "ignore", stdout: "pipe", stderr: "pipe", env: prepared.env });
     } catch (error) {
-      await Promise.allSettled([this.sandbox.reset(), this.privateConfig.remove(privateHome)]);
+      await Promise.allSettled([sandbox.reset(), prepared?.cleanup()]);
       throw error;
     }
-    const cleanup = async () => { await Promise.allSettled([this.sandbox.reset(), this.privateConfig.remove(privateHome)]); };
+    const cleanup = async () => { await Promise.allSettled([sandbox.reset(), prepared.cleanup()]); };
     const exited = child.exited.then(async (exitCode) => { await cleanup(); return exitCode; }, async (error) => { await cleanup(); throw error; });
     return {
       pid: child.pid,
@@ -111,30 +92,18 @@ export class NativeHarness {
   }
 }
 
-export function workerEnvironment(source: NodeJS.ProcessEnv, harness: HarnessName, temporaryDirectory: string, piDirectory: string, privateHome = join(temporaryDirectory, "home")): Record<string, string> {
-  const cursorKeys = Boolean(source.CURSOR_API_KEY || source.CURSOR_AUTH_TOKEN);
-  const env: Record<string, string> = { PATH: source.PATH ?? "/usr/bin:/bin", TMPDIR: temporaryDirectory };
-  env.HOME = harness === "cursor-agent" && !cursorKeys ? source.HOME ?? homedir() : privateHome;
-  for (const key of ["LANG", "LC_ALL", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"] as const) {
-    if (source[key]) env[key] = source[key]!;
-  }
-  if (harness === "pi") env.PI_CODING_AGENT_DIR = piDirectory;
-  if (harness === "cursor-agent") {
-    env.XDG_CONFIG_HOME = join(privateHome, ".config");
-    env.CURSOR_CONFIG_DIR = join(privateHome, ".config", "cursor");
-    env.CURSOR_DATA_DIR = join(privateHome, ".cursor");
-    if (cursorKeys) {
-      env.AGENT_CLI_CREDENTIAL_STORE = "memory";
-      if (source.CURSOR_API_KEY) env.CURSOR_API_KEY = source.CURSOR_API_KEY;
-      if (source.CURSOR_AUTH_TOKEN) env.CURSOR_AUTH_TOKEN = source.CURSOR_AUTH_TOKEN;
-    }
-  }
-  return env;
-}
+class NullNativeProcessDriver implements NativeProcessDriver {
+  constructor(private readonly output: NullNativeHarnessOutput) {}
 
-async function mkdirPrivateHome(driver: PrivateConfigDriver, privateHome: string, harness: HarnessName, piDirectory: string): Promise<void> {
-  if (harness === "pi") await driver.provisionPi(piDirectory);
-  else await driver.provisionCursor(privateHome);
+  spawn(): NativeProcess {
+    return {
+      pid: this.output.pid ?? 1234,
+      stdout: textStream(`${(this.output.stdoutLines ?? []).join("\n")}\n`),
+      stderr: textStream(this.output.stderr ?? ""),
+      exited: Promise.resolve(this.output.exitCode ?? 0),
+      kill: () => {},
+    };
+  }
 }
 
 function textStream(text: string): ReadableStream<Uint8Array> { return new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode(text)); controller.close(); } }); }

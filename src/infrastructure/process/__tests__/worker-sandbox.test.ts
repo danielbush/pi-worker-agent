@@ -26,6 +26,7 @@ test("wraps the whole worker command with a write allowlist", async () => {
     allowWrite: ["/worktree", "/sessions"],
     denyWrite: [],
   });
+  expect(sandbox.state.configurations[0]?.network?.allowedDomains).toContain("api.cursor.com");
   expect(sandbox.state.configurations[0]?.enableWeakerNestedSandbox).toBe(false);
 });
 

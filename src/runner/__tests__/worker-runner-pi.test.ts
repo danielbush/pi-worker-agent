@@ -249,6 +249,7 @@ function planningJob(): Job {
     snapshotProvenance: "current",
     workerProfile: "pi-test",
     profileFingerprint: profileFingerprint({ name: "pi-test", harness: "pi", model: "openai-codex/gpt-5.6-sol", options: { thinking: "high" } }),
+    profileOptions: '{"thinking":"high"}',
     capabilityProfile: "read-only",
     harness: "pi",
     harnessVersion: "1.0.0-test",

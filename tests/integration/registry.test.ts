@@ -24,6 +24,7 @@ function job(id: string, taskId: string, jobType: JobType, status: Job["status"]
     snapshotProvenance: "current",
     workerProfile: profile.name,
     profileFingerprint: profileFingerprint(profile),
+    profileOptions: JSON.stringify(profile.options),
     capabilityProfile: capability,
     harness: "pi",
     harnessVersion: "1.0.0-test",

@@ -7,6 +7,7 @@ export interface WorkerSandboxPolicy {
 }
 
 export interface WorkerSandboxState {
+  mode: "sandboxed" | "none";
   configurations: SandboxRuntimeConfig[];
   commands: string[];
   reset: boolean;
@@ -33,7 +34,8 @@ const NETWORK_DOMAINS = [
   "*.chatgpt.com",
   "generativelanguage.googleapis.com",
   "oauth2.googleapis.com",
-  // Cursor Agent 2026.08.25 installed service URLs; do not widen to *.cursor.sh.
+  // Cursor SDK account/catalog and agent-runtime endpoints; do not widen to wildcards.
+  "api.cursor.com",
   "api2.cursor.sh",
   "api2direct.cursor.sh",
   "api3.cursor.sh",
@@ -79,6 +81,7 @@ export class WorkerSandbox {
 
   get state(): WorkerSandboxState {
     return {
+      mode: "sandboxed",
       configurations: structuredClone(this.configurations),
       commands: [...this.commands],
       reset: this.wasReset,

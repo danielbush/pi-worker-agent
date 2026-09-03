@@ -37,7 +37,9 @@ profiles:
 
   cursor-grok-high:
     harness: cursor-agent
-    model: cursor-grok-4.5-high
+    model: grok-4.5
+    effort: high
+    fast: false
 
   pi-sol-medium:
     harness: pi
@@ -77,6 +79,14 @@ plan → implement → review
 Planning and review are policy defaults, so their successful transitions do not require separate user prompts. The manager still evaluates and persists each transition individually; a runner does not infer or create jobs merely because another job exited.
 
 A failure or ambiguous result stops automatic continuation for manager reassessment.
+
+### Merging completed work
+
+When an implementation is ready under the selected workflow, the manager says that the job has finished and asks whether the user wants to merge it into the project. The user may approve, ask to look at it first, or leave it unmerged for later.
+
+If the user asks to look, show a readable result summary, changed files, test results, review findings when present, and the diff on request. Say **diff** or **`git diff`**, not invented variants. Inspection must not modify the project workspace and does not imply approval.
+
+Call the narrow merge tool only after the user explicitly approves. The tool must derive source and destination from the completed implementation job, independently request interactive confirmation, fail closed for unsafe Git state, and report the resulting destination commit. Do not manually copy files, run arbitrary Git commands, or treat task completion as merge approval.
 
 ### User-requested variations
 

@@ -49,8 +49,9 @@ export class RegistryDatabase {
       this.createSchema();
       if (version > 0 && version < 5) this.migrateToExecutionProfiles();
       if (version > 0 && version < 6) this.migrateExecutionSnapshotProvenance();
+      if (version > 0 && version < 7) this.migrateProfileOptions();
       this.createExecutionSnapshotGuards();
-      this.exec("PRAGMA user_version = 6");
+      this.exec("PRAGMA user_version = 7");
     } catch (error) {
       this.db.close();
       throw error;
@@ -150,6 +151,7 @@ export class RegistryDatabase {
         snapshotProvenance TEXT NOT NULL CHECK (snapshotProvenance IN ('current', 'migration-fossil')),
         workerProfile TEXT,
         profileFingerprint TEXT,
+        profileOptions TEXT CHECK (profileOptions IS NULL OR (json_valid(profileOptions) AND json_type(profileOptions) = 'object')),
         capabilityProfile TEXT,
         harness TEXT NOT NULL,
         harnessVersion TEXT,
@@ -168,9 +170,9 @@ export class RegistryDatabase {
         agentNotified INTEGER NOT NULL DEFAULT 0 CHECK (agentNotified IN (0, 1)),
         CHECK (nativeInvocation IS NULL OR (json_valid(nativeInvocation) AND json_type(nativeInvocation) = 'object')),
         CHECK (
-          (snapshotProvenance = 'migration-fossil' AND workerProfile IS NULL AND profileFingerprint IS NULL AND capabilityProfile IS NULL AND harnessVersion IS NULL AND nativeInvocation IS NULL)
+          (snapshotProvenance = 'migration-fossil' AND workerProfile IS NULL AND profileFingerprint IS NULL AND profileOptions IS NULL AND capabilityProfile IS NULL AND harnessVersion IS NULL AND nativeInvocation IS NULL)
           OR
-          (snapshotProvenance = 'current' AND workerProfile IS NOT NULL AND profileFingerprint IS NOT NULL AND capabilityProfile IS NOT NULL AND harnessVersion IS NOT NULL AND nativeInvocation IS NOT NULL)
+          (snapshotProvenance = 'current' AND workerProfile IS NOT NULL AND profileFingerprint IS NOT NULL AND profileOptions IS NOT NULL AND capabilityProfile IS NOT NULL AND harnessVersion IS NOT NULL AND nativeInvocation IS NOT NULL)
         ),
         CHECK (capabilityProfile IS NULL OR capabilityProfile IN ('read-only', 'code', 'test')),
         CHECK (harness IN ('pi', 'cursor-agent'))
@@ -225,19 +227,29 @@ export class RegistryDatabase {
       WHEN workerProfile IS NULL THEN 'migration-fossil' ELSE 'current' END`);
   }
 
+  private migrateProfileOptions(): void {
+    this.exec("ALTER TABLE jobs ADD COLUMN profileOptions TEXT");
+    this.exec(`UPDATE jobs SET profileOptions = CASE
+      WHEN snapshotProvenance = 'migration-fossil' THEN NULL
+      WHEN harness = 'pi' THEN json_object('thinking', effortLevel)
+      ELSE json('{}') END`);
+  }
+
   private createExecutionSnapshotGuards(): void {
-    // Triggers also protect upgraded databases, whose ALTER-added provenance column
+    // Triggers also protect upgraded databases, whose ALTER-added snapshot columns
     // cannot be strengthened to NOT NULL without rebuilding referenced tables.
     const valid = `(
-      (NEW.snapshotProvenance = 'migration-fossil' AND NEW.workerProfile IS NULL AND NEW.profileFingerprint IS NULL AND NEW.capabilityProfile IS NULL AND NEW.harnessVersion IS NULL AND NEW.nativeInvocation IS NULL)
+      (NEW.snapshotProvenance = 'migration-fossil' AND NEW.workerProfile IS NULL AND NEW.profileFingerprint IS NULL AND NEW.profileOptions IS NULL AND NEW.capabilityProfile IS NULL AND NEW.harnessVersion IS NULL AND NEW.nativeInvocation IS NULL)
       OR
-      (NEW.snapshotProvenance = 'current' AND NEW.workerProfile IS NOT NULL AND NEW.profileFingerprint IS NOT NULL AND NEW.capabilityProfile IS NOT NULL AND NEW.harnessVersion IS NOT NULL AND NEW.nativeInvocation IS NOT NULL)
+      (NEW.snapshotProvenance = 'current' AND NEW.workerProfile IS NOT NULL AND NEW.profileFingerprint IS NOT NULL AND NEW.profileOptions IS NOT NULL AND NEW.capabilityProfile IS NOT NULL AND NEW.harnessVersion IS NOT NULL AND NEW.nativeInvocation IS NOT NULL)
     )`;
+    this.exec("DROP TRIGGER IF EXISTS jobs_execution_snapshot_insert");
+    this.exec("DROP TRIGGER IF EXISTS jobs_execution_snapshot_update");
     this.exec(`CREATE TRIGGER IF NOT EXISTS jobs_execution_snapshot_insert
       BEFORE INSERT ON jobs WHEN COALESCE(${valid}, 0) = 0
       BEGIN SELECT RAISE(ABORT, 'invalid execution snapshot provenance'); END`);
     this.exec(`CREATE TRIGGER IF NOT EXISTS jobs_execution_snapshot_update
-      BEFORE UPDATE OF snapshotProvenance, workerProfile, profileFingerprint, capabilityProfile, harnessVersion, nativeInvocation ON jobs WHEN COALESCE(${valid}, 0) = 0
+      BEFORE UPDATE OF snapshotProvenance, workerProfile, profileFingerprint, profileOptions, capabilityProfile, harnessVersion, nativeInvocation ON jobs WHEN COALESCE(${valid}, 0) = 0
       BEGIN SELECT RAISE(ABORT, 'invalid execution snapshot provenance'); END`);
   }
 

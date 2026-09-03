@@ -83,7 +83,7 @@ export function parseWorkflowProfiles(markdown: string): WorkflowProfiles {
     const model = values.model;
     if (harness !== "pi" && harness !== "cursor-agent") throw new Error(`Profile ${name} has unknown harness: ${harness ?? "missing"}`);
     if (!model) throw new Error(`Profile ${name} is missing model`);
-    const allowed = harness === "pi" ? new Set(["harness", "model", "thinking"]) : new Set(["harness", "model"]);
+    const allowed = harness === "pi" ? new Set(["harness", "model", "thinking"]) : new Set(["harness", "model", "effort", "fast"]);
     for (const key of Object.keys(values)) if (!allowed.has(key)) throw new Error(`Profile ${name} has unsupported ${harness} option: ${key}`);
     if (harness === "pi" && !values.thinking) throw new Error(`Pi profile ${name} is missing thinking`);
     const options = Object.fromEntries(Object.entries(values).filter(([key]) => key !== "harness" && key !== "model").sort(([a], [b]) => a.localeCompare(b)));

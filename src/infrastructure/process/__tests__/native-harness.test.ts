@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
-import { NativeHarness, workerEnvironment } from "../native-harness.ts";
+import type { HarnessName } from "../../../domain/execution-profile.ts";
+import { HarnessEnvironmentCatalog, type HarnessEnvironment, type HarnessEnvironmentInput, type PreparedHarnessEnvironment } from "../harness-environment.ts";
+import { CursorHarnessEnvironment } from "../harness-environments/cursor-harness-environment.ts";
+import { PiHarnessEnvironment } from "../harness-environments/pi-harness-environment.ts";
+import { HarnessSandboxCatalog } from "../harness-sandbox.ts";
+import { NullSandbox } from "../harness-sandboxes/null-sandbox.ts";
+import { NativeHarness } from "../native-harness.ts";
 import { WorkerSandbox } from "../worker-sandbox.ts";
 
 const invocation = {
@@ -8,71 +14,57 @@ const invocation = {
   nativeInvocation: { executable: "/null/bin/harness", args: [] },
 };
 
-test("worker environment excludes manager and other-harness secrets", () => {
+test("worker environments exclude manager and other-harness secrets", async () => {
   // arrange
   const source = { PATH: "/bin", HOME: "/home/test", MANAGER_TOKEN: "secret", OPENAI_API_KEY: "manager-secret", CURSOR_API_KEY: "cursor-secret", PI_CODING_AGENT_DIR: "/manager/pi" };
 
   // act
-  const pi = workerEnvironment(source, "pi", "/tmp/private", "/tmp/private/agent");
-  const cursor = workerEnvironment(source, "cursor-agent", "/tmp/private", "/tmp/private/agent");
+  const pi = await PiHarnessEnvironment.createNull(source).prepare({ temporaryDirectory: "/tmp/private" });
+  const cursor = await CursorHarnessEnvironment.createNull(source).prepare({ temporaryDirectory: "/tmp/private" });
 
   // assert
-  expect(pi).toEqual({ PATH: "/bin", HOME: "/tmp/private/home", TMPDIR: "/tmp/private", PI_CODING_AGENT_DIR: "/tmp/private/agent" });
-  expect(cursor).toEqual({
-    PATH: "/bin", HOME: "/tmp/private/home", TMPDIR: "/tmp/private",
-    XDG_CONFIG_HOME: "/tmp/private/home/.config", CURSOR_CONFIG_DIR: "/tmp/private/home/.config/cursor",
-    CURSOR_DATA_DIR: "/tmp/private/home/.cursor", AGENT_CLI_CREDENTIAL_STORE: "memory", CURSOR_API_KEY: "cursor-secret",
-  });
+  expect(pi.env).toEqual({ PATH: "/bin", HOME: "/tmp/private/home", TMPDIR: "/tmp/private", PI_CODING_AGENT_DIR: "/tmp/private/home/.pi/agent" });
+  expect(cursor.env).toEqual({ PATH: "/bin", HOME: "/tmp/private/home", TMPDIR: "/tmp/private", CURSOR_API_KEY: "cursor-secret" });
 });
 
-test("keeps the host HOME for Cursor keychain login and does not invent a file store", () => {
-  const cursor = workerEnvironment({ PATH: "/bin", HOME: "/Users/me" }, "cursor-agent", "/tmp/private", "/tmp/private/agent");
-  expect(cursor.HOME).toBe("/Users/me");
-  expect(cursor.CURSOR_DATA_DIR).toBe("/tmp/private/home/.cursor");
-  expect(cursor.AGENT_CLI_CREDENTIAL_STORE).toBeUndefined();
-  expect(cursor.CURSOR_API_KEY).toBeUndefined();
+test("uses a private HOME for Cursor SDK credentials", async () => {
+  const cursor = await CursorHarnessEnvironment.createNull({ PATH: "/bin", HOME: "/Users/me" }).prepare({ temporaryDirectory: "/tmp/private" });
+  expect(cursor.env.HOME).toBe("/tmp/private/home");
+  expect(cursor.env.CURSOR_API_KEY).toBeUndefined();
 });
 
 test("removes selected credentials when native spawn throws", async () => {
   // arrange
-  let provisioned = 0;
-  const removed: string[] = [];
-  const harness = new NativeHarness({ spawn: () => { throw new Error("spawn failed"); } }, WorkerSandbox.createNull(), {
-    provisionPi: async () => { provisioned += 1; },
-    provisionCursor: async () => {},
-    remove: async (path) => { removed.push(path); },
-    environment: () => ({ PATH: "/bin" }),
-  });
+  const environment = new TrackingHarnessEnvironment("pi");
+  const harness = new NativeHarness(
+    { spawn: () => { throw new Error("spawn failed"); } },
+    new HarnessSandboxCatalog([{ harness: "pi", sandbox: WorkerSandbox.createNull() }]),
+    new HarnessEnvironmentCatalog([environment]),
+  );
 
   // act/assert
   await expect(harness.start({ ...invocation, harness: "pi" })).rejects.toThrow("spawn failed");
-  expect(provisioned).toBe(1);
-  expect(removed).toEqual(["/tmp/private-worker/home"]);
-  expect(harness.state.sandbox.reset).toBe(true);
+  expect(environment.state).toEqual({ prepared: 1, cleaned: 1 });
+  expect(harness.state.sandboxes.pi?.reset).toBe(true);
 });
 
-test("provisions only Cursor into its disposable home and cleans it after exit", async () => {
+test("selects only the requested harness environment and cleans it after exit", async () => {
   // arrange
-  const provisioned: string[] = [];
-  const removed: string[] = [];
-  const empty = () => new ReadableStream<Uint8Array>({ start(controller) { controller.close(); } });
-  const harness = new NativeHarness({
-    spawn: () => ({ pid: 9, stdout: empty(), stderr: empty(), exited: Promise.resolve(0), kill: () => {} }),
-  }, WorkerSandbox.createNull(), {
-    provisionPi: async () => { provisioned.push("pi"); },
-    provisionCursor: async (path) => { provisioned.push(`cursor:${path}`); },
-    remove: async (path) => { removed.push(path); },
-    environment: () => ({ PATH: "/bin", CURSOR_AUTH_TOKEN: "selected-token", PI_SECRET: "absent" }),
-  });
+  const pi = new TrackingHarnessEnvironment("pi");
+  const cursor = new TrackingHarnessEnvironment("cursor-agent", { PATH: "/bin", CURSOR_API_KEY: "selected-key" });
+  const harness = new NativeHarness(
+    { spawn: () => ({ pid: 9, stdout: emptyStream(), stderr: emptyStream(), exited: Promise.resolve(0), kill: () => {} }) },
+    new HarnessSandboxCatalog([{ harness: "cursor-agent", sandbox: NullSandbox.createNull() }]),
+    new HarnessEnvironmentCatalog([pi, cursor]),
+  );
 
   // act
   await (await harness.start({ ...invocation, harness: "cursor-agent" })).exited();
 
   // assert
-  expect(provisioned).toEqual(["cursor:/tmp/private-worker/home"]);
-  expect(removed).toEqual(["/tmp/private-worker/home"]);
-  expect(harness.state.environments[0]?.CURSOR_AUTH_TOKEN).toBe("selected-token");
-  expect(harness.state.environments[0]?.PI_SECRET).toBeUndefined();
+  expect(pi.state).toEqual({ prepared: 0, cleaned: 0 });
+  expect(cursor.state).toEqual({ prepared: 1, cleaned: 1 });
+  expect(harness.state.environments[0]?.CURSOR_API_KEY).toBe("selected-key");
 });
 
 test("uses a non-canonical private directory for only the selected harness", async () => {
@@ -91,10 +83,27 @@ test("uses a non-canonical private directory for only the selected harness", asy
   expect(cursor.state.environments[0]?.HOME).toBe("/tmp/private-worker/home");
   expect(cursor.state.environments[0]?.PI_CODING_AGENT_DIR).toBeUndefined();
   expect(cursor.state.environments[0]?.CURSOR_API_KEY).toBe("cursor-selected");
-  expect(cursor.state.environments[0]?.CURSOR_DATA_DIR).toBe("/tmp/private-worker/home/.cursor");
   expect(cursor.state.environments[0]?.MANAGER_SECRET).toBeUndefined();
-  expect(pi.state.sandbox.configurations[0]?.filesystem?.denyRead).toContain("~/.config/cursor");
-  expect(cursor.state.sandbox.configurations[0]?.filesystem?.denyRead).toContain("~/.pi");
-  expect(cursor.state.sandbox.configurations[0]?.filesystem?.denyRead).toContain("~/.cursor");
+  expect(pi.state.sandboxes.pi?.mode).toBe("sandboxed");
+  expect(pi.state.sandboxes.pi?.configurations[0]?.filesystem?.denyRead).toContain("~/.config/cursor");
+  expect(cursor.state.sandboxes["cursor-agent"]?.mode).toBe("none");
+  expect(cursor.state.sandboxes["cursor-agent"]?.configurations).toEqual([]);
   expect(pi.state.invocations[0]?.temporaryDirectory.startsWith("/canonical/")).toBe(false);
 });
+
+class TrackingHarnessEnvironment implements HarnessEnvironment {
+  readonly deniedReadPaths = ["~/.credentials"];
+  readonly state = { prepared: 0, cleaned: 0 };
+
+  constructor(readonly harness: HarnessName, private readonly env: Record<string, string> = { PATH: "/bin" }) {}
+
+  async prepare(_input: HarnessEnvironmentInput): Promise<PreparedHarnessEnvironment> {
+    this.state.prepared += 1;
+    return {
+      env: { ...this.env },
+      cleanup: async () => { this.state.cleaned += 1; },
+    };
+  }
+}
+
+function emptyStream(): ReadableStream<Uint8Array> { return new ReadableStream({ start(controller) { controller.close(); } }); }

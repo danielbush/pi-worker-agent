@@ -11,6 +11,7 @@ import {
 } from "../infrastructure/process/detached-runner-launcher.ts";
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
+import { CompletedWorkMerger } from "../workflows/completed-work-merger.ts";
 import { JobDelegator } from "../workflows/job-delegator.ts";
 import { ProjectCatalogReporter } from "../workflows/project-catalog-reporter.ts";
 import { ProjectRegistrar } from "../workflows/project-registrar.ts";
@@ -103,6 +104,7 @@ export class WorkerAgentExtension {
     this.registerProjectTools();
     this.registerTaskTool();
     this.registerTaskCompletionTool();
+    this.registerCompletedWorkTools();
     this.registerModelCatalogTool();
     this.registerJobTool();
     this.registerTaskStatusTool();
@@ -344,6 +346,81 @@ export class WorkerAgentExtension {
             text: `Created task ${created.task.id} for workspace ${created.workspace.name} and project ${created.projectId}.\nWorkspace: ${created.workspace.rootDir}`,
           }],
           details: { taskId: created.task.id, projectId: created.projectId, workspaceId: created.workspace.id, workspaceRoot: created.workspace.rootDir },
+        };
+      },
+    });
+  }
+
+  private registerCompletedWorkTools(): void {
+    this.pi.registerTool({
+      name: "worker_inspect_job_changes",
+      label: "Inspect completed job changes",
+      description: "Inspect the changed files and git diff for a completed implementation job without modifying its project workspace.",
+      promptSnippet: "Show a completed implementation before the user decides whether to merge it",
+      promptGuidelines: [
+        "Use this when the user asks to look at a completed implementation before merging it.",
+        "Describe the result, changed files, tests, and review findings when available; call the line-by-line output a diff or git diff.",
+        "Inspection does not authorize a merge.",
+      ],
+      parameters: Type.Object({
+        jobId: Type.String({ description: "Exact completed implementation job ID" }),
+      }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const inspection = CompletedWorkMerger.create(registry, this.services.taskStore()).inspect(params.jobId);
+        return {
+          content: [{
+            type: "text",
+            text: [
+              `Completed implementation job ${inspection.jobId}`,
+              `Project workspace: ${inspection.workspaceName} (${inspection.workspaceRoot})`,
+              "Changed files:",
+              ...inspection.changedFiles.map((path) => `- ${path}`),
+              "",
+              "git diff:",
+              inspection.diff || "(no diff)",
+            ].join("\n"),
+          }],
+          details: inspection,
+        };
+      },
+    });
+
+    this.pi.registerTool({
+      name: "worker_merge_job",
+      label: "Merge completed job",
+      description: "Merge a completed implementation job into its authorized project workspace after interactive user approval.",
+      promptSnippet: "Merge completed implementation work after the user approves",
+      promptGuidelines: [
+        "After an implementation is ready, tell the user the job has finished and ask whether they want to merge it into the project.",
+        "Call this only when the user says to merge it; if they ask to look first, use worker_inspect_job_changes instead.",
+        "The tool independently displays the destination and changed files and requires interactive approval.",
+      ],
+      parameters: Type.Object({
+        jobId: Type.String({ description: "Exact completed implementation job ID" }),
+      }),
+      execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
+        const registry = this.registry ??= this.services.registry();
+        const merger = CompletedWorkMerger.create(registry, this.services.taskStore());
+        const inspection = merger.inspect(params.jobId);
+        if (!ctx.hasUI) throw new Error("Merging completed work requires interactive user approval");
+        const approved = await ctx.ui.confirm(
+          "Merge completed work into the project?",
+          [
+            `Job: ${inspection.jobId}`,
+            `Destination: ${inspection.workspaceRoot}`,
+            "Changed files:",
+            ...inspection.changedFiles.map((path) => `- ${path}`),
+          ].join("\n"),
+        );
+        if (!approved) throw new Error("Merge declined by user");
+        const merged = merger.merge(params.jobId);
+        return {
+          content: [{
+            type: "text",
+            text: `Merged job ${merged.jobId} into ${merged.workspaceRoot}.\nCommit: ${merged.commit}`,
+          }],
+          details: merged,
         };
       },
     });

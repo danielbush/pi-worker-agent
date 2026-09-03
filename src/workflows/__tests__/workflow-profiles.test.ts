@@ -11,7 +11,9 @@ profiles:
     thinking: high
   cursor-high:
     harness: cursor-agent
-    model: cursor-grok-4.5-high
+    model: grok-4.5
+    effort: high
+    fast: false
 defaults:
   plan: pi-high
   implement: cursor-high
@@ -29,6 +31,7 @@ test("strictly compiles harness-native profiles and defaults", () => {
   // assert
   expect(policy.defaults).toEqual({ implement: "cursor-high", plan: "pi-high", review: "pi-high" });
   expect(policy.profiles["pi-high"]).toMatchObject({ harness: "pi", model: "openai-codex/gpt-5.6-sol", options: { thinking: "high" } });
+  expect(policy.profiles["cursor-high"]).toMatchObject({ harness: "cursor-agent", model: "grok-4.5", options: { effort: "high", fast: "false" } });
   expect(policy.profiles["pi-high"]?.fingerprint).toHaveLength(64);
 });
 
@@ -46,5 +49,6 @@ test("rejects repeated or malformed structure, bad keys, purposes, defaults, and
   expect(() => WorkflowProfileLoader.createNull(POLICY.replace("  review: pi-high\n", "  deploy: pi-high\n")).load()).toThrow("Unsupported default");
   expect(() => WorkflowProfileLoader.createNull(POLICY.replace("  review: pi-high\n", "")).load()).toThrow("missing required default");
   expect(() => WorkflowProfileLoader.createNull(POLICY.replace("  review: pi-high", "  review: missing")).load()).toThrow("unknown profile");
-  expect(() => WorkflowProfileLoader.createNull(POLICY.replace("    thinking: high", "    effort: high")).load()).toThrow("unsupported pi option");
+  expect(() => WorkflowProfileLoader.createNull(POLICY.replace("    thinking: high", "    speed: high")).load()).toThrow("unsupported pi option");
+  expect(() => WorkflowProfileLoader.createNull(POLICY.replace("    fast: false", "    thinking: high")).load()).toThrow("unsupported cursor-agent option");
 });

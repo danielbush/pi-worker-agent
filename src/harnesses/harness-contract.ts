@@ -7,17 +7,7 @@ export interface HarnessSetupResult {
   invocation: NativeInvocationSnapshot;
 }
 
-export interface HarnessFinishInput {
-  profile: WorkerProfile;
-  capability: CapabilityProfile;
-  cwd: string;
-  workspacePath: string;
-  executable: string;
-  version: string;
-  run(command: string[], cwd: string): HarnessCommandResult;
-}
-
-export interface HarnessResolveInput {
+export interface HarnessDriver {
   which(command: string): string | null;
   run(command: string[], cwd: string): HarnessCommandResult;
   home: string;
@@ -25,19 +15,54 @@ export interface HarnessResolveInput {
   canonicalPath(path: string): string;
 }
 
-/** Per-harness rules for proving a live CLI can run a worker profile and for building its argv snapshot. */
+export interface HarnessPreflightInput {
+  profile: WorkerProfile;
+  capability: CapabilityProfile;
+  cwd: string;
+  workspacePath: string;
+  driver: HarnessDriver;
+}
+
+export interface HarnessModelInput {
+  cwd: string;
+  driver: HarnessDriver;
+}
+
+/** Per-harness ownership of worker protocol discovery, preflight, and immutable invocation construction. */
 export interface HarnessContract {
   readonly harness: HarnessName;
-  readonly executableName: string;
-  readonly requiredHelpOptions: readonly string[];
-  probeArgs(args: readonly string[]): string[];
-  resolveExecutable(input: HarnessResolveInput): string;
-  listModels(input: Pick<HarnessFinishInput, "executable" | "cwd" | "run">): string[];
-  finish(input: HarnessFinishInput): HarnessSetupResult;
+  preflight(input: HarnessPreflightInput): HarnessSetupResult;
+  listModels(input: HarnessModelInput): string[];
+}
+
+const VERSION = /^\d+(?:\.\d+){1,2}(?:[-+][\w.-]+)?$/;
+
+/** Shared implementation detail for SDK adapters; callers still own when and how to apply it. */
+export function verifySdkWorker(
+  input: HarnessModelInput,
+  workerEntryPoint: string,
+  workerName: string,
+  requiredHelpOptions: readonly string[],
+): { executable: string; version: string } {
+  const executable = resolveSdkWorker(input.driver, workerName);
+  const version = requireHarnessOutput(input.driver.run, executable, [workerEntryPoint, "--version"], input.cwd, "version").trim();
+  if (!VERSION.test(version)) throw new Error(`${workerName} returned an unsupported version contract: ${version}`);
+  const help = requireHarnessOutput(input.driver.run, executable, [workerEntryPoint, "--help"], input.cwd, "help");
+  for (const option of requiredHelpOptions) {
+    if (!help.includes(option)) throw new Error(`${workerName} does not support required option ${option}`);
+  }
+  return { executable, version };
+}
+
+export function resolveSdkWorker(driver: HarnessDriver, workerName: string): string {
+  const resolved = driver.which("bun");
+  if (!resolved || !resolved.startsWith("/")) throw new Error(`${workerName} Bun executable is unavailable as an absolute path`);
+  if (!driver.isExecutable(resolved)) throw new Error(`${workerName} Bun executable is not executable`);
+  return resolved;
 }
 
 export function requireHarnessOutput(
-  run: HarnessFinishInput["run"],
+  run: HarnessDriver["run"],
   executable: string,
   args: readonly string[],
   cwd: string,

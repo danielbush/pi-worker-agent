@@ -1,55 +1,43 @@
-import { createCursorExecutableLocator, resolveCursorExecutable } from "./cursor-executable.ts";
-import { cursorCatalogHasModel, parseCursorModelCatalog } from "./cursor-model-catalog.ts";
-import { CURSOR_STREAM_CONTRACT } from "./cursor-stream-json.ts";
-import { requireHarnessOutput, type HarnessContract, type HarnessFinishInput, type HarnessResolveInput, type HarnessSetupResult } from "../harness-contract.ts";
+import { fileURLToPath } from "node:url";
+import { toolsForCapability } from "../../domain/execution-profile.ts";
+import { requireHarnessOutput, resolveSdkWorker, verifySdkWorker, type HarnessContract, type HarnessModelInput, type HarnessPreflightInput, type HarnessSetupResult } from "../harness-contract.ts";
 
-export interface CursorHarnessContractOptions {
-  verifiedVersions: ReadonlySet<string>;
-}
+const REQUIRED_HELP_OPTIONS = ["run", "--model", "--params", "--tools", "--session-dir", "probe-models", "probe-model", "probe-auth"] as const;
+export const CURSOR_SDK_WORKER_ENTRY_POINT = fileURLToPath(new URL("./cursor-sdk-worker.ts", import.meta.url));
 
-export const CURSOR_CONTRACT_DIAGNOSTIC = `${CURSOR_STREAM_CONTRACT} does not include this Cursor Agent version`;
-
-/** Cursor Agent CLI contract: version allowlist, host login or env keys, catalog ids, and print-mode argv. */
+/** Cursor SDK contract: owns its SDK-worker protocol, auth/catalog probes, and invocation snapshot. */
 export class CursorHarnessContract implements HarnessContract {
   readonly harness = "cursor-agent" as const;
-  readonly executableName = "cursor-agent";
-  readonly requiredHelpOptions = ["--print", "--output-format", "--stream-partial-output", "--model", "--mode", "--force", "--trust", "--sandbox", "--workspace"] as const;
 
-  constructor(private readonly options: CursorHarnessContractOptions) {}
+  constructor(private readonly workerEntryPoint = CURSOR_SDK_WORKER_ENTRY_POINT) {}
 
-  static create(options: CursorHarnessContractOptions): CursorHarnessContract {
-    return new CursorHarnessContract(options);
+  static create(): CursorHarnessContract {
+    return new CursorHarnessContract();
   }
 
-  probeArgs(args: readonly string[]): string[] {
-    return [...args];
+  listModels(input: HarnessModelInput): string[] {
+    const executable = resolveSdkWorker(input.driver, "Cursor SDK worker");
+    return lines(requireHarnessOutput(input.driver.run, executable, [this.workerEntryPoint, "probe-models"], input.cwd, "model catalog"));
   }
 
-  resolveExecutable(input: HarnessResolveInput): string {
-    return resolveCursorExecutable({
-      ...createCursorExecutableLocator(input.which, input.run, input.home),
-      isExecutable: input.isExecutable,
-      canonicalPath: input.canonicalPath,
-    });
+  preflight(input: HarnessPreflightInput): HarnessSetupResult {
+    const { profile, capability, cwd, driver } = input;
+    const { executable, version } = verifySdkWorker(input, this.workerEntryPoint, "Cursor SDK worker", REQUIRED_HELP_OPTIONS);
+    const authentication = requireHarnessOutput(driver.run, executable, [this.workerEntryPoint, "probe-auth"], cwd, "authentication");
+    if (!/"status"\s*:\s*"ready"|\bready\b/i.test(authentication)) throw new Error("Cursor SDK authentication check returned an unknown status");
+    const params = JSON.stringify(Object.fromEntries(Object.entries(profile.options).sort(([a], [b]) => a.localeCompare(b))));
+    const selected = requireHarnessOutput(driver.run, executable, [this.workerEntryPoint, "probe-model", "--model", profile.model, "--params", params], cwd, "model selection").trim();
+    if (selected !== profile.model) throw new Error(`Cursor SDK model is unavailable: ${profile.model}`);
+    return {
+      version,
+      invocation: {
+        executable,
+        args: [this.workerEntryPoint, "run", "--tools", toolsForCapability(capability).join(","), "--model", profile.model, "--params", params],
+      },
+    };
   }
+}
 
-  listModels(input: Pick<HarnessFinishInput, "executable" | "cwd" | "run">): string[] {
-    return parseCursorModelCatalog(requireHarnessOutput(input.run, input.executable, ["--list-models"], input.cwd, "model catalog"));
-  }
-
-  finish(input: HarnessFinishInput): HarnessSetupResult {
-    const { profile, capability, cwd, executable, version, run } = input;
-    if (!this.options.verifiedVersions.has(version)) {
-      throw new Error(`Cursor Agent ${version} ${CURSOR_CONTRACT_DIAGNOSTIC}`);
-    }
-    const authentication = requireHarnessOutput(run, executable, ["status"], cwd, "authentication");
-    if (!/login successful|logged in|authenticated/i.test(authentication)) throw new Error("cursor-agent authentication check returned an unknown status");
-    const catalog = requireHarnessOutput(run, executable, ["--list-models"], cwd, "model catalog");
-    if (!cursorCatalogHasModel(catalog, profile.model)) throw new Error(`Cursor model is unavailable: ${profile.model}`);
-    if (capability === "test") throw new Error("Cursor Agent cannot enforce the test capability profile; refusing to launch");
-    if (!input.workspacePath.startsWith("/")) throw new Error("Cursor --workspace must be an absolute path");
-    const args = ["--print", "--output-format", "stream-json", "--stream-partial-output", "--model", profile.model, "--trust", "--sandbox", "disabled", "--workspace", input.workspacePath];
-    args.push(...(capability === "read-only" ? ["--mode", "plan"] : ["--force"]));
-    return { version, invocation: { executable, args } };
-  }
+function lines(output: string): string[] {
+  return output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 }

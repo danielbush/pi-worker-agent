@@ -1,11 +1,11 @@
-import { capabilityForPurpose, profileFingerprint, toolsForCapability, type NativeInvocationSnapshot, type WorkerProfile } from "../domain/execution-profile.ts";
+import { capabilityForPurpose, parseProfileOptions, profileFingerprint, toolsForCapability, type NativeInvocationSnapshot, type WorkerProfile } from "../domain/execution-profile.ts";
 import { NativeHarness, type NullNativeHarnessOutput } from "../infrastructure/process/native-harness.ts";
 import { normalizePiJsonLine, parsePiJsonLine } from "../harnesses/pi/pi-json-line.ts";
 import { Registry, type NullRegistryState } from "../storage/registry.ts";
 import { TaskStore, type NullTaskStoreState } from "../storage/task-store.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
 import { HarnessSetup } from "../infrastructure/process/harness-setup.ts";
-import { CursorStreamJsonNormalizer } from "../harnesses/cursor/cursor-stream-json.ts";
+import { CursorSdkEventNormalizer } from "../harnesses/cursor/cursor-sdk-event.ts";
 import { JobWorktreeLocator } from "../workflows/job-worktree-locator.ts";
 
 export interface WorkerRunnerInput {
@@ -79,7 +79,7 @@ export class WorkerRunner {
         name: job.workerProfile!,
         harness: job.harness as WorkerProfile["harness"],
         model: job.model,
-        options: job.harness === "pi" ? { thinking: job.effortLevel } : {} as Record<string, string>,
+        options: parseProfileOptions(job.profileOptions!),
       };
       const fingerprint = profileFingerprint(baseProfile);
       if (fingerprint !== job.profileFingerprint) throw new Error(`Worker profile fingerprint mismatch for job ${job.id}`);
@@ -124,7 +124,7 @@ export class WorkerRunner {
       let agentSettled = false;
       let assistantCompleted = false;
       let cursorTerminalSuccess = false;
-      const cursor = new CursorStreamJsonNormalizer();
+      const cursor = new CursorSdkEventNormalizer();
       let assistantResult: string | undefined;
       let assistantFailure: string | undefined;
       try {
@@ -223,7 +223,7 @@ function validateSnapshot(job: import("../domain/job.ts").Job): NativeInvocation
   if (job.snapshotProvenance !== "current") {
     throw new Error(`Job ${job.id} is not a current execution snapshot and cannot be launched`);
   }
-  if (!job.workerProfile || !job.profileFingerprint || !job.capabilityProfile || !job.harnessVersion || !job.nativeInvocation) {
+  if (!job.workerProfile || !job.profileFingerprint || job.profileOptions == null || !job.capabilityProfile || !job.harnessVersion || !job.nativeInvocation) {
     throw new Error(`Job ${job.id} has an incomplete current execution snapshot and cannot be launched`);
   }
   if (!["pi", "cursor-agent"].includes(job.harness)) throw new Error(`Unknown snapshotted harness: ${job.harness}`);

@@ -49,7 +49,41 @@ test("delivers a settled worker result once", async () => {
   expect(notifications.state.agent).toHaveLength(1);
   expect(notifications.state.agent[0]).toContain("Change src/index.ts.");
   expect(notifications.state.agent[0]).toContain("perform the next required transition");
+  expect(notifications.state.agent[0]).not.toContain("ask whether they want to merge it");
   expect(registry.jobs.get("job_plan")).toMatchObject({ userNotified: true, agentNotified: true });
+});
+
+test("prompts the manager to offer merge choices after an implementation completes", async () => {
+  // arrange
+  const implementation = { ...completedJob(), id: "job_implement", jobType: "implement" };
+  const registry = Registry.createNull({
+    jobs: [implementation],
+    workerSessions: [{
+      id: "session_implement",
+      jobId: implementation.id,
+      harnessSessionId: "pi-session",
+      harnessSessionPath: null,
+      storagePath: "/worker/session-implement",
+      createdAt: TIMESTAMP,
+    }],
+  });
+  const taskStore = TaskStore.createNull({
+    eventLogs: [{
+      taskId: implementation.taskId,
+      jobId: implementation.id,
+      workerSessionId: "session_implement",
+      events: [{ timestamp: TIMESTAMP, type: "assistant.completed", text: "Implemented." }],
+    }],
+  });
+  const notifications = CompletionNotifications.createNull();
+  const monitor = new WorkerCompletionMonitor(registry, taskStore, notifications, IntervalTimer.createNull());
+
+  // act
+  await monitor.pollOnce("manager-session");
+
+  // assert
+  expect(notifications.state.agent[0]).toContain("ask whether they want to merge it into the project");
+  expect(notifications.state.agent[0]).toContain("inspect it without merging");
 });
 
 function completedJob(): Job {

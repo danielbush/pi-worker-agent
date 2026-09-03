@@ -111,7 +111,10 @@ export class WorkerCompletionMonitor {
         result,
         "",
         "Re-read the active project and workflow policies, evaluate this result, and perform the next required transition. Stop for failures or ambiguous results.",
-      ].join("\n"));
+        job.jobType === "implement" && job.status === "completed"
+          ? "When the implementation is ready under that workflow, tell the user the job has finished and ask whether they want to merge it into the project. If they ask to look at it, inspect it without merging."
+          : "",
+      ].filter(Boolean).join("\n"));
       this.registry.jobs.markAgentNotified(job.id);
     }
   }

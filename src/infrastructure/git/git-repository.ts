@@ -55,6 +55,46 @@ export class GitRepository {
     return this.run(["status", "--porcelain"]);
   }
 
+  head(): string {
+    return this.run(["rev-parse", "HEAD"]);
+  }
+
+  changedFiles(): string[] {
+    this.run(["add", "--intent-to-add", "--all"]);
+    try {
+      return this.run(["diff", "--name-only", "HEAD", "--"]).split("\n").filter(Boolean);
+    } finally {
+      this.run(["reset", "--quiet", "HEAD", "--"]);
+    }
+  }
+
+  diff(): string {
+    this.run(["add", "--intent-to-add", "--all"]);
+    try {
+      return this.run(["diff", "--binary", "HEAD", "--"]);
+    } finally {
+      this.run(["reset", "--quiet", "HEAD", "--"]);
+    }
+  }
+
+  commitAll(message: string): string {
+    this.run(["add", "--all"]);
+    this.run([
+      "-c", "user.name=pi-worker-agent",
+      "-c", "user.email=pi-worker-agent@local",
+      "commit", "--quiet", "-m", message,
+    ]);
+    return this.head();
+  }
+
+  cherryPick(commit: string): void {
+    this.run(["cherry-pick", commit]);
+  }
+
+  abortCherryPick(): void {
+    this.run(["cherry-pick", "--abort"]);
+  }
+
   createWorktree(path: string): void {
     this.driver.mkdirSync(dirname(path), { recursive: true });
     this.run(["worktree", "add", "--detach", path, "HEAD"]);

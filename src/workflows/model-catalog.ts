@@ -25,7 +25,7 @@ export class ModelCatalog {
 
   static createNull(
     setup: HarnessSetup = HarnessSetup.createNull(),
-    markdown = "```yaml\nprofiles:\n  pi-sol-high:\n    harness: pi\n    model: openai-codex/gpt-5.6-sol\n    thinking: high\n  cursor-grok-high:\n    harness: cursor-agent\n    model: cursor-grok-4.5-high\ndefaults:\n  plan: pi-sol-high\n  implement: pi-sol-high\n  review: pi-sol-high\n```\n",
+    markdown = "```yaml\nprofiles:\n  pi-sol-high:\n    harness: pi\n    model: openai-codex/gpt-5.6-sol\n    thinking: high\n  cursor-grok-high:\n    harness: cursor-agent\n    model: grok-4.5\n    effort: high\n    fast: false\ndefaults:\n  plan: pi-sol-high\n  implement: pi-sol-high\n  review: pi-sol-high\n```\n",
   ): ModelCatalog {
     return new ModelCatalog(setup, WorkflowProfileLoader.createNull(markdown));
   }

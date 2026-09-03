@@ -1,16 +1,16 @@
 import { expect, test } from "bun:test";
-import { CURSOR_CONTRACT_DIAGNOSTIC, HarnessSetup } from "../harness-setup.ts";
 import { CursorHarnessContract } from "../../../harnesses/cursor/cursor-harness-contract.ts";
 import { PiHarnessContract } from "../../../harnesses/pi/pi-harness-contract.ts";
 import { profileFingerprint, type WorkerProfile } from "../../../domain/execution-profile.ts";
-import { WorkerSandbox } from "../worker-sandbox.ts";
+import { HarnessSandboxCatalog } from "../harness-sandbox.ts";
+import { HarnessSetup } from "../harness-setup.ts";
 
-function driver(which: (command: string) => string | null, run: (command: string[]) => { exitCode: number; stdout: string; stderr: string }, extras: { canonicalPath?: (path: string) => string; isExecutable?: (path: string) => boolean } = {}) {
+function driver(run: (command: string[]) => { exitCode: number; stdout: string; stderr: string }) {
   return {
-    which,
+    which: () => "/resolved/bin/bun",
     home: "/home/test",
-    isExecutable: extras.isExecutable ?? (() => true),
-    canonicalPath: extras.canonicalPath ?? ((path: string) => path),
+    isExecutable: () => true,
+    canonicalPath: (path: string) => path,
     run: (command: string[]) => run(command),
   };
 }
@@ -18,13 +18,13 @@ function driver(which: (command: string) => string | null, run: (command: string
 test("checks and launches the same resolved absolute SDK worker runtime", () => {
   // arrange
   const commands: string[][] = [];
-  const setup = new HarnessSetup(driver(() => "/resolved/bin/bun", (command) => {
-      commands.push(command);
-      if (command.includes("--version")) return { exitCode: 0, stdout: "1.0.0", stderr: "" };
-      if (command.includes("--help")) return { exitCode: 0, stdout: "run --model --thinking --tools --session-dir", stderr: "" };
-      if (command.includes("auth")) return { exitCode: 0, stdout: "ready", stderr: "" };
-      return { exitCode: 0, stdout: "openai-codex/gpt-5.6-sol", stderr: "" };
-    }), WorkerSandbox.createNull(), [PiHarnessContract.create()]);
+  const setup = new HarnessSetup(driver((command) => {
+    commands.push(command);
+    if (command.includes("--version")) return { exitCode: 0, stdout: "1.0.0", stderr: "" };
+    if (command.includes("--help")) return { exitCode: 0, stdout: "run --model --thinking --tools --session-dir", stderr: "" };
+    if (command.includes("auth")) return { exitCode: 0, stdout: "ready", stderr: "" };
+    return { exitCode: 0, stdout: "openai-codex/gpt-5.6-sol", stderr: "" };
+  }), HarnessSandboxCatalog.createNull(), [PiHarnessContract.create()]);
 
   // act
   const result = setup.verify(profile("pi", "openai-codex/gpt-5.6-sol", { thinking: "high" }), "read-only", "/workspace");
@@ -35,97 +35,70 @@ test("checks and launches the same resolved absolute SDK worker runtime", () => 
   expect(result.invocation.args[0]).toEndWith("/pi-sdk-worker.ts");
 });
 
-test("prepares each harness's native invocation without a universal effort mapping", () => {
+test("prepares Pi and Cursor SDK invocations with native options", () => {
   // arrange
   const setup = HarnessSetup.createNull();
 
   // act
   const pi = setup.verify(profile("pi", "openai-codex/gpt-5.6-sol", { thinking: "high" }), "read-only", "/workspace");
-  const cursor = setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace");
+  const cursor = setup.verify(profile("cursor-agent", "grok-4.5", { effort: "high", fast: "false" }), "code", "/workspace", "/worktrees/job");
 
   // assert
   expect(pi.invocation.args).toContain("--thinking");
   expect(pi.invocation.args).toContain("high");
   expect(pi.invocation.args).toContain("read,grep,find,ls");
-  expect(cursor.invocation.args).toContain("cursor-grok-4.5-high");
-  expect(cursor.invocation.args).toContain("--force");
-  expect(cursor.invocation.args).toContain("--workspace");
-  expect(cursor.invocation.args).toContain("/workspace");
-  expect(cursor.invocation.args).not.toContain("--worktree");
-  expect(cursor.invocation.args).not.toContain("-w");
+  expect(cursor.invocation.executable).toBe("/null/bin/bun");
+  expect(cursor.invocation.args[0]).toEndWith("/cursor-sdk-worker.ts");
+  expect(cursor.invocation.args).toContain("grok-4.5");
+  expect(cursor.invocation.args).toContain('{"effort":"high","fast":"false"}');
+  expect(cursor.invocation.args).toContain("read,grep,find,ls,write,edit,bash");
   expect(cursor.invocation.args).not.toContain("--thinking");
 });
 
-test("pins Cursor --workspace to the launch path and never allocates -w/--worktree", () => {
-  const setup = HarnessSetup.createNull();
-  const cursor = setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace", "/worktrees/job");
-  expect(cursor.invocation.args).toContain("--workspace");
-  expect(cursor.invocation.args[cursor.invocation.args.indexOf("--workspace") + 1]).toBe("/worktrees/job");
-  expect(cursor.invocation.args).not.toContain("--worktree");
-  expect(cursor.invocation.args.includes("-w")).toBe(false);
-  expect(() => setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace", "relative")).toThrow("absolute");
-});
-
-test("fails closed with a precise diagnostic when Cursor's stream contract is unverified", () => {
-  expect(() => HarnessSetup.createNull({ versions: { "cursor-agent": "2026.08.25-3e8eec8" }, cursorContractVerified: false })
-    .verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace"))
-    .toThrow(CURSOR_CONTRACT_DIAGNOSTIC);
-});
-
-test("fails closed for auth, catalog, option, and unenforceable capability failures", () => {
+test("fails closed for SDK authentication, catalog, and native option failures", () => {
   expect(() => HarnessSetup.createNull({ authenticated: false }).verify(profile("pi", "openai-codex/gpt-5.6-sol", { thinking: "high" }), "read-only", "/workspace")).toThrow("authentication");
-  expect(() => HarnessSetup.createNull({ cursorModels: ["other"] }).verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace")).toThrow("unavailable");
+  expect(() => HarnessSetup.createNull({ authenticated: false }).verify(profile("cursor-agent", "grok-4.5", { effort: "high" }), "code", "/workspace")).toThrow("authentication");
+  expect(() => HarnessSetup.createNull({ cursorModels: ["other"] }).verify(profile("cursor-agent", "grok-4.5", { effort: "high" }), "code", "/workspace")).toThrow("unavailable");
   expect(() => HarnessSetup.createNull().verify(profile("pi", "openai-codex/gpt-5.6-sol", { thinking: "turbo" }), "read-only", "/workspace")).toThrow("invalid thinking");
-  expect(() => HarnessSetup.createNull().verify(profile("cursor-agent", "cursor-grok-4.5-high"), "test", "/workspace")).toThrow("cannot enforce");
 });
 
-test("matches Cursor catalog ids and rejects label tokens from the same listing", () => {
+test("matches exact Cursor SDK catalog ids", () => {
   // arrange
-  const catalog = "Available models\nauto - Auto (default)\ncursor-grok-4.5-high - Cursor Grok 4.5\n";
-  const setup = new HarnessSetup(driver(() => "/resolved/bin/cursor-agent", (command) => {
-      if (command.includes("--version")) return { exitCode: 0, stdout: "1.0.0-test", stderr: "" };
-      if (command.includes("--help")) return { exitCode: 0, stdout: "--print --output-format --stream-partial-output --model --mode --force --trust --sandbox --workspace", stderr: "" };
-      if (command.includes("status")) return { exitCode: 0, stdout: "Login successful", stderr: "" };
-      if (command.includes("--list-models")) return { exitCode: 0, stdout: catalog, stderr: "" };
-      return { exitCode: 1, stdout: "", stderr: "unexpected" };
-    }), WorkerSandbox.createNull(), [CursorHarnessContract.create({ verifiedVersions: new Set(["1.0.0-test"]) })]);
+  const setup = new HarnessSetup(driver((command) => {
+    if (command.includes("--version")) return { exitCode: 0, stdout: "1.0.30", stderr: "" };
+    if (command.includes("--help")) return { exitCode: 0, stdout: "run --model --params --tools --session-dir probe-models probe-model probe-auth", stderr: "" };
+    if (command.includes("probe-auth")) return { exitCode: 0, stdout: '{"status":"ready"}', stderr: "" };
+    if (command.includes("probe-model")) {
+      const model = command[command.indexOf("--model") + 1];
+      return model === "grok-4.5" ? { exitCode: 0, stdout: "grok-4.5\n", stderr: "" } : { exitCode: 1, stdout: "", stderr: "unavailable" };
+    }
+    return { exitCode: 1, stdout: "", stderr: "unexpected" };
+  }), HarnessSandboxCatalog.createNull(), [new CursorHarnessContract("/app/cursor-sdk-worker.ts")]);
 
   // act/assert
-  expect(setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace").invocation.args).toContain("cursor-grok-4.5-high");
-  expect(() => setup.verify(profile("cursor-agent", "Auto"), "code", "/workspace")).toThrow("unavailable");
+  const invocation = setup.verify(profile("cursor-agent", "grok-4.5", { effort: "high", fast: "false" }), "code", "/workspace").invocation;
+  expect(invocation.args).toContain("grok-4.5");
+  expect(invocation.args).toContain('{"effort":"high","fast":"false"}');
+  expect(() => setup.verify(profile("cursor-agent", "Grok 4.5 High"), "code", "/workspace")).toThrow("model selection");
 });
 
-test("lists live catalogs without verify and isolates a harness probe failure", () => {
+test("lists live catalogs without verify and isolates a probe failure", () => {
+  // arrange
   const setup = HarnessSetup.createNull({ authenticated: false, cursorModels: ["invented"] });
 
+  // act
   const listings = setup.discoverModels();
 
+  // assert
   expect(listings.find((listing) => listing.harness === "pi")?.models).toEqual(["openai-codex/gpt-5.6-sol"]);
   expect(listings.find((listing) => listing.harness === "cursor-agent")?.models).toEqual([]);
-  expect(listings.find((listing) => listing.harness === "cursor-agent")?.error).toMatch(/logged in/i);
-  expect(() => setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace")).toThrow("authentication");
+  expect(listings.find((listing) => listing.harness === "cursor-agent")?.error).toMatch(/authenticated/i);
 });
 
 test("fails closed when the profile harness has no injected contract", () => {
   expect(() => HarnessSetup.createNull({ contracts: [PiHarnessContract.create()] })
-    .verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace"))
+    .verify(profile("cursor-agent", "grok-4.5", { effort: "high" }), "code", "/workspace"))
     .toThrow("Unknown harness: cursor-agent");
-});
-
-test("snapshots the stable Cursor launcher, not the versioned install target", () => {
-  const alias = "/home/test/.local/bin/agent";
-  const versioned = "/home/test/.local/share/cursor-agent/versions/2026.08.25-3e8eec8/cursor-agent";
-  const setup = new HarnessSetup(driver((name) => name === "agent" ? alias : null, (command) => {
-    if (command.includes("--version")) return { exitCode: 0, stdout: "1.0.0-test", stderr: "" };
-    if (command.includes("--help")) return { exitCode: 0, stdout: "--print --output-format --stream-partial-output --model --mode --force --trust --sandbox --workspace", stderr: "" };
-    if (command.includes("status")) return { exitCode: 0, stdout: "Login successful", stderr: "" };
-    if (command.includes("--list-models")) return { exitCode: 0, stdout: "Available models\ncursor-grok-4.5-high - Cursor Grok 4.5\n", stderr: "" };
-    return { exitCode: 1, stdout: "", stderr: "unexpected" };
-  }, { canonicalPath: (path) => path === alias ? versioned : path }), WorkerSandbox.createNull(), [
-    CursorHarnessContract.create({ verifiedVersions: new Set(["1.0.0-test"]) }),
-  ]);
-
-  expect(setup.verify(profile("cursor-agent", "cursor-grok-4.5-high"), "code", "/workspace").invocation.executable).toBe(alias);
 });
 
 function profile(harness: "pi" | "cursor-agent", model: string, options: Record<string, string> = {}): WorkerProfile {

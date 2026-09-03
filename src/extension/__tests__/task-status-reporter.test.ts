@@ -80,6 +80,7 @@ test("emits manager-visible status from nulled worker state", async () => {
       result: "Change src/index.ts and run bun test.",
       workerProfile: null,
       profileFingerprint: null,
+      profileOptions: null,
       capabilityProfile: null,
       harness: "pi",
       harnessVersion: null,
