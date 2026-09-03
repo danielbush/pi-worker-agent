@@ -71,7 +71,7 @@ List the last few completed vertical slices, normally the latest two or three, a
 
 ### Current
 
-Describe the vertical slice under **Next**, where it stands, and any key issue preventing completion. Begin with **Vertical slice NN — Title**.
+Describe the vertical slice under **Next**, where it stands, and any key issue preventing completion. Begin with **Vertical slice NN — Title**. Restate its `Try it` experience concisely so the real result remains visible, and say which part is working now versus still missing.
 
 ### After that
 
@@ -135,6 +135,17 @@ Prefer two to four nested bullets per item. Each item should contain enough deta
 This project-management policy uses vertical slices; another policy could use stories, tickets, or another sequencing style. Do not hardcode project-management transitions into task or job execution.
 
 ## Work in reality-tested vertical slices
+
+### Keep `Try it` constantly visible
+
+`Try it` is the recurring conversational anchor for the current vertical slice, not a document section that disappears after planning.
+
+- Whenever discussing, resuming, summarizing, or making a decision about current project work, bring the current `Try it` back into view in a short, concrete form.
+- Before starting work or accepting a scope or design choice, identify which `Try it` step it advances. Defer work that does not move the observable walkthrough forward unless it is necessary to unblock it.
+- Include the relevant `Try it` experience in task and job context so implementation choices remain tied to the real result.
+- After a task or job settles, report `Try it` progress: what the user can now do, what still fails or is missing, and the next observable step.
+- Keep `Try it` concise enough to repeat frequently. Refine it immediately when conversation or hands-on use reveals a clearer real-world interaction.
+- Never substitute internal completion, architecture, or passing tests for the real result. A vertical slice closes only after its `Try it` path is exercised and the observed result is put before the user.
 
 - Build in small vertical slices that pass through the real system rather than completing one architectural layer at a time.
 - Every slice must put something real in the user’s hands: a command they can run, an interface they can use, output they can inspect, or an end-to-end behavior they can observe.
