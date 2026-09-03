@@ -86,7 +86,7 @@ When an implementation is ready under the selected workflow, the manager says th
 
 If the user asks to look, show a readable result summary, changed files, test results, review findings when present, and the diff on request. Say **diff** or **`git diff`**, not invented variants. Inspection must not modify the project workspace and does not imply approval.
 
-Call the narrow merge tool only after the user explicitly approves in conversation. Do not ask for a redundant second confirmation. The tool must derive source and destination from the completed implementation job, fail closed for unsafe Git state, and report the resulting destination commit. Do not manually copy files, run arbitrary Git commands, or treat task completion as merge approval.
+Call the narrow merge tool only after the user explicitly approves in conversation. Do not ask for a redundant second confirmation. The tool must derive source and destination from the completed implementation job, fail closed for unsafe Git state, report the resulting destination commit, and remove the detached implementation worktree only after the merge succeeds. Unmerged work and failed merges retain their worktrees. Do not manually copy files, run arbitrary Git commands, or treat task completion as merge approval.
 
 ### User-requested variations
 

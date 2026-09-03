@@ -11,6 +11,7 @@ interface MergeRepository {
   commitAll(message: string): string;
   cherryPick(commit: string): void;
   abortCherryPick(): void;
+  removeWorktree(path: string): void;
 }
 
 interface MergeRepositories {
@@ -29,6 +30,7 @@ export interface CompletedWorkInspection {
 
 export interface CompletedWorkMerge extends CompletedWorkInspection {
   commit: string;
+  worktreeRemoved: true;
 }
 
 export interface NullCompletedWorkMergerState {
@@ -41,6 +43,7 @@ export interface NullCompletedWorkMergerState {
   commit?: string;
   mergedCommits?: string[];
   abortedCommits?: string[];
+  removedWorktrees?: string[];
 }
 
 /** Merges one completed implementation worktree into its authorized workspace. */
@@ -71,6 +74,7 @@ export class CompletedWorkMerger {
       commitAll: () => state.commit ?? "b".repeat(40),
       cherryPick: () => {},
       abortCherryPick: () => {},
+      removeWorktree: () => {},
     };
     const destination: MergeRepository = {
       status: () => state.destinationStatus ?? "",
@@ -83,6 +87,7 @@ export class CompletedWorkMerger {
         destinationHead = commit;
       },
       abortCherryPick: () => { state.abortedCommits?.push("aborted"); },
+      removeWorktree: (path) => { state.removedWorktrees?.push(path); },
     };
     return new CompletedWorkMerger(
       Registry.createNull(state.registry),
@@ -127,7 +132,14 @@ export class CompletedWorkMerger {
       try { context.destination.abortCherryPick(); } catch { /* preserve the merge failure */ }
       throw error;
     }
-    return { ...inspection, commit: context.destination.head() };
+    const destinationCommit = context.destination.head();
+    try {
+      context.destination.removeWorktree(context.worktreePath);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(`Merged job ${context.job.id} as ${destinationCommit}, but worktree cleanup failed: ${detail}`);
+    }
+    return { ...inspection, commit: destinationCommit, worktreeRemoved: true };
   }
 
   private context(jobId: string): {

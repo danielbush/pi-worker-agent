@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Job } from "../../src/domain/job.ts";
@@ -62,7 +62,9 @@ test("merges a completed implementation worktree into a clean workspace", async 
   expect(inspection.diff).toContain('+console.log("Cursor SDK OK");');
   expect(await Bun.file(join(workspaceRoot, "cursor-canary", "index.ts")).text()).toBe('console.log("Cursor SDK OK");\n');
   expect(workspaceGit.status()).toBe("");
+  expect(merged).toMatchObject({ worktreeRemoved: true });
   expect(merged.commit).toMatch(/^[a-f0-9]{40}$/);
+  expect(existsSync(worktreeRoot)).toBe(false);
   const message = Bun.spawnSync(["git", "log", "-1", "--format=%B"], { cwd: workspaceRoot }).stdout.toString();
   expect(message).toContain("Job: job_implement");
 });

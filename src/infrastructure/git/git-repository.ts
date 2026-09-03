@@ -95,6 +95,10 @@ export class GitRepository {
     this.run(["cherry-pick", "--abort"]);
   }
 
+  removeWorktree(path: string): void {
+    this.run(["worktree", "remove", path]);
+  }
+
   createWorktree(path: string): void {
     this.driver.mkdirSync(dirname(path), { recursive: true });
     this.run(["worktree", "add", "--detach", path, "HEAD"]);

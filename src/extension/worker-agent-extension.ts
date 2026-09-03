@@ -406,7 +406,7 @@ export class WorkerAgentExtension {
         return {
           content: [{
             type: "text",
-            text: `Merged job ${merged.jobId} into ${merged.workspaceRoot}.\nCommit: ${merged.commit}`,
+            text: `Merged job ${merged.jobId} into ${merged.workspaceRoot}.\nCommit: ${merged.commit}\nRemoved worktree: ${merged.worktreePath}`,
           }],
           details: merged,
         };

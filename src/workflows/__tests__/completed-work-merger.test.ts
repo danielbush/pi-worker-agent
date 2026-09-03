@@ -31,9 +31,11 @@ test("inspects completed implementation changes without merging", () => {
 test("commits and merges completed implementation changes", () => {
   // arrange
   const mergedCommits: string[] = [];
+  const removedWorktrees: string[] = [];
   const merger = CompletedWorkMerger.createNull({
     registry: registryState(),
     mergedCommits,
+    removedWorktrees,
     commit: COMMIT,
   });
 
@@ -41,8 +43,9 @@ test("commits and merges completed implementation changes", () => {
   const result = merger.merge("job_implement");
 
   // assert
-  expect(result.commit).toBe(COMMIT);
+  expect(result).toMatchObject({ commit: COMMIT, worktreeRemoved: true });
   expect(mergedCommits).toEqual([COMMIT]);
+  expect(removedWorktrees).toEqual(["/null-worker-agent/worktrees/job_implement"]);
 });
 
 test("fails closed when the destination is dirty or stale", () => {
