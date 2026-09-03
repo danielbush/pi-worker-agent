@@ -46,6 +46,7 @@ export class JobDelegator {
   }
 
   async delegate(input: DelegateJobInput): Promise<DelegatedJob> {
+    // Resolve the durable task context and validate any completed same-task dependency before side effects.
     const task = this.registry.tasks.get(input.taskId);
     if (!task) throw new Error(`Unknown task: ${input.taskId}`);
     const workspace = task.workspaceId ? this.registry.workspaces.get(task.workspaceId) : undefined;
@@ -55,6 +56,7 @@ export class JobDelegator {
     if (dependency && dependency.status !== "completed") throw new Error(`Dependency is not completed: ${dependency.id}`);
     if (dependency && !input.relationship) throw new Error("A dependency relationship is required");
 
+    // The job type owns trusted capability and worktree policy; the caller may replace only its default agent profile.
     const jobType = this.registry.jobTypes.get(input.jobType);
     if (!jobType || jobType.retired) throw new Error(`Unknown or retired job type: ${input.jobType}`);
     const agentProfileId = input.agentProfileId ?? jobType.defaultAgentProfileId;
@@ -63,6 +65,7 @@ export class JobDelegator {
     const profile = executableAgentProfile(storedProfile);
     const selectionSource = input.agentProfileId ? "explicit" as const : "job-type-default" as const;
 
+    // Resolve process identity and worktree placement before asking the harness for an exact executable invocation.
     const preparedRunner = this.runner.preflight();
     const jobId = this.ids.createJobId();
     const workerSessionId = this.ids.createWorkerSessionId();
@@ -76,9 +79,11 @@ export class JobDelegator {
       throw new Error(`Job type ${jobType.id} requires a dependency with an implementation worktree`);
     }
     const executionPath = worktreePath ?? workspace.rootDir;
+    // Harness preflight validates authentication, model/options, capability, and the invocation that the job will snapshot.
     const prepared = this.setup.verify(profile, jobType.capabilityProfile, workspace.rootDir, executionPath);
     if (jobType.worktreeStrategy === "new-worktree" && worktreePath) this.worktrees.create(workspace.rootDir, worktreePath);
 
+    // Create canonical filesystem artifacts, then assemble the relational records and immutable execution snapshot.
     const bundlePath = await this.taskStore.jobs.create({ taskId: task.id, jobId, request: input.request });
     const eventLog = this.taskStore.events(task.id, jobId, workerSessionId);
     await eventLog.create();
@@ -98,12 +103,14 @@ export class JobDelegator {
       id: workerSessionId, jobId, harnessSessionId: null, harnessSessionPath: null,
       storagePath: this.taskStore.paths.workerSession(task.id, jobId, workerSessionId), createdAt: timestamp,
     };
+    // Commit all queryable metadata atomically before the detached runner can observe the job.
     this.registry.transaction(() => {
       this.registry.tasks.updateStatus(task.id, "queued");
       this.registry.jobs.create(job);
       if (dependency) this.registry.jobDependencies.create({ jobId, dependsOnJobId: dependency.id, relationship: input.relationship! });
       this.registry.workerSessions.create(workerSession);
     });
+    // Process launch cannot share the database transaction, so a launch failure is settled durably below.
     try {
       const pid = this.runner.launch(preparedRunner, this.root, task.id, job.id, workerSession.id);
       return { job, workerSession, worktreePath, pid };
