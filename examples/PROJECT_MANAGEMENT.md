@@ -71,7 +71,7 @@ List the last few completed vertical slices, normally the latest two or three, a
 
 ### Current
 
-Describe the vertical slice under **Next**, where it stands, and any key issue preventing completion. Begin with **Vertical slice NN — Title**. Restate its `Try it` experience concisely so the real result remains visible, and say which part is working now versus still missing.
+Describe the vertical slice under **Next**, where it stands, and any key issue preventing completion. Begin with **Vertical slice NN — Title**. Restate its **Demo** concisely so the concrete result remains visible, and say which part is working now versus still missing.
 
 ### After that
 
@@ -121,7 +121,7 @@ Keep exactly these second-level sections, with bullet points beneath each:
 
 Each top-level bullet must be a short, scannable, bold headline prefixed with the matching Conventional Commit type: `feat:`, `refactor:`, `fix:`, `test:`, or `chore:`. Within each section, order entries by descending priority: an item higher in the file has higher priority. Reorder entries when priorities change. A reader should get the gist from the headline alone. Put details in a small number of short nested bullets: usually the current problem, why it matters, and a promising direction. Include files or concepts only when they help someone resume the thread; avoid exhaustive design notes. Prefix nested user comments with `COMMENT: ` and preserve the user's wording where possible.
 
-Prefer two to four nested bullets per item. Each item should contain enough detail to resume later without becoming a specification. Do not create empty task records for backlog items. When an item becomes current work, refine it into the **Next** slice's intent, outcomes, and `Try it`, create tasks as needed, and remove or update the backlog bullet.
+Prefer two to four nested bullets per item. Each item should contain enough detail to resume later without becoming a specification. Do not create empty task records for backlog items. When an item becomes current work, refine it into the **Next** slice's intent, outcomes, and **Demo**, create tasks as needed, and remove or update the backlog bullet.
 
 ## Relationship to the product workflow
 
@@ -136,25 +136,27 @@ This project-management policy uses vertical slices; another policy could use st
 
 ## Work in reality-tested vertical slices
 
-### Keep `Try it` constantly visible
+### Keep the Demo constantly visible
 
-`Try it` is the recurring conversational anchor for the current vertical slice, not a document section that disappears after planning.
+The **Demo** is the concrete, observable experience that proves the current vertical slice produces a real result. It is the touchstone for every other decision, not a document section that disappears after planning. The manager must always make the user think about the vertical slice in terms of its Demo.
 
-- Whenever discussing, resuming, summarizing, or making a decision about current project work, bring the current `Try it` back into view in a short, concrete form.
-- Before starting work or accepting a scope or design choice, identify which `Try it` step it advances. Defer work that does not move the observable walkthrough forward unless it is necessary to unblock it.
-- Include the relevant `Try it` experience in task and job context so implementation choices remain tied to the real result.
-- After a task or job settles, report `Try it` progress: what the user can now do, what still fails or is missing, and the next observable step.
-- Keep `Try it` concise enough to repeat frequently. Refine it immediately when conversation or hands-on use reveals a clearer real-world interaction.
-- Never substitute internal completion, architecture, or passing tests for the real result. A vertical slice closes only after its `Try it` path is exercised and the observed result is put before the user.
+- Frame every proposal, status update, scope discussion, and decision around the Demo: what the user will do, what they will observe, and why that result matters.
+- If work is proposed without a concrete Demo, pause and develop the Demo with the user before promoting a slice, creating a task, or debating implementation details.
+- Whenever discussing, resuming, summarizing, or making a decision about current project work, bring the Demo back into view in a short, concrete form.
+- Before starting work or accepting a scope or design choice, identify which Demo step it advances. Defer work that does not move the Demo forward unless it is necessary to unblock it.
+- Include the Demo in task and job context so implementation choices remain tied to the real result.
+- After a task or job settles, report Demo progress: what the user can now do, what still fails or is missing, and the next observable step.
+- Keep the Demo concise enough to repeat frequently. Refine it immediately when conversation or hands-on use reveals a clearer real-world interaction.
+- Never substitute internal completion, architecture, or passing tests for the Demo. A vertical slice closes only after the Demo is exercised and the observed result is put before the user.
 
 - Build in small vertical slices that pass through the real system rather than completing one architectural layer at a time.
 - Every slice must put something real in the user’s hands: a command they can run, an interface they can use, output they can inspect, or an end-to-end behavior they can observe.
-- **`Try it` is essential to the definition of a vertical slice.** Write it before implementation or task creation. If the proposed result cannot yet be imagined as a concrete interaction, the slice is not ready to become **Next**.
-- Write `Try it` as though the capability already exists: an immediate, present-tense walkthrough such as ask the manager to run the demo-task workflow for the current slice, observe its planning and code jobs, and exercise the result in the reported worktree.
-- Treat `Try it` as a working-backwards artifact and a quick cognitive anchor, not merely as an acceptance test or optional release documentation. A reader returning to the project should be able to read it and immediately picture the experience being built.
-- Use that imagined experience to shape the slice boundary, outcomes, and implementation choices. Keep it short and concrete enough to hold in mind while making trade-offs.
-- A slice is not complete merely because its automated tests pass. Run the `Try it` path and put the result in the user’s hands for evaluation.
-- `Try it` is a living working-backwards artifact, not a frozen prediction. Update it whenever discussion, implementation, or hands-on use produces a clearer or more useful way to picture the slice. Keep intent and outcomes aligned when the intended experience changes.
+- **The Demo is essential to the definition of a vertical slice.** Write it before implementation or task creation. If the proposed result cannot yet be pictured as a concrete interaction, the slice is not ready to become **Next**.
+- Write the Demo as though the capability already exists: an immediate, present-tense walkthrough in which the user performs or observes the real interaction and inspects its result.
+- Treat the Demo as a working-backwards artifact and the primary product touchstone, not merely as an acceptance test or optional release documentation. A reader returning to the project should immediately understand the experience being built.
+- Use the Demo to shape the slice boundary, outcomes, architecture, implementation, and tests. Keep it short and concrete enough to hold in mind while making trade-offs.
+- A slice is not complete merely because its automated tests pass. Run the Demo and put the result in the user’s hands for evaluation.
+- The Demo is a living working-backwards artifact, not a frozen prediction. Update it whenever discussion, implementation, or hands-on use produces a clearer or more useful real-world interaction. Keep intent and outcomes aligned when the intended experience changes.
 - Prefer the smallest end-to-end capability that touches reality over a larger collection of internally complete abstractions.
 - Avoid building substantial infrastructure ahead of a usable path through it. Code that is well tested but has not yet participated in real behavior carries integration and product risk.
 - After each slice, pause for user feedback before expanding the design. Use what was observed in practice to choose and shape the next slice.
@@ -192,19 +194,19 @@ List the minimum end-to-end changes needed to produce the outcomes. Avoid unrela
 
 - taskid://<uuid> — task title.
 
-## Try it
+## Demo
 
-Write as though the capability already exists. Give a short, concrete walkthrough of the commands or interactions and what the user sees in response. It should let someone immediately picture and try the intended experience, including how to inspect artifacts or output where relevant.
+Write as though the capability already exists. Give a short, concrete walkthrough of the commands or interactions and what the user sees in response. It must describe a real result that the user can perform or observe, including how to inspect artifacts or output where relevant.
 ```
 
-`Outcomes` state what must become observable. `Build` describes the proposed mechanism. `Try it` makes the intended experience feel concrete before it exists, so it can anchor discussion and implementation. It is required before the slice becomes **Next**, but it may be revised as the team learns and the intended experience becomes clearer. A slice may use one or more tasks; each task carries its own execution-level `intent.md`, `outcomes.md`, and `background.md` for its jobs.
+`Outcomes` state what must become observable. `Build` describes the proposed mechanism. The **Demo** is the touchstone that makes the intended experience concrete before it exists and keeps discussion, architecture, implementation, and tests working toward the same real result. It is required before the slice becomes **Next**, but it may be revised as the team learns and the intended experience becomes clearer. A slice may use one or more tasks; each task carries its own execution-level `intent.md`, `outcomes.md`, and `background.md` for its jobs.
 
-At the end of the slice, run `Try it` and append:
+At the end of the slice, run the Demo and append:
 
 ```markdown
 ## Result
 
-Record what the user could actually do and observe, any differences from `Try it`, and the feedback or decision that followed.
+Record what the user could actually do and observe, any differences from the Demo, and the feedback or decision that followed.
 ```
 
-Update `Try it` during the slice when learning changes the intended experience. Use `Result` to record what happened when the current walkthrough was exercised, including remaining gaps and the user's response. When the user accepts the result or learning from the slice, retain the document as a durable record and move its link from **Next** to **Completed** in `sequence.md`. Then promote one tentative entry to **Next**, create its slice document, and refine its intent, outcomes, and `Try it` path with the user.
+Update the Demo during the slice when learning changes the intended experience. Use `Result` to record what happened when the Demo was exercised, including remaining gaps and the user's response. When the user accepts the result or learning from the slice, retain the document as a durable record and move its link from **Next** to **Completed** in `sequence.md`. Then promote one tentative entry to **Next**, create its slice document, and refine its intent, outcomes, and Demo with the user.
