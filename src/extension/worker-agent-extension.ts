@@ -389,31 +389,19 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_merge_job",
       label: "Merge completed job",
-      description: "Merge a completed implementation job into its authorized project workspace after interactive user approval.",
+      description: "Merge a completed implementation job into its authorized project workspace after the user approves in conversation.",
       promptSnippet: "Merge completed implementation work after the user approves",
       promptGuidelines: [
         "After an implementation is ready, tell the user the job has finished and ask whether they want to merge it into the project.",
         "Call this only when the user says to merge it; if they ask to look first, use worker_inspect_job_changes instead.",
-        "The tool independently displays the destination and changed files and requires interactive approval.",
+        "The user's conversational approval authorizes the merge; do not ask them to approve a second time.",
       ],
       parameters: Type.Object({
         jobId: Type.String({ description: "Exact completed implementation job ID" }),
       }),
-      execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
+      execute: async (_toolCallId, params) => {
         const registry = this.registry ??= this.services.registry();
         const merger = CompletedWorkMerger.create(registry, this.services.taskStore());
-        const inspection = merger.inspect(params.jobId);
-        if (!ctx.hasUI) throw new Error("Merging completed work requires interactive user approval");
-        const approved = await ctx.ui.confirm(
-          "Merge completed work into the project?",
-          [
-            `Job: ${inspection.jobId}`,
-            `Destination: ${inspection.workspaceRoot}`,
-            "Changed files:",
-            ...inspection.changedFiles.map((path) => `- ${path}`),
-          ].join("\n"),
-        );
-        if (!approved) throw new Error("Merge declined by user");
         const merged = merger.merge(params.jobId);
         return {
           content: [{

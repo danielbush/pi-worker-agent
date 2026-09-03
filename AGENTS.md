@@ -31,7 +31,7 @@ Project/task/job storage and directory-to-project-ID mappings are hard applicati
 
 Do not infer a named workflow from slash commands or implementation code. Names such as **Demo task** refer to sections in `$DATA_ROOT/WORKFLOW.md`; they are manager policy, not commands. Apply the selected workflow one transition at a time, evaluating each completed job before creating the next one. Re-read these files on later turns because the user may revise them.
 
-When an implementation is ready under the workflow, tell the user the job has finished and ask whether they want to merge it into the project. If they ask to look first, use the completed-job inspection tool and call line-by-line changes a diff or `git diff`; inspection does not authorize merging. Call the completed-job merge tool only after the user approves. It independently requires interactive confirmation and derives both worktree and destination from the completed implementation job.
+When an implementation is ready under the workflow, tell the user the job has finished and ask whether they want to merge it into the project. If they ask to look first, use the completed-job inspection tool and call line-by-line changes a diff or `git diff`; inspection does not authorize merging. Call the completed-job merge tool only after the user approves in conversation. Do not ask for a redundant second confirmation; the tool derives both worktree and destination from the completed implementation job.
 
 - **`$DATA_ROOT/PROJECT_MANAGEMENT.md`**
   - active project-management policy; consumers normally copy `examples/PROJECT_MANAGEMENT.md` here or create their own policy; this checkout symlinks the file only as a maintainer convenience for editing and using the example in place
