@@ -7,6 +7,8 @@ Concepts that underpin the design of this system.
 - HARD_CODED
   - things that are enshrined in code
   - most of the task/job system is enshrined in code; this is the EXECUTIVE_LAYER of the system
+  - it's main purpose is to allow a managing agent to spawn worker agents using different harnesses
+  - currently built using pi-coding-agent and bun
 - STRUCTURED
   - things are stored in a strutured way but they can be edited
   - most data in the database fits this category
