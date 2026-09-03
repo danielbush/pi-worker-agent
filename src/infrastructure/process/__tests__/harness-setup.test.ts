@@ -15,13 +15,13 @@ function driver(which: (command: string) => string | null, run: (command: string
   };
 }
 
-test("checks and launches the same resolved absolute executable identity", () => {
+test("checks and launches the same resolved absolute SDK worker runtime", () => {
   // arrange
   const commands: string[][] = [];
-  const setup = new HarnessSetup(driver(() => "/resolved/bin/pi", (command) => {
+  const setup = new HarnessSetup(driver(() => "/resolved/bin/bun", (command) => {
       commands.push(command);
       if (command.includes("--version")) return { exitCode: 0, stdout: "1.0.0", stderr: "" };
-      if (command.includes("--help")) return { exitCode: 0, stdout: "--mode --print --model --thinking --tools", stderr: "" };
+      if (command.includes("--help")) return { exitCode: 0, stdout: "run --model --thinking --tools --session-dir", stderr: "" };
       if (command.includes("auth")) return { exitCode: 0, stdout: "ready", stderr: "" };
       return { exitCode: 0, stdout: "openai-codex/gpt-5.6-sol", stderr: "" };
     }), WorkerSandbox.createNull(), [PiHarnessContract.create()]);
@@ -30,8 +30,9 @@ test("checks and launches the same resolved absolute executable identity", () =>
   const result = setup.verify(profile("pi", "openai-codex/gpt-5.6-sol", { thinking: "high" }), "read-only", "/workspace");
 
   // assert
-  expect(commands.every((command) => command[0] === "/resolved/bin/pi")).toBe(true);
-  expect(result.invocation.executable).toBe("/resolved/bin/pi");
+  expect(commands.every((command) => command[0] === "/resolved/bin/bun")).toBe(true);
+  expect(result.invocation.executable).toBe("/resolved/bin/bun");
+  expect(result.invocation.args[0]).toEndWith("/pi-sdk-worker.ts");
 });
 
 test("prepares each harness's native invocation without a universal effort mapping", () => {

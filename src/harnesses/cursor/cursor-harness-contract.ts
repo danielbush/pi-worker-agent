@@ -21,6 +21,10 @@ export class CursorHarnessContract implements HarnessContract {
     return new CursorHarnessContract(options);
   }
 
+  probeArgs(args: readonly string[]): string[] {
+    return [...args];
+  }
+
   resolveExecutable(input: HarnessResolveInput): string {
     return resolveCursorExecutable({
       ...createCursorExecutableLocator(input.which, input.run, input.home),

@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type { Job } from "../../domain/job.ts";
 import { profileFingerprint } from "../../domain/execution-profile.ts";
+import { PI_SDK_WORKER_ENTRY_POINT } from "../../harnesses/pi/pi-harness-contract.ts";
 import { NativeHarness } from "../../infrastructure/process/native-harness.ts";
 import { Registry } from "../../storage/registry.ts";
 import { TaskStore } from "../../storage/task-store.ts";
@@ -269,8 +270,8 @@ function planningJob(): Job {
 
 function piInvocation() {
   return {
-    executable: "/null/bin/pi",
-    args: ["--mode", "json", "--print", "--tools", "read,grep,find,ls", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve", "--model", "openai-codex/gpt-5.6-sol", "--thinking", "high"],
+    executable: "/null/bin/bun",
+    args: [PI_SDK_WORKER_ENTRY_POINT, "run", "--tools", "read,grep,find,ls", "--model", "openai-codex/gpt-5.6-sol", "--thinking", "high"],
   };
 }
 

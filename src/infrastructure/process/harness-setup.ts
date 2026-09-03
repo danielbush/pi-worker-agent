@@ -74,12 +74,13 @@ export class HarnessSetup {
       canonicalPath: (path) => path,
       run: (command) => {
         const executable = command[0]!.split("/").at(-1)!;
-        const args = command.slice(1);
+        const piSdk = command[1]?.endsWith("/pi-sdk-worker.ts") ?? false;
+        const args = command.slice(piSdk ? 2 : 1);
         const cursor = executable === "cursor-agent" || executable === "agent";
-        if (args.includes("--version")) return ok(executable === "pi" ? piVersion : cursorVersion);
-        if (args.includes("--help")) return ok(executable === "pi" ? "--mode --print --model --thinking --tools" : "--print --output-format --stream-partial-output --model --mode --force --trust --sandbox --workspace");
-        if (executable === "pi" && args[0] === "auth") return authenticated ? ok("ready") : fail("not authenticated");
-        if (executable === "pi" && args[0] === "--list-models") return ok((result.piModels ?? ["openai-codex/gpt-5.6-sol"]).join("\n"));
+        if (args.includes("--version")) return ok(piSdk ? piVersion : cursorVersion);
+        if (args.includes("--help")) return ok(piSdk ? "run --model --thinking --tools --session-dir" : "--print --output-format --stream-partial-output --model --mode --force --trust --sandbox --workspace");
+        if (piSdk && args[0] === "auth") return authenticated ? ok('{"status":"ready"}') : fail("not authenticated");
+        if (piSdk && args[0] === "--list-models") return ok((result.piModels ?? ["openai-codex/gpt-5.6-sol"]).join("\n"));
         if (cursor && args[0] === "status") return authenticated ? ok("Login successful") : fail("not logged in");
         if (cursor && args[0] === "--list-models") {
           if (!authenticated) return fail("not logged in");
@@ -96,9 +97,9 @@ export class HarnessSetup {
     if (!contract) throw new Error(`Unknown harness: ${profile.harness}`);
     const resolved = contract.resolveExecutable(this.driver);
     if (!resolved || !resolved.startsWith("/")) throw new Error(`${contract.executableName} executable is unavailable as an absolute path`);
-    const version = requireHarnessOutput(this.driver.run, resolved, ["--version"], cwd, "version").trim();
+    const version = requireHarnessOutput(this.driver.run, resolved, contract.probeArgs(["--version"]), cwd, "version").trim();
     if (!VERSION.test(version)) throw new Error(`${contract.executableName} returned an unsupported version contract: ${version}`);
-    const help = requireHarnessOutput(this.driver.run, resolved, ["--help"], cwd, "help");
+    const help = requireHarnessOutput(this.driver.run, resolved, contract.probeArgs(["--help"]), cwd, "help");
     for (const option of contract.requiredHelpOptions) {
       if (!help.includes(option)) throw new Error(`${contract.executableName} does not support required option ${option}`);
     }
