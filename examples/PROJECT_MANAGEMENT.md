@@ -140,6 +140,26 @@ This project-management policy uses vertical slices; another policy could use st
 
 The **Demo** is the concrete, observable experience that proves the current vertical slice produces a real result. It is the touchstone for every other decision, not a document section that disappears after planning. The manager must always make the user think about the vertical slice in terms of its Demo.
 
+### Invite brain dumps and organize the feedback
+
+One of the manager's most valuable roles is letting the user think aloud without first organizing their thoughts. The user should not have to translate a brain dump into requirements, categories, tasks, or polished prose. Invite unstructured feedback, then turn it into concise, faithful project information that another agent can act on and the user can read if they choose.
+
+There are two required feedback checkpoints:
+
+1. **After the user sees the proposed Demo, before committing to its scope.** Ask what feels wrong, missing, unclear, or unnecessary, and explicitly invite a brain dump.
+2. **After the user performs or directly observes the Demo, before accepting the slice.** Ask what they observed, what surprised them, and what they now want changed, and explicitly invite another brain dump.
+
+Do not interrupt or prematurely structure a brain dump. Let the user indicate when they are done, then:
+
+- organize the feedback into observations, desired changes, unresolved questions or decisions, and resulting actions;
+- preserve important user wording and technical intent without turning the slice into a raw transcript;
+- state the organized interpretation back to the user and clarify only genuine ambiguities;
+- record the organized feedback under `## Feedback` in the current slice so it is clean enough for an agent to resume from and readable if the user inspects it;
+- update the current intent, outcomes, build, and Demo in place to reflect the latest understanding—do not retain obsolete Demo versions merely as history;
+- action the resulting work and repeat the Demo-feedback loop until the user accepts the result.
+
+Feedback may change the slice, reveal follow-up work, or invalidate the tentative sequence. After accepting a slice, pause and invite the user to continue, pivot, or reprioritize before promoting the next tentative slice. The ability to change direction between small vertical slices is a primary reason for working this way.
+
 **The Demo belongs to the user.** Worker execution, automated tests, and manager inspection prepare and support the Demo, but they do not perform it on the user's behalf. When work is ready, the manager must restate the exact Demo steps and expected observations, invite the user to perform or directly observe them, and wait for the user's feedback.
 
 - Frame every proposal, status update, scope discussion, and decision around the Demo: what the user will do, what they will observe, and why that result matters.
@@ -168,11 +188,13 @@ The **Demo** is the concrete, observable experience that proves the current vert
 The strategy is to establish a visible, usable walking skeleton early and improve it through repeated cycles:
 
 1. Choose one small user-observable outcome.
-2. Implement the minimum end-to-end path that produces it.
-3. Verify it with automated tests.
-4. Restate the Demo with clear instructions and expected observations.
-5. Have the user perform or directly observe it.
-6. Record the user's feedback and use it to select the next slice.
+2. Present the proposed Demo and invite the user's brain dump; organize it and revise the slice in place.
+3. Implement the minimum end-to-end path that produces the agreed Demo.
+4. Verify it with automated tests.
+5. Restate the Demo with clear instructions and expected observations.
+6. Have the user perform or directly observe it.
+7. Invite another brain dump, organize and record the feedback, and revise or accept the slice.
+8. After acceptance, pause so the user can continue, pivot, or reprioritize before the next slice is promoted.
 
 ## Vertical slice document format
 
@@ -201,6 +223,10 @@ List the minimum end-to-end changes needed to produce the outcomes. Avoid unrela
 ## Demo
 
 Write as though the capability already exists. Give a short, concrete walkthrough of the commands or interactions and what the user sees in response. It must describe a real result that the user can perform or observe, including how to inspect artifacts or output where relevant.
+
+## Feedback
+
+After a brain dump, organize the user's observations, desired changes, unresolved questions or decisions, and resulting actions. Omit this section until feedback exists.
 ```
 
 `Outcomes` state what must become observable. `Build` describes the proposed mechanism. The **Demo** is the touchstone that makes the intended experience concrete before it exists and keeps discussion, architecture, implementation, and tests working toward the same real result. It is required before the slice becomes **Next**, but it may be revised as the team learns and the intended experience becomes clearer. A slice may use one or more tasks; each task carries its own execution-level `intent.md`, `outcomes.md`, and `background.md` for its jobs.
