@@ -12,7 +12,7 @@
 ## Design and structure
 
 - Prefer OOP composition: small stateful “Lego bricks” with clear ownership and injected dependencies.
-- Use classes for lifecycle, persistence, orchestration, and other stateful services.
+- Use classes for lifecycle, persis- Focus on modelling the data first; data is primary, the code that receives, transforms, stores, emits this data can change over time.  Encourage strong clear modelling of the data from enum types to database tables.  Encourage the user to model the data in a diagram in ARCHITECTURE.md.  Then build the appropriate code constructs around this data model.tence, orchestration, and other stateful services.
 - Pure algorithmic, formatting and conversion logic can be functions that are used by classes.
 - Use a system similar to James Shore's nullable architecture
   - Classes that directly interact with the outside world (DOM, fs, network) are INFRASTRUCTURE_WRAPPER's
