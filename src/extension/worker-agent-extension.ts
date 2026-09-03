@@ -18,6 +18,7 @@ import { ProjectCatalogReporter } from "../workflows/project-catalog-reporter.ts
 import { ProjectRegistrar } from "../workflows/project-registrar.ts";
 import { ProjectTaskLinker } from "../workflows/project-task-linker.ts";
 import { ProjectTaskReporter } from "../workflows/project-task-reporter.ts";
+import { ProjectStructureVerifier } from "../workflows/project-structure-verifier.ts";
 import { TaskCompleter } from "../workflows/task-completer.ts";
 import { TaskCreator } from "../workflows/task-creator.ts";
 import { WorkspaceRegistrar } from "../workflows/workspace-registrar.ts";
@@ -197,12 +198,42 @@ export class WorkerAgentExtension {
 
   private registerProjectTools(): void {
     this.pi.registerTool({
+      name: "worker_verify_project_structure",
+      label: "Verify managed project structure",
+      description: "Verify the structured boundary between registered project metadata and policy-owned DATA_ROOT/projects subdirectories.",
+      promptSnippet: "Verify that managed-project structure is in order",
+      promptGuidelines: [
+        "Call this before worker_list_projects at the start of managed-project work.",
+        "If verification fails, stop and report every structural problem; do not silently ignore misplaced entries or improvise another project root.",
+        "This verifies hard structural invariants only. Read PROJECT_MANAGEMENT.md before interpreting policy-owned files inside project directories.",
+      ],
+      parameters: Type.Object({}),
+      execute: async () => {
+        const registry = this.registry ??= this.services.registry();
+        const report = ProjectStructureVerifier.create(this.root, registry).verify();
+        return {
+          content: [{
+            type: "text",
+            text: [
+              "Managed project structure is valid.",
+              `DATA_ROOT=${report.dataRoot}`,
+              `PROJECTS_ROOT=${report.projectsRoot}`,
+              `Immediate project subdirectories: ${report.projects.length}`,
+              ...report.projects.map((project) => `- ${project.directoryName} | registered ${project.id} | sequence.md present`),
+            ].join("\n"),
+          }],
+          details: report,
+        };
+      },
+    });
+
+    this.pi.registerTool({
       name: "worker_list_projects",
       label: "List managed projects",
       description: "Validate manager configuration and list registered projects with the DATA_ROOT policy path.",
       promptSnippet: "Start managed-project work by listing configured projects",
       promptGuidelines: [
-        "Call this first before any managed-project work.",
+        "Call this after worker_verify_project_structure at the start of managed-project work.",
         "If it fails, stop and report the error without probing or improvising.",
         "Read the returned PROJECT_MANAGEMENT.md before interpreting project files.",
       ],

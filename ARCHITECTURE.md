@@ -227,7 +227,7 @@ SQLite stores structured metadata and query-friendly current-state projections.
 
 ### `projects`
 
-Each immediate `$DATA_ROOT/projects/<directoryName>` subdirectory maps to durable project metadata.
+Each immediate `$DATA_ROOT/projects/<directoryName>` subdirectory maps to durable project metadata. `ProjectStructureVerifier` protects the structured boundary into this policy-owned area: its filesystem wrapper inventories every immediate entry rather than silently filtering files or symlinks, then it requires only project directories, a regular `sequence.md` in each directory, and an exact correspondence with registered project metadata. The manager invokes this through `worker_verify_project_structure`; it accepts no caller-supplied path and does not interpret the contents governed by `PROJECT_MANAGEMENT.md`.
 
 - `id` — synthetic project identity.
 - `directoryName` — unique directory mapping under `DATA_ROOT/projects/`.

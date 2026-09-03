@@ -22,12 +22,13 @@ The user and manager agent should decide on policies for how to do work.  We can
 
 Before any managed-project work:
 
-1. Call `worker_list_projects`. If it fails, stop and report the error; do not probe or improvise.
-2. Read the reported `PROJECT_MANAGEMENT.md` and follow it to interpret the project files. Do not assume their layout.
-3. For project status, call `worker_project_tasks` and combine its relational facts with the policy-defined project files.
-4. Before task or job work, read `WORKFLOW.md`; for coding, also read `CODING.md` and the codebase instructions.
+1. Call `worker_verify_project_structure`. It verifies that `$DATA_ROOT/projects/` contains only immediate project subdirectories, every project has `sequence.md`, and every directory corresponds to registered project metadata. If it fails, stop and report all structural problems; do not probe or improvise.
+2. Call `worker_list_projects`. If it fails, stop and report the error; do not probe or improvise.
+3. Read the reported `PROJECT_MANAGEMENT.md` and follow it to interpret the project files. Do not assume their layout.
+4. For project status, call `worker_project_tasks` and combine its relational facts with the policy-defined project files.
+5. Before task or job work, read `WORKFLOW.md`; for coding, also read `CODING.md` and the codebase instructions.
 
-Project/task/job storage and directory-to-project-ID mappings are hard application invariants. Files under `$DATA_ROOT/projects/` are soft policy interpreted through `PROJECT_MANAGEMENT.md`.
+The structure-verification tool is one of the manager's standard ways to know that the bridge between structured project identity and the unstructured, policy-owned project area is in order. It checks only application invariants; files inside each project remain soft policy interpreted through `PROJECT_MANAGEMENT.md`. Project/task/job storage and directory-to-project-ID mappings are hard application invariants.
 
 Do not infer a named workflow from slash commands or implementation code. Names such as **Demo task** refer to sections in `$DATA_ROOT/WORKFLOW.md`; they are manager policy, not commands. Apply the selected workflow one transition at a time, evaluating each completed job before creating the next one. Re-read these files on later turns because the user may revise them.
 
@@ -37,13 +38,13 @@ When an implementation is ready under the workflow, tell the user the job has fi
   - active project-management policy; consumers normally copy `examples/PROJECT_MANAGEMENT.md` here or create their own policy; this checkout symlinks the file only as a maintainer convenience for editing and using the example in place
   - how to structure/sequence project work to get outcomes
   - `$DATA_ROOT/projects/` is the source of truth for managed projects.
-    - Each immediate project subdirectory must map to a synthetic row in SQLite `projects`; use manager project tools to register it and query or associate tasks.
+    - Every immediate entry must be a project subdirectory with `sequence.md`, and each subdirectory must map to a synthetic row in SQLite `projects`; use `worker_verify_project_structure` to audit this boundary and manager project tools to register, query, or associate tasks.
     - SQLite `projects_tasks` is the relational source of project task membership and status queries; `taskid://...` references remain human-facing links.
     - Do not assume `./projects/` in this repository is the project registry unless `$DATA_ROOT` points here or the user explicitly says so.
     - By default this repository uses the gitignored `work/` directory; consumers can set `DATA_ROOT` or `PI_WORKER_AGENT_DATA_ROOT` to use another location.
   - Use `bun run projects` to list projects and `$DATA_ROOT`
   - ALWAYS read `$DATA_ROOT/PROJECT_MANAGEMENT.md` before answering project-structure or project-status questions, because it defines the current layout and meaning of `$DATA_ROOT/projects/`
-    - if `$DATA_ROOT/PROJECT_MANAGEMENT.md` is missing, use `examples/PROJECT_MANAGEMENT.md` as the default policy
+    - if `$DATA_ROOT/PROJECT_MANAGEMENT.md` is missing, stop and report it; suggest copying `examples/PROJECT_MANAGEMENT.md` into the data root rather than silently applying policy from another path
     - you can organise any system the user want in `$DATA_ROOT/projects/`; aways update `$DATA_ROOT/PROJECT_MANAGEMENT.md` to reflect the new layout
     - you should ensure the following constraints
       - always organise data into subdirs: $DATA_ROOT/projects/XXX/

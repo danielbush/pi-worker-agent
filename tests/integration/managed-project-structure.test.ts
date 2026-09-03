@@ -1,0 +1,33 @@
+import { afterEach, expect, test } from "bun:test";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { ManagedProjectStructure } from "../../src/infrastructure/filesystem/managed-project-structure.ts";
+
+const roots: string[] = [];
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
+test("inventories immediate DATA_ROOT/projects entries without hiding files", () => {
+  // arrange
+  const root = mkdtempSync(join(tmpdir(), "pi-worker-project-structure-"));
+  roots.push(root);
+  mkdirSync(join(root, "projects", "demo"), { recursive: true });
+  writeFileSync(join(root, "PROJECT_MANAGEMENT.md"), "# Policy\n");
+  writeFileSync(join(root, "projects", "demo", "sequence.md"), "# Demo\n");
+  writeFileSync(join(root, "projects", "misplaced.txt"), "not a project\n");
+
+  // act
+  const snapshot = ManagedProjectStructure.create(root).inspect();
+
+  // assert
+  expect(snapshot).toEqual({
+    dataRoot: root,
+    projectsRoot: join(root, "projects"),
+    entries: [
+      { name: "demo", kind: "directory", hasSequenceFile: true },
+      { name: "misplaced.txt", kind: "file", hasSequenceFile: false },
+    ],
+  });
+});
