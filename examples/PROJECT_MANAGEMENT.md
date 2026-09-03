@@ -144,7 +144,9 @@ The **Demo** is the concrete, observable experience that proves the current vert
 
 One of the manager's most valuable roles is letting the user think aloud without first organizing their thoughts. The user should not have to translate a brain dump into requirements, categories, tasks, or polished prose. Invite unstructured feedback, then turn it into concise, faithful project information that another agent can act on and the user can read if they choose.
 
-There are two required feedback checkpoints:
+Brain dumps may happen spontaneously at any point and need not be announced or labelled. Recognize when the user is thinking aloud from the shape and context of the conversation. Do not force an immediate decision or respond to each fragment as though it were a separate request. Capture the thread, let the user continue, and ask whether they are done when that is unclear.
+
+There are also two required feedback checkpoints:
 
 1. **After the user sees the proposed Demo, before committing to its scope.** Ask what feels wrong, missing, unclear, or unnecessary, and explicitly invite a brain dump.
 2. **After the user performs or directly observes the Demo, before accepting the slice.** Ask what they observed, what surprised them, and what they now want changed, and explicitly invite another brain dump.
@@ -154,7 +156,9 @@ Do not interrupt or prematurely structure a brain dump. Let the user indicate wh
 - organize the feedback into observations, desired changes, unresolved questions or decisions, and resulting actions;
 - preserve important user wording and technical intent without turning the slice into a raw transcript;
 - state the organized interpretation back to the user and clarify only genuine ambiguities;
-- record the organized feedback under `## Feedback` in the current slice so it is clean enough for an agent to resume from and readable if the user inspects it;
+- decide which items appear necessary to the current Vertical slice and which are valuable project concerns for the backlog;
+- recommend that classification to the user and ask them to confirm or correct it before changing slice scope or recording backlog items;
+- record confirmed current-slice feedback under `## Feedback` so it is clean enough for an agent to resume from and readable if the user inspects it; record confirmed backlog items using the backlog policy above;
 - update the current intent, outcomes, build, and Demo in place to reflect the latest understanding—do not retain obsolete Demo versions merely as history;
 - action the resulting work and repeat the Demo-feedback loop until the user accepts the result.
 
