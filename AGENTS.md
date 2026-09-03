@@ -19,7 +19,8 @@ Before any managed-project work:
 
 1. Run `bun run projects`. If it fails, stop and report the error; do not probe or improvise.
 2. Read the reported `$DATA_ROOT/PROJECT_MANAGEMENT.md` and follow it to interpret `$DATA_ROOT/projects/`. Do not assume a project-file layout.
-3. Before task or job work, read `$DATA_ROOT/WORKFLOW.md`; for coding, also read `$DATA_ROOT/CODING.md` and the codebase instructions.
+3. For project status, run `bun run project-status -- <project-name>` and combine its relational task status with the policy-defined project files. If it fails, stop.
+4. Before task or job work, read `$DATA_ROOT/WORKFLOW.md`; for coding, also read `$DATA_ROOT/CODING.md` and the codebase instructions.
 
 Project/task/job storage and directory-to-project-ID mappings are hard application invariants. Files under `$DATA_ROOT/projects/` are soft policy interpreted through `PROJECT_MANAGEMENT.md`.
 

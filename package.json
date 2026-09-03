@@ -6,7 +6,8 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "projects": "bun src/cli/projects.ts"
+    "projects": "bun src/cli/projects.ts",
+    "project-status": "bun src/cli/project-status.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
