@@ -72,7 +72,7 @@ plan → implement → review
 4. Run implementation in an isolated worktree.
 5. After successful implementation, the manager evaluates the result and creates a read-only `review` job with a `reviews` dependency against that worktree.
 6. If review finds actionable problems, create a `fix` job with an `addresses-findings` dependency, then review the fix.
-7. Complete the task only when its outcomes are met and no further work is justified.
+7. Complete the task only when its outcomes are met and no further work is justified. If it is the final task delivering the current vertical slice, first present the slice's Demo to the user and wait for the user to perform or directly observe it and provide feedback; worker verification and manager inspection do not substitute for the user's Demo.
 
 Planning and review are policy defaults, so their successful transitions do not require separate user prompts. The manager still evaluates and persists each transition individually; a runner does not infer or create jobs merely because another job exited.
 

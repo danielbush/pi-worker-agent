@@ -140,6 +140,8 @@ This project-management policy uses vertical slices; another policy could use st
 
 The **Demo** is the concrete, observable experience that proves the current vertical slice produces a real result. It is the touchstone for every other decision, not a document section that disappears after planning. The manager must always make the user think about the vertical slice in terms of its Demo.
 
+**The Demo belongs to the user.** Worker execution, automated tests, and manager inspection prepare and support the Demo, but they do not perform it on the user's behalf. When work is ready, the manager must restate the exact Demo steps and expected observations, invite the user to perform or directly observe them, and wait for the user's feedback.
+
 - Frame every proposal, status update, scope discussion, and decision around the Demo: what the user will do, what they will observe, and why that result matters.
 - If work is proposed without a concrete Demo, pause and develop the Demo with the user before promoting a slice, creating a task, or debating implementation details.
 - Whenever discussing, resuming, summarizing, or making a decision about current project work, bring the Demo back into view in a short, concrete form.
@@ -147,7 +149,8 @@ The **Demo** is the concrete, observable experience that proves the current vert
 - Include the Demo in task and job context so implementation choices remain tied to the real result.
 - After a task or job settles, report Demo progress: what the user can now do, what still fails or is missing, and the next observable step.
 - Keep the Demo concise enough to repeat frequently. Refine it immediately when conversation or hands-on use reveals a clearer real-world interaction.
-- Never substitute internal completion, architecture, or passing tests for the Demo. A vertical slice closes only after the Demo is exercised and the observed result is put before the user.
+- Never substitute internal completion, architecture, passing tests, worker output, or manager inspection for the user's Demo.
+- Do not accept the final task or close the vertical slice until the user has performed or directly observed the Demo and responded with feedback or an explicit decision.
 
 - Build in small vertical slices that pass through the real system rather than completing one architectural layer at a time.
 - Every slice must put something real in the user’s hands: a command they can run, an interface they can use, output they can inspect, or an end-to-end behavior they can observe.
@@ -155,7 +158,7 @@ The **Demo** is the concrete, observable experience that proves the current vert
 - Write the Demo as though the capability already exists: an immediate, present-tense walkthrough in which the user performs or observes the real interaction and inspects its result.
 - Treat the Demo as a working-backwards artifact and the primary product touchstone, not merely as an acceptance test or optional release documentation. A reader returning to the project should immediately understand the experience being built.
 - Use the Demo to shape the slice boundary, outcomes, architecture, implementation, and tests. Keep it short and concrete enough to hold in mind while making trade-offs.
-- A slice is not complete merely because its automated tests pass. Run the Demo and put the result in the user’s hands for evaluation.
+- A slice is not complete merely because its automated tests pass. Present the runnable Demo to the user, wait while they perform or directly observe it, and record what they report.
 - The Demo is a living working-backwards artifact, not a frozen prediction. Update it whenever discussion, implementation, or hands-on use produces a clearer or more useful real-world interaction. Keep intent and outcomes aligned when the intended experience changes.
 - Prefer the smallest end-to-end capability that touches reality over a larger collection of internally complete abstractions.
 - Avoid building substantial infrastructure ahead of a usable path through it. Code that is well tested but has not yet participated in real behavior carries integration and product risk.
@@ -167,8 +170,9 @@ The strategy is to establish a visible, usable walking skeleton early and improv
 1. Choose one small user-observable outcome.
 2. Implement the minimum end-to-end path that produces it.
 3. Verify it with automated tests.
-4. Put it in the user’s hands with clear instructions for trying it.
-5. Gather feedback and use it to select the next slice.
+4. Restate the Demo with clear instructions and expected observations.
+5. Have the user perform or directly observe it.
+6. Record the user's feedback and use it to select the next slice.
 
 ## Vertical slice document format
 
@@ -201,7 +205,7 @@ Write as though the capability already exists. Give a short, concrete walkthroug
 
 `Outcomes` state what must become observable. `Build` describes the proposed mechanism. The **Demo** is the touchstone that makes the intended experience concrete before it exists and keeps discussion, architecture, implementation, and tests working toward the same real result. It is required before the slice becomes **Next**, but it may be revised as the team learns and the intended experience becomes clearer. A slice may use one or more tasks; each task carries its own execution-level `intent.md`, `outcomes.md`, and `background.md` for its jobs.
 
-At the end of the slice, run the Demo and append:
+At the end of the slice, present the Demo to the user and wait for them to perform or directly observe it. Then append:
 
 ```markdown
 ## Result
@@ -209,4 +213,4 @@ At the end of the slice, run the Demo and append:
 Record what the user could actually do and observe, any differences from the Demo, and the feedback or decision that followed.
 ```
 
-Update the Demo during the slice when learning changes the intended experience. Use `Result` to record what happened when the Demo was exercised, including remaining gaps and the user's response. When the user accepts the result or learning from the slice, retain the document as a durable record and move its link from **Next** to **Completed** in `sequence.md`. Then promote one tentative entry to **Next**, create its slice document, and refine its intent, outcomes, and Demo with the user.
+Update the Demo during the slice when learning changes the intended experience. Use `Result` to record what the user did or directly observed, including remaining gaps and the user's response. Worker reports and manager verification may be recorded as supporting evidence, but cannot replace the user's Demo. When the user accepts the result or learning from the slice, retain the document as a durable record and move its link from **Next** to **Completed** in `sequence.md`. Then promote one tentative entry to **Next**, create its slice document, and refine its intent, outcomes, and Demo with the user.
