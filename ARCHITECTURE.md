@@ -1,7 +1,6 @@
 # Architecture
 
 ```mermaid
-%%{init: {"flowchart": {"useMaxWidth": false, "nodeSpacing": 70, "rankSpacing": 90, "diagramPadding": 24, "subGraphTitleMargin": {"top": 8, "bottom": 20}}}}%%
 flowchart LR
     subgraph PolicyKernel[Agentic policy kernel]
         Agents["AGENTS.md<br/><br/>manager role and policy entry point"]
