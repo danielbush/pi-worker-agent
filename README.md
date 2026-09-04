@@ -163,7 +163,6 @@ bun run typecheck
 For implementation details, see:
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- [`DESIGN.md`](DESIGN.md)
 - [`ISSUES.md`](ISSUES.md)
 
 ## Inspiration
