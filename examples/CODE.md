@@ -53,7 +53,7 @@ Specific to this project
 
 ## Testing and safety
 
-- code tests - (unit and isolated/non-live integration tests)
+- code tests - (unit and sociable unit tests)
   - COMMENT: as above, follow a pattern similar to James Shore's nullable architecture
   - put in `__tests__/` subdirectory collocated with the module under test
   - test must not invoke a real model but should NOT mock or monkey patch
@@ -63,7 +63,7 @@ Specific to this project
   - for value objects, a static .createTestInstance can be used
   - mark sections of the test as: `// arrange`, `// act`, `// assert`
   - Be cautious with destructive operations. Never use an unrestricted recursive delete in tests; validate that cleanup targets are known test directories under the OS temporary directory.
-  - Run the isolated code tests and static checks after code changes.
+  - Run the code tests and static checks after code changes.
 
 - Live integration tests (tests that interact with their environment, filesystem, network, credentials, or external processes)
   - keep each test narrowly focused on one `INFRASTRUCTURE_WRAPPER` contract against a real or close-to-real resource
