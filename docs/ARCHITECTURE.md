@@ -29,7 +29,7 @@ flowchart TB
         TL[TASKS.md<br/>dated human-readable index]
         HI[history.jsonl<br/>archived runs]
         T[runs/run-id/task.md<br/>dated task specification]
-        JR[runs/run-id/job.md<br/>assigned worker result]
+        JR[runs/run-id/reports/NN-job.md<br/>assigned worker report]
 
         ST -->|generate| TL
         ST -->|archive oldest beyond 20| HI
@@ -99,7 +99,9 @@ flowchart TB
 - `TASKS.md` is a dated, generated view of `state.json` for people. It can be
   rebuilt and is never the source of truth.
 - `runs/<run-id>/task.md` is the manager-owned detailed task specification.
-- `runs/<run-id>/<job>.md` is the assigned worker's result.
+- `runs/<run-id>/reports/<NN>-<job>.md` is the assigned worker's report.
+  Two-digit sequence numbers record actual execution order; retries append a
+  new report instead of overwriting an earlier attempt.
 - `history.jsonl` is the append-only archive for older runs.
 - The external workspace stores project changes and Git history. It normally
   lives outside `projects/<name>/`.
@@ -117,5 +119,5 @@ flowchart TB
 |---|---|
 | Project README, `state.json`, `TASKS.md`, `history.jsonl`, `task.md` | Manager only |
 | Run directory and run metadata | Manager only |
-| `runs/<run-id>/<job>.md` | Only the worker assigned that file |
+| `runs/<run-id>/reports/<NN>-<job>.md` | Only the worker assigned that file |
 | External workspace | Workers, within the scope and commands authorized by the manager |

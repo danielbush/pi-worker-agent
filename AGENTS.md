@@ -29,8 +29,10 @@ other control files.
 
 `projects/<name>/runs/` is the narrow exception. The manager creates each run
 directory and assigns each worker exactly one result file. A worker may write
-only that assigned `runs/<run-id>/<job>.md` file in the control record. It must
-not edit another job's result or any other file under `projects/<name>/`.
+only its assigned `runs/<run-id>/reports/<NN>-<job>.md` file in the control
+record. It must not edit another report or any other file under
+`projects/<name>/`. Two-digit `NN` records actual execution order; retries get
+the next number rather than overwriting an earlier report.
 
 Workers do project work in an explicit **workspace**, normally outside this
 control repository. The manager selects or creates the workspace, records its
@@ -93,7 +95,7 @@ Don't create `state.json`; it appears on the first real run.
 2. Look up the workflow in `WORKFLOWS.md` to get its jobs, and each job's
    profile — profiles resolve to a model and thinking level in the same file.
 3. Select and verify the exact workspace.
-4. Create `projects/<name>/runs/<run-id>/` where `<run-id>` is
+4. Create `projects/<name>/runs/<run-id>/reports/` where `<run-id>` is
    `YYYY-MM-DD-HHMM-<workflow>`.
 5. Write manager-owned `task.md` in the run directory. Include the dated task,
    original request, acceptance criteria, workflow, exact workspace, relevant
@@ -137,8 +139,10 @@ improvise an unapproved command in those categories; it must report the need to
 the manager instead.
 
 Every worker prompt must name the one control-record file it may write:
-`projects/<name>/runs/<run-id>/<job>.md`. The manager creates the parent
-run directory before spawning the worker.
+`projects/<name>/runs/<run-id>/reports/<NN>-<job>.md`. The manager creates the
+run and `reports/` directories before spawning the worker. Allocate `NN` in
+actual execution order. A retry writes a new numbered report and never
+overwrites an earlier attempt.
 
 Pass paths between jobs, never objects — workers do not share your kernel.
 
@@ -210,7 +214,8 @@ what you need.
       "request": "what the user asked for",
       "task_file": "runs/2026-09-04-1430-build/task.md",
       "workspace": "/absolute/path/to/the/checkout-or-worktree-used",
-      "jobs": [{"job": "plan", "model": "...", "status": "done"}],
+      "jobs": [{"job": "plan", "model": "...", "status": "done",
+                "report_file": "runs/2026-09-04-1430-build/reports/01-plan.md"}],
       "outcome": "one line, written when the run ends"
     }
   ],

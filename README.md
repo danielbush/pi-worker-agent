@@ -38,7 +38,10 @@ prime-worker-agent/
       runs/
         <run-id>/
           task.md      # dated manager-owned task specification
-          <job>.md     # result written by the assigned worker
+          reports/
+            01-plan.md       # first worker report
+            02-implement.md  # second worker report
+            03-review.md     # third worker report
     website/
       ...
   .agents/skills/      # optional, later: frozen orchestration code
@@ -55,8 +58,9 @@ The split inside it matters:
 - `state.json` is canonical recent state; `history.jsonl` is the older archive.
   Each run records its date and exact workspace.
 - `TASKS.md` is a dated human-readable index generated from `state.json`.
-- `runs/<run-id>/task.md` is the manager-owned detailed task. A worker may write
-  only its assigned `<job>.md`; the manager owns everything else under
+- `runs/<run-id>/task.md` is the manager-owned detailed task. Worker results
+  live in execution order under `reports/<NN>-<job>.md`. A worker may write only
+  its assigned report; the manager owns everything else under
   `projects/<name>/`.
 
 JSON rather than markdown for state is deliberate. The manager reads and writes
@@ -82,8 +86,9 @@ its absolute path. Every worker prompt carries that path and instructs the
 worker to `os.chdir` there before doing anything. The workspace may be a Git
 worktree; the manager must not replace it with the main checkout or Git common
 directory. The prompt also carries only the constraints and approved commands
-needed for that job. Apart from its assigned `runs/<run-id>/<job>.md` result,
-a worker never edits the manager's `projects/<name>/` control record.
+needed for that job. Apart from its assigned
+`runs/<run-id>/reports/<NN>-<job>.md`, a worker never edits the manager's
+`projects/<name>/` control record.
 
 Workers also do not share the manager's Python kernel. Pass paths between them,
 never objects.
@@ -145,8 +150,9 @@ The policy the manager always has in context. In this order:
   approved project commands; do not hand them the whole manager configuration.
 - Check each job's result before starting the next. A failed job loops back
   rather than proceeding.
-- Workers write to `projects/<name>/runs/<run-id>/<job>.md`. Read that, don't
-  rely on the transcript.
+- Workers write only their assigned
+  `projects/<name>/runs/<run-id>/reports/<NN>-<job>.md`. Read that, not the
+  transcript. Retries get a new sequence number.
 - Update `state.json` when a run starts, changes status, or finishes.
 - Report to the user in plain language between jobs.
 
@@ -181,10 +187,11 @@ Use `agent_observe` to watch progress, `agent_message.send(...,
 receiver_role="child")` to send a follow-up, and `rlm-heartbeat` for long runs.
 Keep a child alive until you've read its output.
 
-The manager creates `runs/<run-id>/` before spawning jobs. Each worker owns only
-its assigned `<job>.md` result file. Review workers may read earlier results but
-must write a separate assigned file. The manager alone updates the project
-README, state, history, and run metadata.
+The manager creates `runs/<run-id>/reports/` before spawning jobs. Each worker
+owns only its assigned `<NN>-<job>.md` report. Sequence numbers record actual
+execution order. Review and retry workers may read earlier reports but must
+write a new numbered report. The manager alone updates the project README,
+state, history, and run metadata.
 
 Treat these job result files as the real interface. They survive context
 compaction and kernel death; handles don't.
