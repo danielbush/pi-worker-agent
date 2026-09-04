@@ -1,88 +1,90 @@
 # pi-worker-agent
 
-A work-in-progress Pi extension for managing durable tasks and detached worker agents from Pi.
+A local [Pi](https://github.com/badlogic/pi-mono) extension that lets one manager agent organise and supervise coding agents.
 
-Development is driven through the managed `pi-worker-agent` project under the configured data root. The current target is manager-orchestrated `plan → implement → review` work through named Pi or Cursor Agent profiles, without a hardcoded demo command.
+This is experimental and has barely been tested beyond the author's hot little hands. Expect rough edges.
 
-See:
+## Why?
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — target data and source architecture.
-- [`DIAGNOSTICS.md`](DIAGNOSTICS.md) — focused readiness checks and diagnostic exercises.
-- [`DESIGN.md`](DESIGN.md) — current outcomes, intent, and implementation plan.
-- [`examples/`](examples/) — default policy files for project management, workflow, and coding.
+The user talks to one manager agent in Pi. That manager can organise workers across different models and harnesses—for example, Sol 5.6 workers through the Pi harness and Grok workers through the Cursor harness.
 
-## Install and test
-
-```bash
-bun install
-bun run test
-bun run typecheck
-```
-
-Worker-agent data defaults to the project-local, gitignored `work/` directory.
-Consumers normally copy the example policies into their data root and customize
-them, or create their own. This maintainer checkout symlinks its `work/` policy
-files to `examples/` only so the examples can be maintained and used in place;
-the symlinks are not part of normal usage. Consumers can choose another data
-root by setting `DATA_ROOT`, or set `PI_WORKER_AGENT_DATA_ROOT` when they need
-the worker-agent-specific variable to take precedence.
-
-```dotenv
-DATA_ROOT=/path/to/worker-agent-data
-# or, with precedence over DATA_ROOT:
-PI_WORKER_AGENT_DATA_ROOT=/path/to/worker-agent-data
-```
-
-List managed projects with the same data-root resolution used by the extension:
-
-```bash
-bun run projects
-```
-
-The project-local extension entry point is:
-
-```text
-.pi/extensions/worker-agent/index.ts
-```
-
-## Managed-project development
-
-The current project sequence and vertical-slice walkthrough are stored under:
-
-```text
-$DATA_ROOT/projects/pi-worker-agent/
-```
-
-`WORKFLOW.md` defines the coding flow the manager applies. Planning and review are defaults, with explicit per-task omissions available:
+Every piece of work is represented as a durable **task** containing one or more **jobs**. Jobs can be sequenced into workflows such as:
 
 ```text
 plan → implement → review
 ```
 
-The manager uses narrow orchestration tools to verify the structured boundary around project collections, safely manage text files inside registered policy-owned project directories, register workspaces and management projects, create and associate tasks, query project task status, list live harness model catalogs, delegate jobs explicitly, inspect completed implementation diffs, and merge user-approved work into its authorized project workspace. Active projects live under `$DATA_ROOT/projects/`, application-owned diagnostic projects under `$DATA_ROOT/projects/.test/`, and archived projects under `$DATA_ROOT/projects/.archive/`. Normal project listings show only active projects; `worker_prepare_diagnostic_project` provides a deterministic diagnostic project and authorized workspace without prompting for a production location; `worker_archive_project` refuses outstanding work, preserves project/task identity, and makes the archived project read-only through manager mutation tools. Manager mode exposes only read and orchestration tools; arbitrary shell commands and file mutations are blocked. `worker_manage_project_file` confines text mutations to a registered active or test project, requires exact inspected content for updates and deletes, writes atomically, and returns a diff. The manager may inspect and propose ordinary workspace paths, but registration or directory creation requires interactive user approval. SQLite records approved canonical workspace paths, maps each project directory to durable collection-aware metadata, and associates tasks through `projects_tasks`; Markdown `taskid://...` links remain human-facing references. At manager startup, `worker_verify_project_structure` checks all three collection roots for non-directory entries, missing regular `sequence.md` files, duplicate names, wrong locations, and registration mismatches before policy-owned contents are interpreted. Projects, workspaces, and tasks use bare UUIDs, and manager tools accept unique leading shorthand of at least four characters.
+The runner does not hardcode what higher-level work means. Project management—the stories, epics, priorities, review rules, and acceptance process—is deliberately controlled by editable policy documents. The author's policy favours small **Vertical slices**, real user-observed Demos, and a tight OODA loop so agent work stays grounded in outcomes.
 
-When directly developing this system, the user can run `/development-mode` and confirm the warning to restore unrestricted coding tools for the current session. `/manager-mode` immediately restores the restricted tool set, and every new or reloaded session starts restricted.
+See [`examples/`](examples/) for the policy documents used by the author.
 
-Quickly test the boundary with the harmless prompt `Use bash to run pwd. Do not use another tool.` It should be unavailable or blocked after startup and after `/manager-mode`, succeed after confirmed `/development-mode`, then become unavailable again after `/manager-mode`.
+## Try it locally
 
-`$DATA_ROOT/WORKFLOW.md` (default `work/WORKFLOW.md`) remains human-readable task, dependency, review, and merge policy. Structured execution prerequisites live in durable `agentProfiles` and `jobTypes` catalogs configured through narrow manager tools. Every active job type has a trusted capability, worktree strategy, and non-null default agent profile. Delegation may explicitly select another active profile for one job; otherwise it uses the job-type default. The job records both catalog IDs, the assignment source, and the exact verified invocation snapshot.
-
-Pi workers use `@earendil-works/pi-coding-agent`; Cursor workers use `@cursor/sdk`. Each SDK runs inside a dedicated, independently cancellable Bun subprocess. Pi uses whole-process OS sandboxing. Cursor currently uses the explicit `NullSandbox` trusted-process strategy because its local-agent stream stalls behind the sandbox runtime HTTP proxy; see `CURSOR_SDK_PROXY_STREAM_STALL` in [`ISSUES.md`](ISSUES.md). Cursor SDK authentication requires `CURSOR_API_KEY` or credentials created by `Cursor.auth.login()` in `~/.cursor/sdk/auth.json`; a Cursor Agent CLI keychain login is not reused by the SDK.
-
-To authenticate the Cursor SDK without putting an API key in the environment, run this from the installed project and complete the browser login:
+You need Pi and Bun installed. Clone the repository, install dependencies, and launch Pi from inside it:
 
 ```bash
-bun -e 'import { Cursor } from "@cursor/sdk"; const { email } = await Cursor.auth.login({ apiKeyName: "pi-worker-agent" }); console.log("Logged in", email ?? "");'
+git clone https://github.com/danielbush/pi-worker-agent.git
+cd pi-worker-agent
+bun install
+pi
 ```
 
-The SDK stores a named, revocable credential in `~/.cursor/sdk/auth.json`. Confirm that the manager can use it with `worker_list_models` for `cursor-agent`; successful output includes the live Cursor model IDs. Model IDs come from that SDK catalog and are matched exactly. Default example workflow jobs still use Pi.
-
-Planning and review workers are read-only by application-selected tools; implementation workers receive an isolated worktree plus write, edit, and shell tools. Reviews inherit the implementation worktree through their dependency and inspect it without write tools. Process isolation is selected through `HarnessSandboxCatalog`: Pi runs through `@anthropic-ai/sandbox-runtime` (`sandbox-exec` on macOS and Bubblewrap on Linux), while Cursor currently runs with `NullSandbox`. Pi sandbox writes are limited to the implementation worktree, canonical worker-session directory, and a non-canonical private OS temporary directory; common model-provider domains are allowlisted and sensitive credential directories are denied to worker reads. Cursor retains worktree isolation and the same minimal private environment but is trusted same-user code, so its shell tool is not confined by an OS boundary. Selected Pi or Cursor SDK credentials are staged after preflight under a disposable private `HOME` and removed on every settlement path. The child receives only its selected SDK credential and a minimal runtime environment; it does not receive the manager's persistent Cursor/Pi files. Linux hosts running Pi workers must provide `bubblewrap`, `socat`, and `ripgrep`.
-
-Settled worker results trigger a new manager turn. The manager re-reads policy, evaluates the result, and performs the next required transition; the runner itself never invents successor jobs. When an implementation is ready under the workflow, the manager tells the user the job finished and asks whether to merge it into the project. The user can ask to inspect the result and `git diff`, approve the merge, or leave it unmerged. Inspection is read-only and opens the completed job's derived worktree with the executable named by `EDITOR`; an unset or unavailable editor produces a setup error instead of merging. After the user approves in conversation, the merge tool runs without a redundant second confirmation. It requires a completed implementation job and clean matching Git state, commits its worktree changes, and cherry-picks them into the authorized workspace. It aborts a conflicting cherry-pick rather than leaving a partial merge, and removes the detached implementation worktree through Git only after a successful merge. After accepting the task outcome, the manager uses a narrow completion tool to settle the task.
-
-Verbose status includes the immutable profile fingerprint, trusted capability, harness version, and native invocation snapshot. Inspect any created task from Pi with:
+Pi loads the local extension from:
 
 ```text
-/task-status <task-uuid>
+.pi/extensions/worker-agent/index.ts
 ```
+
+The manager starts with restricted tools. Use `/development-mode` only when you intentionally want to let it modify this codebase directly; `/manager-mode` returns to restricted manager tools.
+
+## Data and policy
+
+Worker-agent state defaults to the repository's gitignored `work/` directory. That is convenient for trying it, but for ongoing use you may want the data outside the clone so it can be organised, backed up, and retained independently:
+
+```dotenv
+DATA_ROOT=/path/to/worker-agent-data
+```
+
+A worker-agent-specific override takes precedence:
+
+```dotenv
+PI_WORKER_AGENT_DATA_ROOT=/path/to/worker-agent-data
+```
+
+The data root holds the SQLite registry, durable task/job files, project-management files, and policy documents:
+
+- `PROJECT.md` — how higher-level projects and work are organised.
+- `WORKFLOW.md` — how jobs are sequenced, reviewed, revised, and accepted.
+- `CODE.md` — coding, architecture, testing, and safety conventions.
+
+Copy and adapt the examples rather than treating the author's preferences as hardcoded product behavior.
+
+## Safety warning
+
+Sandboxing remains an ongoing issue.
+
+- The Pi manager starts in application-restricted manager mode.
+- Pi workers run through OS sandboxing provided by `@anthropic-ai/sandbox-runtime`.
+- Cursor workers currently cannot use the same sandbox reliably because the Cursor SDK stream stalls behind its HTTP proxy. They therefore run with an explicit `NullSandbox` as trusted same-user processes.
+
+A Cursor worker still gets an isolated Git worktree and minimal environment, but its shell is **not** confined by an OS sandbox. Be careful about which repositories, credentials, prompts, and job capabilities you give it. See [`ISSUES.md`](ISSUES.md) for the current limitation.
+
+## Development checks
+
+```bash
+bun run test
+bun run typecheck
+```
+
+See [`DIAGNOSTICS.md`](DIAGNOSTICS.md) for focused readiness checks. It defaults to quick, non-live checks rather than launching models unnecessarily.
+
+For implementation details, see:
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- [`DESIGN.md`](DESIGN.md)
+- [`DIAGNOSTICS.md`](DIAGNOSTICS.md)
+- [`ISSUES.md`](ISSUES.md)
+
+## Inspiration
+
+Inspired by Kun Chen's [firstmate](https://github.com/kunchenguid/firstmate)—check it out, along with [Kun Chen's posts and videos](https://x.com/kunchenguid). This project is an attempt to roll a smaller, policy-driven version using Pi and Bun.
