@@ -14,9 +14,9 @@ models, so you change your mind in one place.
 | Profile | Model | Thinking | For |
 |---|---|---|---|
 | `planner` | `openai-codex/gpt-5.6-sol` | medium | Working out approach, weighing options |
-| `coder` | `openrouter/z-ai/glm-5.3-flash` | medium | Writing the change |
+| `coder` | `openrouter/z-ai/glm-5.3-flash` | high | Writing the change |
 | `reviewer` | `openai-codex/gpt-5.6-sol` | medium | Judging whether it's right |
-| `quick` | `openrouter/z-ai/glm-5.3-flash` | off | Mechanical work, summarising |
+| `quick` | `openrouter/z-ai/glm-5.3-flash` | low | Mechanical work, summarising |
 
 Every job runs as a Prime Agent subagent:
 
