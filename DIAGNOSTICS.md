@@ -66,7 +66,7 @@ This is not a default readiness check. It takes longer, launches real workers, a
 
 This focused real-worker diagnostic verifies that a manager can select an explicit agent profile for one job, otherwise use the job type's default, and preserve both jobs after configuration is retired.
 
-Call `worker_prepare_diagnostic_project` and use the returned conventional `$DATA_ROOT/.test/system-diagnostics/workspace`; do not ask the user to choose a workspace or use a production project. Jobs must be read-only, must not run tests, and should only read its `README.md` and return a one-sentence identification. The user observes the manager tool output and decides whether the result is accepted.
+Call `worker_prepare_diagnostic_project` and use the returned conventional `$DATA_ROOT/projects/.test/system-diagnostics/workspace`; do not ask the user to choose a workspace or use a production project. Jobs must be read-only, must not run tests, and should only read its `README.md` and return a one-sentence identification. The user observes the manager tool output and decides whether the result is accepted.
 
 ### Arrange
 

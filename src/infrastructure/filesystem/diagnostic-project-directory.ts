@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { projectCollectionDirectory } from "../../domain/project-collection.ts";
 
 export interface DiagnosticProjectLocation {
   directoryName: string;
@@ -26,7 +27,7 @@ export class DiagnosticProjectDirectory {
 
 function location(dataRoot: string): DiagnosticProjectLocation {
   const directoryName = "system-diagnostics";
-  const projectRoot = join(resolve(dataRoot), ".test", directoryName);
+  const projectRoot = join(resolve(dataRoot), projectCollectionDirectory("test"), directoryName);
   return { directoryName, projectRoot, workspaceRoot: join(projectRoot, "workspace") };
 }
 

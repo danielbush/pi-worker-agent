@@ -17,7 +17,7 @@ export class ManagedProjectCatalog {
         const projectsRoot = join(root, "projects");
         requireDirectory(projectsRoot, "DATA_ROOT/projects");
         return readdirSync(projectsRoot, { withFileTypes: true })
-          .filter((entry) => entry.isDirectory())
+          .filter((entry) => entry.isDirectory() && entry.name !== ".test" && entry.name !== ".archive")
           .map((entry) => entry.name)
           .sort((a, b) => a.localeCompare(b));
       },

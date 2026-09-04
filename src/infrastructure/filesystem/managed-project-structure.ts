@@ -65,13 +65,17 @@ function collectionRoots(dataRoot: string): Record<ProjectCollection, string> {
 }
 
 function inspectCollection(root: string, collection: ProjectCollection, required: boolean): ManagedProjectStructureEntry[] {
-  try {
-    if (!statSync(root).isDirectory()) throw new Error();
-  } catch {
+  let rootStat;
+  try { rootStat = lstatSync(root); } catch {
     if (required) throw new Error(`DATA_ROOT/${projectCollectionDirectory(collection)} is missing or is not a directory: ${root}`);
     return [];
   }
-  return readdirSync(root, { withFileTypes: true }).map((entry) => {
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+    throw new Error(`DATA_ROOT/${projectCollectionDirectory(collection)} is not a regular directory: ${root}`);
+  }
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => collection !== "active" || (entry.name !== ".test" && entry.name !== ".archive"))
+    .map((entry) => {
     const kind: ManagedProjectEntryKind = entry.isDirectory()
       ? "directory"
       : entry.isFile()

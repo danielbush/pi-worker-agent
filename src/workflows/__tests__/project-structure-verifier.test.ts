@@ -31,8 +31,8 @@ test("verifies immediate project directories and registered identities", () => {
     projectsRoot: "/null-worker-agent/projects",
     roots: {
       active: "/null-worker-agent/projects",
-      test: "/null-worker-agent/.test",
-      archive: "/null-worker-agent/.archive",
+      test: "/null-worker-agent/projects/.test",
+      archive: "/null-worker-agent/projects/.archive",
     },
     projects: [PROJECT],
   });

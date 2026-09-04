@@ -23,7 +23,7 @@ test("prepares one conventional diagnostic project and authorized workspace idem
   expect(second).toEqual(first);
   expect(first.project).toMatchObject({ collection: "test", directoryName: "system-diagnostics" });
   expect(first.workspace).toMatchObject({
-    rootDir: "/null-worker-agent/.test/system-diagnostics/workspace",
+    rootDir: "/null-worker-agent/projects/.test/system-diagnostics/workspace",
     authorizedBySessionId: "system-diagnostic-convention",
   });
   expect(registry.projects.list("active")).toEqual([]);

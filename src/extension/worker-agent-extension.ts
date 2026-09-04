@@ -325,7 +325,7 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_prepare_diagnostic_project",
       label: "Prepare diagnostic project",
-      description: "Prepare and return the conventional application-owned project and workspace under $DATA_ROOT/.test/.",
+      description: "Prepare and return the conventional application-owned project and workspace under $DATA_ROOT/projects/.test/.",
       promptSnippet: "Prepare the conventional diagnostic project without asking the user to choose a workspace",
       parameters: Type.Object({}),
       execute: async () => {
@@ -341,14 +341,14 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_archive_project",
       label: "Archive managed project",
-      description: "Move an active project into $DATA_ROOT/.archive while preserving its durable identity and task history.",
+      description: "Move an active project into $DATA_ROOT/projects/.archive while preserving its durable identity and task history.",
       promptSnippet: "Archive an active managed project",
       parameters: Type.Object({ project: Type.String({ description: "Active project directory name, exact ID, or unique leading shorthand" }) }),
       execute: async (_toolCallId, params) => {
         const registry = this.registry ??= this.services.registry();
         const project = ProjectArchiver.create(this.root, registry).archive(params.project);
         return {
-          content: [{ type: "text", text: `Archived project ${project.title} (${project.id}) under .archive/${project.directoryName}.` }],
+          content: [{ type: "text", text: `Archived project ${project.title} (${project.id}) under projects/.archive/${project.directoryName}.` }],
           details: project,
         };
       },
