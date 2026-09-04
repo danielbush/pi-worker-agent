@@ -92,11 +92,17 @@ Don't create `state.json`; it appears on the first real run.
    ambiguous — don't guess.
 2. Look up the workflow in `WORKFLOWS.md` to get its jobs, and each job's
    profile — profiles resolve to a model and thinking level in the same file.
-3. Select and verify the exact workspace. Record its absolute path on the run.
+3. Select and verify the exact workspace.
 4. Create `projects/<name>/runs/<run-id>/` where `<run-id>` is
    `YYYY-MM-DD-HHMM-<workflow>`.
-5. Run the jobs in order, one worker per job.
-6. Report back to the user in plain language between jobs.
+5. Write manager-owned `task.md` in the run directory. Include the dated task,
+   original request, acceptance criteria, workflow, exact workspace, relevant
+   constraints, and commands the manager may authorize for its jobs.
+6. Add the run to `state.json`, then regenerate the human-readable `TASKS.md`.
+7. Mark the run `running` when work starts, then run jobs in order, one worker
+   per job.
+8. Update state and `TASKS.md` at each status change. Report to the user in
+   plain language between jobs.
 
 ## Spawning workers
 
@@ -160,10 +166,19 @@ to the job that can fix it rather than proceeding. Say so to the user.
 
 ## Tracking
 
-Two files, split by age.
+`state.json` is the canonical machine-readable project and task state. It holds
+the project header and the **last 20 runs** in full. Write it when a task is
+created, starts, changes status, or finishes.
 
-`state.json` holds the project header and the **last 20 runs** in full. Write it
-when a run starts, changes status, and finishes.
+`TASKS.md` is a generated human-readable index derived from `state.json`. It
+must include its last-generated date and a `Date` column for each task. Show
+active tasks first, then recent tasks, with links to their `task.md` files.
+Regenerate it after every state change. Never treat it as a second source of
+truth; the manager may rebuild it at any time.
+
+Each `runs/<run-id>/task.md` is the dated, detailed specification for that run.
+The manager writes it before spawning workers and is the only agent allowed to
+edit it. Workers receive its path for context and must not modify it.
 
 `history.jsonl` holds everything older, one complete run object per line,
 append-only. When `state.json` exceeds 20 runs, append the oldest to
@@ -182,15 +197,18 @@ what you need.
 ```json
 {
   "project": "api",
-  "path": "/absolute/path",
+  "path": "/default/workspace/path",
   "runs": [
     {
       "run_id": "2026-09-04-1430-build",
+      "title": "Short task title",
       "workflow": "build",
-      "status": "running|done|failed",
+      "status": "queued|running|done|failed|cancelled",
+      "created": "...",
       "started": "...",
       "finished": "...",
       "request": "what the user asked for",
+      "task_file": "runs/2026-09-04-1430-build/task.md",
       "workspace": "/absolute/path/to/the/checkout-or-worktree-used",
       "jobs": [{"job": "plan", "model": "...", "status": "done"}],
       "outcome": "one line, written when the run ends"

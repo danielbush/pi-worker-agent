@@ -17,7 +17,8 @@ automatically, and loads skills from `.agents/skills/` there too. So a directory
 it inside a project and it comes up as an ordinary coding agent.
 
 Nothing here is a codebase. It is policy, workflow definitions, and per-project
-tracking.
+tracking. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data flow
+and ownership model.
 
 ## Layout
 
@@ -25,13 +26,19 @@ tracking.
 prime-worker-agent/
   AGENTS.md            # policy — auto-loaded into the manager's system prompt
   WORKFLOWS.md         # profiles + workflows (you edit this, or ask the manager)
-  BACKLOG.md           # ideas not built yet
+  docs/
+    ARCHITECTURE.md    # data flow, storage, outputs, and ownership
+    BACKLOG.md         # ideas not built yet
   projects/
     api/
-      README.md        # manager context: path, commands, constraints, goals
-      state.json       # the manager writes: header + last 20 runs
-      history.jsonl    # the manager appends: older runs, one per line
-      runs/            # per-run job output
+      README.md        # manager context: workspace, commands, constraints
+      state.json       # canonical header + last 20 runs
+      TASKS.md         # dated human-readable view generated from state.json
+      history.jsonl    # append-only archive of older runs
+      runs/
+        <run-id>/
+          task.md      # dated manager-owned task specification
+          <job>.md     # result written by the assigned worker
     website/
       ...
   .agents/skills/      # optional, later: frozen orchestration code
@@ -45,10 +52,12 @@ The split inside it matters:
 - `README.md` is manager-owned project context: what the project is, its
   workspace options, approved commands, constraints, and goals. The manager
   extracts a minimal brief for each worker rather than sending this whole file.
-- `state.json` and `history.jsonl` are manager-owned current status and job
-  history. Each run records the exact workspace used.
-- `runs/` is manager-created worker output. A worker may write only its assigned
-  `<job>.md`; the manager owns everything else under `projects/<name>/`.
+- `state.json` is canonical recent state; `history.jsonl` is the older archive.
+  Each run records its date and exact workspace.
+- `TASKS.md` is a dated human-readable index generated from `state.json`.
+- `runs/<run-id>/task.md` is the manager-owned detailed task. A worker may write
+  only its assigned `<job>.md`; the manager owns everything else under
+  `projects/<name>/`.
 
 JSON rather than markdown for state is deliberate. The manager reads and writes
 it in a line of Python and it never drifts. Markdown state gets reformatted a
@@ -91,7 +100,8 @@ The manager reads this to resolve "work on the API" into `/Users/you/code/api`.
 It keeps the complete context and gives each worker only the path, commands,
 constraints, inputs, and output location needed for that job.
 
-Leave `state.json` alone; the manager creates it on first run.
+Leave `state.json` alone; the manager creates it when the first task is
+recorded and generates `TASKS.md` from it.
 
 ### 2. Write `WORKFLOWS.md`
 

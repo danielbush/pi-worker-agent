@@ -19,9 +19,10 @@ a worker from a selected worktree to the main checkout.
 
 ## Control-record ownership
 
-Only the manager edits `README.md`, `state.json`, `history.jsonl`, and run
-metadata under `projects/<name>/`. The manager creates each run directory. A
-worker may write only its assigned `runs/<run-id>/<job>.md` result file.
+Only the manager edits `README.md`, `state.json`, generated `TASKS.md`,
+`history.jsonl`, each run's dated `task.md`, and run metadata under
+`projects/<name>/`. The manager creates each run directory. A worker may write
+only its assigned `runs/<run-id>/<job>.md` result file.
 
 ## What it is
 
