@@ -21,6 +21,14 @@ Run these non-live, non-mutating checks first:
    - Confirm required profiles and job types are active.
    - Confirm every active job type has a trusted capability, worktree strategy, and active default profile.
 5. When preparing an actual delegation, confirm the task has an authorized workspace and required dependencies have completed.
+6. When verifying the codebase in development mode, run the default isolated code tests and static checks:
+
+   ```sh
+   bun run test
+   bun run typecheck
+   ```
+
+   `bun run test` changes into `src/` before discovery. It does not include project-level integration tests, retained worktrees, model calls, network access, or real credentials.
 
 If these checks pass and there is no specific warning or higher-confidence requirement, report that the system is probably ready and do not run a longer diagnostic.
 
@@ -44,22 +52,13 @@ Targeted checks include:
 - one explicitly named integration test for the `INFRASTRUCTURE_WRAPPER` under investigation;
 - one extended real-worker diagnostic, such as the profile-selection exercise below, when the full path needs evidence.
 
-## Quick codebase verification
-
-The default code test is intentionally isolated from retained worktrees and project-level integration tests:
-
-```sh
-bun run test
-bun run typecheck
-```
-
-Run a live or filesystem integration test only by changing into its directory and naming the individual test file:
+The tests under `tests/integration/` are opt-in real-resource contract checks. Run one only by changing into its directory and naming the individual file:
 
 ```sh
 (cd tests/integration && bun test <specific-test>.test.ts)
 ```
 
-Do not run bare `bun test` from the repository root or the whole `tests/integration/` directory as routine verification. Bun path filters can also match copies under retained worktrees, so changing into the intended test root is part of the isolation boundary.
+Most currently use temporary local filesystem directories or SQLite databases. The Git tests spawn the local Git executable, and the worker-sandbox test exercises platform sandboxing; those process/platform boundaries are more environment-sensitive than the default suite. None of the current integration files calls a remote model or network service. Do not run bare `bun test` from the repository root or the whole integration directory as routine verification.
 
 ## Extended diagnostic — execution profile selection
 
