@@ -31,8 +31,9 @@
   - Constructors should NOT receive null flags, nullable backends, or null-specific state.  The class instance should NEVER know it is using a NULL_VARIANT or not.
   - createNull() configuration is confined to each class’s static createNull().
   - Production DRIVER_CODE is injected by create().
-  - Static `create()` and `createNull()` methods are shallow composition roots. They instantiate and connect named dependencies; they do not contain substantial filesystem, network, credential, provider-specific, or lifecycle behavior in inline callbacks. Extract that behavior into the INFRASTRUCTURE_WRAPPER or adapter that owns it.
-  - DRIVER_CODE invocation and coordination must remain in instance methods and constructors.
+  - Static `create()` and `createNull()` methods are shallow, declarative composition roots. Their bodies should make the object graph obvious at a glance: instantiate the class, connect named dependencies or named driver objects, and return it.
+  - Do not define operational callbacks, filesystem traversal, network calls, credential handling, control flow, data transformation, or lifecycle behavior inside `create()` or `createNull()`. If a factory needs more than straightforward constructor wiring, extract the behavior into a named driver, adapter, instance method, or function and inject that name.
+  - Production and null driver implementations should be named so factory wiring reads as composition rather than implementation. Keep DRIVER_CODE invocation and coordination out of factories and in the owning driver, adapter, instance method, or constructor.
   - NULL_VARIANT's use EMBEDDED_STUB's implementing the same driver interfaces.
 - Name source files after major domain constructs, such as `job.ts`, `task.ts`, and `worker-session.ts`; avoid generic names such as `types.ts` or `utils.ts`.
 - Add concise docstrings that map classes to the constructs and ownership boundaries in `ARCHITECTURE.md`.
