@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
+import { ProjectCollectionPaths } from "../../domain/project-collection-paths.ts";
 import { DiagnosticProjectDirectory } from "../../infrastructure/filesystem/diagnostic-project-directory.ts";
+import { FileSystem } from "../../infrastructure/filesystem/file-system.ts";
 import { ManagedProjectMover } from "../../infrastructure/filesystem/managed-project-mover.ts";
 import { Clock } from "../../infrastructure/system/clock.ts";
 import { Registry } from "../../storage/registry.ts";
@@ -47,13 +49,15 @@ test("archives an active project without changing its identity", () => {
     description: null, createdAt: TIMESTAMP, lastUsedAt: TIMESTAMP,
   };
   const registry = Registry.createNull({ projects: [project] });
-  const moves: Array<{ directoryName: string; from: "active" | "test" | "archive"; to: "active" | "test" | "archive" }> = [];
-  const archiver = new ProjectArchiver(registry, ManagedProjectMover.createNull(moves));
+  const paths = new ProjectCollectionPaths("/null-worker-agent");
+  const fileSystem = FileSystem.createNull({ directories: [paths.projectPath("active", "demo")] });
+  const archiver = new ProjectArchiver(registry, new ManagedProjectMover(paths, fileSystem));
 
   const archived = archiver.archive("demo");
 
   expect(archived).toEqual({ ...project, collection: "archive" });
   expect(registry.projects.get(project.id)?.collection).toBe("archive");
-  expect(moves).toEqual([{ directoryName: "demo", from: "active", to: "archive" }]);
+  expect(fileSystem.kind(paths.projectPath("active", "demo"))).toBe("missing");
+  expect(fileSystem.kind(paths.projectPath("archive", "demo"))).toBe("directory");
   expect(() => archiver.archive("demo")).toThrow("Only active projects can be archived");
 });

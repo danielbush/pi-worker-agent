@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ManagedProjectCatalog } from "../../infrastructure/filesystem/managed-project-catalog.ts";
+import { ManagedProjectCatalog } from "../managed-project-catalog.ts";
 import { Registry } from "../../storage/registry.ts";
 import { ProjectCatalogReporter } from "../project-catalog-reporter.ts";
 

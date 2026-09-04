@@ -1,8 +1,8 @@
-import { lstatSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { projectCollectionDirectory, type ProjectCollection } from "../../domain/project-collection.ts";
+import { ProjectCollectionPaths, type ProjectCollection } from "../../domain/project-collection-paths.ts";
+import { FileSystem, type FileKind, type NullFileSystemState } from "./file-system.ts";
 
-export type ManagedProjectEntryKind = "directory" | "file" | "symbolic-link" | "other";
+export type ManagedProjectEntryKind = Exclude<FileKind, "missing">;
 
 export interface ManagedProjectStructureEntry {
   collection: ProjectCollection;
@@ -17,91 +17,68 @@ export interface ManagedProjectStructureSnapshot {
   entries: ManagedProjectStructureEntry[];
 }
 
-interface ManagedProjectStructureDriver {
-  inspect(dataRoot: string): ManagedProjectStructureSnapshot;
-}
-
-/** INFRASTRUCTURE_WRAPPER: inventories active, test, and archive project collections. */
+/** INFRASTRUCTURE_CONSUMER: inventories active, test, and archive project collections. */
 export class ManagedProjectStructure {
-  constructor(private readonly dataRoot: string, private readonly driver: ManagedProjectStructureDriver) {}
+  constructor(private readonly paths: ProjectCollectionPaths, private readonly fileSystem: FileSystem) {}
 
-  static create(dataRoot: string): ManagedProjectStructure {
-    return new ManagedProjectStructure(dataRoot, { inspect: productionSnapshot });
+  static create(paths: ProjectCollectionPaths, fileSystem: FileSystem): ManagedProjectStructure {
+    return new ManagedProjectStructure(paths, fileSystem);
   }
 
   static createNull(
     entries: Array<Omit<ManagedProjectStructureEntry, "collection"> & { collection?: ProjectCollection }> = [],
     dataRoot = "/null-worker-agent",
   ): ManagedProjectStructure {
-    return new ManagedProjectStructure(dataRoot, {
-      inspect: (root) => ({
-        dataRoot: root,
-        roots: collectionRoots(root),
-        entries: entries.map((entry) => ({ ...entry, collection: entry.collection ?? "active" })),
-      }),
-    });
-  }
-
-  inspect(): ManagedProjectStructureSnapshot { return this.driver.inspect(this.dataRoot); }
-}
-
-function productionSnapshot(dataRoot: string): ManagedProjectStructureSnapshot {
-  requireDirectory(dataRoot, "DATA_ROOT");
-  requireFile(join(dataRoot, "PROJECT.md"), "PROJECT.md");
-  const roots = collectionRoots(dataRoot);
-  requireDirectory(roots.active, "DATA_ROOT/projects");
-  const entries = (["active", "test", "archive"] as const).flatMap((collection) =>
-    inspectCollection(roots[collection], collection, collection === "active"),
-  );
-  return { dataRoot, roots, entries };
-}
-
-function collectionRoots(dataRoot: string): Record<ProjectCollection, string> {
-  return {
-    active: join(dataRoot, projectCollectionDirectory("active")),
-    test: join(dataRoot, projectCollectionDirectory("test")),
-    archive: join(dataRoot, projectCollectionDirectory("archive")),
-  };
-}
-
-function inspectCollection(root: string, collection: ProjectCollection, required: boolean): ManagedProjectStructureEntry[] {
-  let rootStat;
-  try { rootStat = lstatSync(root); } catch {
-    if (required) throw new Error(`DATA_ROOT/${projectCollectionDirectory(collection)} is missing or is not a directory: ${root}`);
-    return [];
-  }
-  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
-    throw new Error(`DATA_ROOT/${projectCollectionDirectory(collection)} is not a regular directory: ${root}`);
-  }
-  return readdirSync(root, { withFileTypes: true })
-    .filter((entry) => collection !== "active" || (entry.name !== ".test" && entry.name !== ".archive"))
-    .map((entry) => {
-    const kind: ManagedProjectEntryKind = entry.isDirectory()
-      ? "directory"
-      : entry.isFile()
-        ? "file"
-        : entry.isSymbolicLink()
-          ? "symbolic-link"
-          : "other";
-    return {
-      collection,
-      name: entry.name,
-      kind,
-      hasSequenceFile: kind === "directory" && isRegularFile(join(root, entry.name, "sequence.md")),
+    const paths = new ProjectCollectionPaths(dataRoot);
+    const normalized = entries.map((entry) => ({ ...entry, collection: entry.collection ?? "active" as const }));
+    const state: NullFileSystemState = {
+      directories: [paths.dataRoot, paths.activeRoot],
+      files: [paths.policyFile],
+      symbolicLinks: [],
+      other: [],
     };
-  }).sort((a, b) => a.name.localeCompare(b.name));
-}
+    for (const entry of normalized) {
+      const path = paths.projectPath(entry.collection, entry.name);
+      if (entry.kind === "directory") state.directories!.push(path);
+      else if (entry.kind === "file") state.files!.push(path);
+      else if (entry.kind === "symbolic-link") state.symbolicLinks!.push(path);
+      else state.other!.push(path);
+      if (entry.hasSequenceFile) state.files!.push(join(path, "sequence.md"));
+    }
+    return new ManagedProjectStructure(paths, FileSystem.createNull(state));
+  }
 
-function requireDirectory(path: string, label: string): void {
-  try { if (statSync(path).isDirectory()) return; } catch {}
-  throw new Error(`${label} is missing or is not a directory: ${path}`);
-}
+  inspect(): ManagedProjectStructureSnapshot {
+    this.requireKind(this.paths.dataRoot, "directory", "DATA_ROOT");
+    this.requireKind(this.paths.policyFile, "file", "PROJECT.md");
+    this.requireKind(this.paths.activeRoot, "directory", "DATA_ROOT/projects");
+    const roots = this.roots();
+    const entries = (["active", "test", "archive"] as const).flatMap((collection) =>
+      this.inspectCollection(roots[collection], collection, collection === "active"),
+    );
+    return { dataRoot: this.paths.dataRoot, roots, entries };
+  }
 
-function requireFile(path: string, label: string): void {
-  try { if (statSync(path).isFile()) return; } catch {}
-  throw new Error(`${label} is missing or is not a file: ${path}`);
-}
+  private inspectCollection(root: string, collection: ProjectCollection, required: boolean): ManagedProjectStructureEntry[] {
+    const rootKind = this.fileSystem.entryKind(root);
+    if (rootKind === "missing" && !required) return [];
+    if (rootKind !== "directory") throw new Error(`Project collection ${collection} root is not a regular directory: ${root}`);
+    return this.fileSystem.entries(root)
+      .filter((entry) => collection !== "active" || !this.paths.isReservedCollectionDirectory(entry.name))
+      .map((entry) => ({
+        collection,
+        name: entry.name,
+        kind: entry.kind,
+        hasSequenceFile: entry.kind === "directory" && this.fileSystem.entryKind(join(root, entry.name, "sequence.md")) === "file",
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
 
-function isRegularFile(path: string): boolean {
-  try { return lstatSync(path).isFile(); } catch { return false; }
+  private roots(): Record<ProjectCollection, string> {
+    return { active: this.paths.activeRoot, test: this.paths.testRoot, archive: this.paths.archiveRoot };
+  }
+
+  private requireKind(path: string, expected: "directory" | "file", label: string): void {
+    if (this.fileSystem.kind(path) !== expected) throw new Error(`${label} is missing or is not a ${expected}: ${path}`);
+  }
 }

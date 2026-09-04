@@ -1,6 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { projectCollectionDirectory } from "../../domain/project-collection.ts";
+import { join } from "node:path";
+import { ProjectCollectionPaths } from "../../domain/project-collection-paths.ts";
+import { FileSystem } from "./file-system.ts";
 
 export interface DiagnosticProjectLocation {
   directoryName: string;
@@ -8,42 +8,32 @@ export interface DiagnosticProjectLocation {
   workspaceRoot: string;
 }
 
-interface DiagnosticProjectDirectoryDriver { prepare(dataRoot: string): DiagnosticProjectLocation; }
-
-/** INFRASTRUCTURE_WRAPPER: idempotently prepares the application-owned diagnostic project convention. */
+/** INFRASTRUCTURE_CONSUMER: idempotently prepares the application-owned diagnostic project convention. */
 export class DiagnosticProjectDirectory {
-  constructor(private readonly dataRoot: string, private readonly driver: DiagnosticProjectDirectoryDriver) {}
+  constructor(private readonly paths: ProjectCollectionPaths, private readonly fileSystem: FileSystem) {}
 
-  static create(dataRoot: string): DiagnosticProjectDirectory {
-    return new DiagnosticProjectDirectory(dataRoot, { prepare: productionPrepare });
+  static create(paths: ProjectCollectionPaths, fileSystem: FileSystem): DiagnosticProjectDirectory {
+    return new DiagnosticProjectDirectory(paths, fileSystem);
   }
 
-  static createNull(dataRoot = "/null-worker-agent"): DiagnosticProjectDirectory {
-    return new DiagnosticProjectDirectory(dataRoot, { prepare: location });
+  static createNull(paths = new ProjectCollectionPaths("/null-worker-agent")): DiagnosticProjectDirectory {
+    return new DiagnosticProjectDirectory(paths, FileSystem.createNull());
   }
 
-  prepare(): DiagnosticProjectLocation { return this.driver.prepare(this.dataRoot); }
-}
+  prepare(): DiagnosticProjectLocation {
+    const result = this.location();
+    this.fileSystem.createDirectory(result.workspaceRoot);
+    this.fileSystem.createDirectory(join(result.projectRoot, ".agent"));
+    this.fileSystem.createTextFile(join(result.projectRoot, "sequence.md"), "# System diagnostics\n\nApplication-owned location for focused, opt-in diagnostics.\n");
+    this.fileSystem.createTextFile(join(result.projectRoot, ".agent", "tasks.md"), "# taskId|created|status|title\n");
+    this.fileSystem.createTextFile(join(result.workspaceRoot, "AGENTS.md"), "# Diagnostic worker instructions\n\nKeep diagnostics narrow, non-destructive, and limited to the requested contract.\n");
+    this.fileSystem.createTextFile(join(result.workspaceRoot, "README.md"), "# System diagnostics workspace\n");
+    return result;
+  }
 
-function location(dataRoot: string): DiagnosticProjectLocation {
-  const directoryName = "system-diagnostics";
-  const projectRoot = join(resolve(dataRoot), projectCollectionDirectory("test"), directoryName);
-  return { directoryName, projectRoot, workspaceRoot: join(projectRoot, "workspace") };
-}
-
-function productionPrepare(dataRoot: string): DiagnosticProjectLocation {
-  const result = location(dataRoot);
-  mkdirSync(result.workspaceRoot, { recursive: true });
-  mkdirSync(join(result.projectRoot, ".agent"), { recursive: true });
-  createIfAbsent(join(result.projectRoot, "sequence.md"), "# System diagnostics\n\nApplication-owned location for focused, opt-in diagnostics.\n");
-  createIfAbsent(join(result.projectRoot, ".agent", "tasks.md"), "# taskId|created|status|title\n");
-  createIfAbsent(join(result.workspaceRoot, "AGENTS.md"), "# Diagnostic worker instructions\n\nKeep diagnostics narrow, non-destructive, and limited to the requested contract.\n");
-  createIfAbsent(join(result.workspaceRoot, "README.md"), "# System diagnostics workspace\n");
-  return result;
-}
-
-function createIfAbsent(path: string, content: string): void {
-  try { writeFileSync(path, content, { flag: "wx" }); } catch (error) {
-    if (!(error instanceof Error) || !("code" in error) || error.code !== "EEXIST") throw error;
+  private location(): DiagnosticProjectLocation {
+    const directoryName = "system-diagnostics";
+    const projectRoot = this.paths.projectPath("test", directoryName);
+    return { directoryName, projectRoot, workspaceRoot: join(projectRoot, "workspace") };
   }
 }

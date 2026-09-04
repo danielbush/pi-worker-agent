@@ -1,8 +1,10 @@
 import type { Id } from "../domain/id.ts";
+import { ProjectCollectionPaths } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
 import type { Workspace } from "../domain/workspace.ts";
 import { Id as ProductionId } from "../domain/id.ts";
 import { DiagnosticProjectDirectory } from "../infrastructure/filesystem/diagnostic-project-directory.ts";
+import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
 import { Registry } from "../storage/registry.ts";
 
@@ -18,7 +20,8 @@ export class DiagnosticProjectPreparer {
   ) {}
 
   static create(dataRoot: string, registry: Registry): DiagnosticProjectPreparer {
-    return new DiagnosticProjectPreparer(registry, DiagnosticProjectDirectory.create(dataRoot), ProductionId.create(), Clock.create());
+    const paths = new ProjectCollectionPaths(dataRoot);
+    return new DiagnosticProjectPreparer(registry, DiagnosticProjectDirectory.create(paths, FileSystem.create()), ProductionId.create(), Clock.create());
   }
 
   prepare(): DiagnosticProjectPreparation {

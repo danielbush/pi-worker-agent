@@ -1,5 +1,5 @@
-import { isAbsolute, join, win32 } from "node:path";
-import { projectCollectionDirectory, type ProjectCollection } from "../domain/project-collection.ts";
+import { isAbsolute, win32 } from "node:path";
+import { ProjectCollectionPaths, type ProjectCollection } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
 import {
   ConfinedTextFiles,
@@ -23,10 +23,11 @@ export class ProjectFileManager {
   constructor(private readonly registry: Registry, private readonly files: Record<ProjectCollection, ConfinedTextFiles>) {}
 
   static create(dataRoot: string, registry: Registry): ProjectFileManager {
+    const paths = new ProjectCollectionPaths(dataRoot);
     return new ProjectFileManager(registry, {
-      active: ConfinedTextFiles.create(join(dataRoot, projectCollectionDirectory("active"))),
-      test: ConfinedTextFiles.create(join(dataRoot, projectCollectionDirectory("test"))),
-      archive: ConfinedTextFiles.create(join(dataRoot, projectCollectionDirectory("archive"))),
+      active: ConfinedTextFiles.create(paths.activeRoot),
+      test: ConfinedTextFiles.create(paths.testRoot),
+      archive: ConfinedTextFiles.create(paths.archiveRoot),
     });
   }
 

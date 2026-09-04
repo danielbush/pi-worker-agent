@@ -1,5 +1,5 @@
 import { resolveIdReference } from "../domain/id.ts";
-import type { ProjectCollection } from "../domain/project-collection.ts";
+import type { ProjectCollection } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
 import type { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 

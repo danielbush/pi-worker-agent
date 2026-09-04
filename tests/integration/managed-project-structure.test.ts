@@ -2,6 +2,8 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { ProjectCollectionPaths } from "../../src/domain/project-collection-paths.ts";
+import { FileSystem } from "../../src/infrastructure/filesystem/file-system.ts";
 import { ManagedProjectStructure } from "../../src/infrastructure/filesystem/managed-project-structure.ts";
 
 const roots: string[] = [];
@@ -23,7 +25,7 @@ test("requires PROJECT.md and inventories immediate project entries without hidi
   writeFileSync(join(root, "projects", "misplaced.txt"), "not a project\n");
 
   // act
-  const snapshot = ManagedProjectStructure.create(root).inspect();
+  const snapshot = ManagedProjectStructure.create(new ProjectCollectionPaths(root), FileSystem.create()).inspect();
 
   // assert
   expect(snapshot).toEqual({

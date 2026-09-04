@@ -1,5 +1,7 @@
+import { ProjectCollectionPaths } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
-import { ManagedProjectCatalog } from "../infrastructure/filesystem/managed-project-catalog.ts";
+import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
+import { ManagedProjectCatalog } from "./managed-project-catalog.ts";
 import { Registry } from "../storage/registry.ts";
 
 export interface ProjectCatalogReport {
@@ -12,7 +14,8 @@ export class ProjectCatalogReporter {
   constructor(private readonly registry: Registry, private readonly catalog: ManagedProjectCatalog) {}
 
   static create(dataRoot: string, registry: Registry): ProjectCatalogReporter {
-    return new ProjectCatalogReporter(registry, ManagedProjectCatalog.create(dataRoot));
+    const paths = new ProjectCollectionPaths(dataRoot);
+    return new ProjectCatalogReporter(registry, ManagedProjectCatalog.create(paths, FileSystem.create()));
   }
 
   inspect(): ProjectCatalogReport {

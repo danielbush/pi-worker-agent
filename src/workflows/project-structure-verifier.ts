@@ -1,5 +1,6 @@
-import type { ProjectCollection } from "../domain/project-collection.ts";
+import { ProjectCollectionPaths, type ProjectCollection } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
+import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
 import { ManagedProjectStructure } from "../infrastructure/filesystem/managed-project-structure.ts";
 import { Registry } from "../storage/registry.ts";
 
@@ -15,7 +16,8 @@ export class ProjectStructureVerifier {
   constructor(private readonly registry: Registry, private readonly structure: ManagedProjectStructure) {}
 
   static create(dataRoot: string, registry: Registry): ProjectStructureVerifier {
-    return new ProjectStructureVerifier(registry, ManagedProjectStructure.create(dataRoot));
+    const paths = new ProjectCollectionPaths(dataRoot);
+    return new ProjectStructureVerifier(registry, ManagedProjectStructure.create(paths, FileSystem.create()));
   }
 
   verify(): ProjectStructureVerification {

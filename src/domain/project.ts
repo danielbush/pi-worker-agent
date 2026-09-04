@@ -1,4 +1,4 @@
-import type { ProjectCollection } from "./project-collection.ts";
+import type { ProjectCollection } from "./project-collection-paths.ts";
 
 /** Durable metadata for one management project in an active, test, or archive collection. */
 export interface Project {

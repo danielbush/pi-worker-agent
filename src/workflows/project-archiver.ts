@@ -1,4 +1,6 @@
+import { ProjectCollectionPaths } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
+import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
 import { ManagedProjectMover } from "../infrastructure/filesystem/managed-project-mover.ts";
 import { Registry } from "../storage/registry.ts";
 
@@ -7,7 +9,8 @@ export class ProjectArchiver {
   constructor(private readonly registry: Registry, private readonly mover: ManagedProjectMover) {}
 
   static create(dataRoot: string, registry: Registry): ProjectArchiver {
-    return new ProjectArchiver(registry, ManagedProjectMover.create(dataRoot));
+    const paths = new ProjectCollectionPaths(dataRoot);
+    return new ProjectArchiver(registry, ManagedProjectMover.create(paths, FileSystem.create()));
   }
 
   archive(reference: string): Project {

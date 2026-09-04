@@ -1,6 +1,7 @@
 import type { Id } from "../domain/id.ts";
-import type { ProjectCollection } from "../domain/project-collection.ts";
+import { ProjectCollectionPaths, type ProjectCollection } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
+import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
 import { ManagedProjectDirectory } from "../infrastructure/filesystem/managed-project-directory.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
 import { Registry } from "../storage/registry.ts";
@@ -22,7 +23,8 @@ export class ProjectRegistrar {
   ) {}
 
   static create(root: string, registry: Registry, ids: Pick<Id, "createProjectId">): ProjectRegistrar {
-    return new ProjectRegistrar(registry, ManagedProjectDirectory.create(root), ids, Clock.create());
+    const paths = new ProjectCollectionPaths(root);
+    return new ProjectRegistrar(registry, ManagedProjectDirectory.create(paths, FileSystem.create()), ids, Clock.create());
   }
 
   register(input: RegisterProjectInput): Project {
