@@ -26,20 +26,24 @@ See [`examples/`](examples/) for the policy documents used by the author.
 flowchart TB
     User([User]) <-->|conversation, feedback, approval| Manager[Manager agent in Pi<br/>AGENTS.md]
 
-    subgraph Policy[Unstructured policy and project context]
+    subgraph Policy[Unstructured policy]
         ProjectPolicy[PROJECT.md]
         WorkflowPolicy[WORKFLOW.md]
         CodePolicy[CODE.md]
-        Projects[projects/XXX/<br/>sequence, slices, backlog]
-        ProjectPolicy -->|governs| Projects
     end
+
+    subgraph DataRoot["$DATA_ROOT"]
+        Projects[projects/XXX/<br/>governed by PROJECT.md]
+    end
+
+    ProjectPolicy --> Projects
 
     subgraph Database[Structured SQLite configuration]
         AgentProfiles[agentProfiles<br/>harness, model, options]
         JobTypes[jobTypes<br/>capability, worktree strategy, default profile]
     end
 
-    subgraph Execution[Task and job execution]
+    subgraph Execution["Task and job execution (SQLite)"]
         Task[Task<br/>intent and current status]
         Jobs[Jobs<br/>selected type, profile, status]
         JobDependencies[jobDependencies<br/>actual links and relationships]
