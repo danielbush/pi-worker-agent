@@ -6,7 +6,18 @@ project code yourself.
 ## At the start of a session
 
 Read `WORKFLOWS.md`. When the user names a project, read
-`projects/<name>/README.md` and `projects/<name>/state.json`.
+`projects/<name>/README.md`.
+
+Load `state.json` into a variable — do not print it whole. It grows without
+limit. Slice before you display:
+
+```python
+state = json.loads(Path(f"projects/{name}/state.json").read_text())
+state["jobs"][-5:]
+```
+
+Loading costs nothing; printing costs context. Same for `history.jsonl` — read
+the tail, or grep it for a run id.
 
 ## Handling a request
 
@@ -57,8 +68,24 @@ back to the stage that can fix it rather than proceeding. Say so to the user.
 
 ## Tracking
 
-Keep `projects/<name>/state.json` current. Write it when a job starts, changes
-status, and finishes. Include at least:
+Two files, split by age.
+
+`state.json` holds the project header and the **last 20 jobs** in full. Write it
+when a job starts, changes status, and finishes.
+
+`history.jsonl` holds everything older, one complete job object per line,
+append-only. When `state.json` exceeds 20 jobs, append the oldest to
+`history.jsonl` and drop it from `state.json`.
+
+```python
+with open(hist, "a") as f:
+    f.write(json.dumps(old_job) + "\n")
+```
+
+Never rewrite `history.jsonl`. Never load all of it — take the tail, or grep for
+what you need.
+
+`state.json` shape:
 
 ```json
 {
@@ -75,11 +102,15 @@ status, and finishes. Include at least:
       "stages": [{"stage": "plan", "runner": "rlm", "model": "...", "status": "done"}],
       "outcome": "one line, written when the job ends"
     }
-  ]
+  ],
+  "archived": 0
 }
 ```
 
-Add fields when a project needs them. Don't remove history.
+`archived` counts jobs moved to `history.jsonl`, so you know history exists
+without opening it.
+
+Add fields when a project needs them. Don't delete jobs — archive them.
 
 ## Style
 

@@ -28,7 +28,8 @@ prime-worker-agent/
   projects/
     api/
       README.md        # you write: what this is, its path, constraints, goals
-      state.json       # the manager writes: jobs, status, history
+      state.json       # the manager writes: header + last 20 jobs
+      history.jsonl    # the manager appends: older jobs, one per line
       runs/            # per-run stage output
     website/
       ...
@@ -42,14 +43,21 @@ The split inside it matters:
 
 - `README.md` is **yours**. The brief. What the project is, where it lives, how
   to test it, what you care about.
-- `state.json` is the **manager's**. Job history, current status, anything it
-  needs to pick up where it left off. Don't hand-edit it — ask the manager to
-  print it instead.
+- `state.json` and `history.jsonl` are the **manager's**. Current status and job
+  history. Don't hand-edit — ask the manager to print what you want to see.
 - `runs/` is worker output, one directory per run.
 
-JSON rather than markdown for `state.json` is deliberate. The manager reads and
-writes it in a line of Python and it never drifts. Markdown state gets
-reformatted a little more each session until it stops parsing cleanly.
+JSON rather than markdown for state is deliberate. The manager reads and writes
+it in a line of Python and it never drifts. Markdown state gets reformatted a
+little more each session until it stops parsing cleanly.
+
+The split by age matters once a project has run a hundred jobs. `state.json`
+stays small enough to hold the recent picture; `history.jsonl` is append-only, so
+old jobs cost nothing to keep and nothing to write past.
+
+The real cost of state is context, not disk. Loading a large file into a Python
+variable is free — only what gets *printed* enters the manager's context. So the
+rule in `AGENTS.md` is: load, slice, then display.
 
 ## Key constraint
 

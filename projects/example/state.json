@@ -8,7 +8,7 @@
       "status": "done",
       "started": "2026-08-30T11:00:04Z",
       "finished": "2026-08-30T11:14:52Z",
-      "request": "billing.ts is 2000 lines and nobody wants to touch it — what should we do",
+      "request": "billing.ts is 2000 lines and nobody wants to touch it \u2014 what should we do",
       "stages": [
         {
           "stage": "investigate",
@@ -55,5 +55,6 @@
       ],
       "outcome": "Invoicing extracted to src/services/invoicing.ts on branch agent/split-invoicing. Gate green. Not merged."
     }
-  ]
+  ],
+  "archived": 7
 }
