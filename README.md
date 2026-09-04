@@ -24,7 +24,7 @@ See [`examples/`](examples/) for the policy documents used by the author.
 
 ```mermaid
 flowchart TB
-    User([User]) <-->|conversation, feedback, approval| Manager[Manager agent in Pi]
+    User([User]) <-->|conversation, feedback, approval| Manager[Manager agent in Pi<br/>AGENTS.md]
 
     subgraph Policy[Unstructured policy and project context]
         ProjectPolicy[PROJECT.md]
@@ -85,6 +85,8 @@ There are three deliberately separate parts:
 The user works with the manager, not the workers directly. The manager interprets the policy, selects database configuration, gives each worker a bounded job, evaluates the returned result, and brings decisions or observable outcomes back to the user.
 
 ## Try it locally
+
+> ⚠️ **Not quite ready:** a clean installation has not yet been tested end to end. The intended experience is that, after you launch Pi, the manager agent walks you through creating the policy documents and configuring agent profiles and job types. Expect gaps until that setup flow has been exercised on a fresh clone.
 
 You need Pi and Bun installed. Clone the repository, install dependencies, and launch Pi from inside it:
 
