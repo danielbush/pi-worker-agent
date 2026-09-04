@@ -13,6 +13,13 @@
 
 - Prefer OOP composition: small stateful “Lego bricks” with clear ownership and injected dependencies.
 - Strive to establish and document a clear data model for the system using a file like ARCHITECTURE.md.  This is primary and comes before any code. Modelling includes the typed representations of the data from enums to value objects to data structures to persisted structures that the coding system interfaces directly with eg database tables.  Ask: what are the inputs into the system/sub-system, how are they transformed, stored, emitted.  Code around these data-structures is secondary and can always be rewritten or improved.
+- Treat related configuration values as one domain concept rather than passing independent primitives throughout the system.
+  - Represent a coherent configuration with an immutable value object when it owns validation, normalization, derived values, or mappings.
+  - Keep each configuration fact in one place. Consumers must ask the owning value object for derived values rather than reconstructing paths, names, identifiers, or defaults.
+  - Instantiate configuration value objects once at a composition root and inject them into consumers.
+  - Avoid duplicating configuration literals or branching on their physical representation outside the owning value object.
+  - Prefer semantic operations such as `rootFor(collection)` or `isReservedDirectory(name)` over exposing enough primitives for consumers to reproduce the logic.
+  - Do not create value objects for unrelated values or simple scalars that have no shared rules or behavior.
 - Use classes for lifecycle, persistence, orchestration, and other stateful services.
 - Pure algorithmic, formatting and conversion logic can be functions that are used by classes.
 - Prefer polymorphism and composition over branching on implementation identities. Consumers of a shared abstraction should not reconstruct provider-specific behavior with `if` or `switch` statements on names such as a harness, backend, or vendor. Put variation behind the owning interface or adapter, and persist or pass shared data in an implementation-neutral shape. Discriminant checks remain appropriate at composition, validation, serialization, and protocol-routing boundaries when the identity itself is the data being handled.
@@ -35,7 +42,7 @@
   - Do not define operational callbacks, filesystem traversal, network calls, credential handling, control flow, data transformation, or lifecycle behavior inside `create()` or `createNull()`. If a factory needs more than straightforward constructor wiring, extract the behavior into a named driver, adapter, instance method, or function and inject that name.
   - Production and null driver implementations should be named so factory wiring reads as composition rather than implementation. Keep DRIVER_CODE invocation and coordination out of factories and in the owning driver, adapter, instance method, or constructor.
   - NULL_VARIANT's use EMBEDDED_STUB's implementing the same driver interfaces.
-- Name source files after major domain constructs, such as `job.ts`, `task.ts`, and `worker-session.ts`; avoid generic names such as `types.ts` or `utils.ts`.
+- Give each major class or value object its own source file named after that construct using kebab case, such as `ProjectCollectionPaths` in `project-collection-paths.ts`. Name files after the primary domain construct rather than a broad topic, and avoid generic names such as `types.ts` or `utils.ts`.
 - Add concise docstrings that map classes to the constructs and ownership boundaries in `ARCHITECTURE.md`.
 - file system layout
   - the filesystem should group subsystems and hide detail in subdirs
