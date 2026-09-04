@@ -14,7 +14,17 @@ The manager agent (you) is tasked with managing worker agents in harnesses to do
   - defines quick system-readiness checks and optional extended diagnostic exercises
   - read it when the user asks to verify or diagnose this worker-management system; default to its quick checks rather than running every diagnostic
 
-The user and manager agent should decide on policies for how to do work.  We can break these down into a series of markdown files that the user can revise over time:
+## Policy-file contract
+
+This `AGENTS.md` is the normative manager contract. It defines the roles of the policy files, when the manager must read them, how they relate to database configuration and application invariants, and what to do when they disagree. Put those cross-policy rules here rather than repeating them inside each policy file.
+
+The active policy files live under `$DATA_ROOT` and are editable by the user and manager:
+
+- `PROJECT.md` defines how higher-level projects and work are organized, sequenced, summarized, and connected to feedback.
+- `WORKFLOW.md` gives policy meaning to job-type and dependency labels and defines job sequences, evaluation, revision, inspection, merge offers, and approval points. It should state the job types and execution requirements its workflows expect.
+- `CODE.md` defines coding, architecture, testing, documentation, and codebase-specific practices applied when preparing and evaluating coding work.
+
+`examples/` contains templates, not active policy. Application and database invariants remain hard boundaries that policy cannot override. The database catalog is the execution source of truth for agent profiles and job types; `WORKFLOW.md` tells the manager which configured types to use and why. Treat sections marked `do not edit` as user-owned, preserve user comments, and re-read relevant policy files because the user may change them between turns.
 
 ## Manager communication
 
@@ -37,9 +47,9 @@ Use `worker_manage_project_file` to create, update, or delete policy-owned text 
 
 Do not infer a named workflow from slash commands or implementation code. Names such as **Demo task** refer to sections in `$DATA_ROOT/WORKFLOW.md`; they are manager policy, not commands. Apply the selected workflow one transition at a time, evaluating each completed job before creating the next one. Re-read these files on later turns because the user may revise them.
 
-Agent profiles and job types are binding database configuration, not Markdown configuration. Before creating task work, use the execution-catalog list tools to confirm active profiles and job types. Use the narrow management tools to create, describe, retire, or reactivate them; every job type requires a trusted capability, worktree strategy, and active default profile. Agent execution fields are immutable after creation, so create a replacement profile and retire the old one rather than editing a model, harness, or options in place. A delegation may explicitly select an active profile for one job but cannot change capability or worktree placement.
+Agent profiles and job types are binding database configuration, not Markdown configuration. Before creating task work, use the execution-catalog list tools to confirm active profiles and job types. The job-type IDs and execution requirements named by `WORKFLOW.md` should match the active database catalog. If a required type is missing, retired, or configured incompatibly with the workflow, stop, report the mismatch, and prompt the user to update either `WORKFLOW.md` or the database configuration; do not silently substitute a type or change either source. Use the narrow management tools to create, describe, update, retire, or reactivate them; every job type requires a trusted capability, worktree strategy, and active default profile. Agent execution fields are immutable after creation, so create a replacement profile and retire the old one rather than editing a model, harness, or options in place. A delegation may explicitly select an active profile for one job but cannot change capability or worktree placement.
 
-When an implementation is ready under the workflow, tell the user the job has finished and ask whether they want to merge it into the project. If they ask to look first, use the completed-job inspection tool, open the derived worktree with the configured editor tool, and call line-by-line changes a diff or `git diff`; inspection does not authorize merging. Call the completed-job merge tool only after the user approves in conversation. Do not ask for a redundant second confirmation; the tool derives both worktree and destination from the completed implementation job.
+Follow `WORKFLOW.md` to decide whether and when completed work should be offered for inspection or merge. If the user asks to look first, use the completed-job inspection tool, open the job-owned worktree with the configured editor tool, and call line-by-line changes a diff or `git diff`; inspection does not authorize merging. Call the completed-job merge tool only after the user approves in conversation. Do not ask for a redundant second confirmation; the tool derives both worktree and destination from the completed job that owns the worktree.
 
 - **`$DATA_ROOT/PROJECT.md`**
   - active project-management policy; consumers normally copy `examples/PROJECT.md` here or create their own policy; this checkout symlinks the file only as a maintainer convenience for editing and using the example in place
@@ -78,18 +88,13 @@ When an implementation is ready under the workflow, tell the user the job has fi
       - update `$DATA_ROOT/projects/XXX/.agent/tasks.md`
 - **`$DATA_ROOT/WORKFLOW.md`**
   - active workflow policy; consumers normally copy `examples/WORKFLOW.md` here or create their own policy; this checkout's symlink is only a maintainer convenience
-  - defines guidelines for how tasks and jobs are sequenced: what types of jobs do we want: planning, coding, reviewing?  And what sequences do they form?  planning -> coding -> reviewing etc
-  - defines guidelines for how outputs from tasks and jobs are reviewed, revised, approved
-    - COMMENT: eg a REVIEW.md file for instance
-  - COMMENT: tasks and jobs are built-in constructs (see [`ARCHITECTURE.md`](ARCHITECTURE.md))
+  - defines job-purpose and dependency labels, sequences, result evaluation, revisions, inspection and merge decisions, and approval points
+  - states the database job types, capabilities, and worktree strategies required by its workflows; the reconciliation rule is defined in this `AGENTS.md`
+  - tasks and jobs are built-in mechanisms described in [`ARCHITECTURE.md`](ARCHITECTURE.md), not constructs invented by the policy
 - **`$DATA_ROOT/CODE.md`**
   - active coding policy; consumers normally copy `examples/CODE.md` here or create their own policy; this checkout's symlink is only a maintainer convenience
-  - how to architect a codebase; how to write the code
-  - COMMENT: because this system was originally intended to manage coding agents, coding gets a special emphasis
-  - COMMENT: if a codebase has its own particular preferences, this can be mentioned as the overriding factor here; you may want to set up as a policy that codebases define their own rules for instance which the work agent can follow
-  - COMMENT: we can define a policy on how to document the project; how to configure its AGENTS.md, how to document the architecture (ARCHITECTURE.md), track on-going issues inherent in the code (ISSUES.md), build up a language or a conceptual framework (CONCEPTS.md).
-
-Treat sections marked `do not edit` as user-owned. The user may revise documents between turns, so re-read relevant files before planning or editing.
+  - defines how to architect, implement, test, and document code
+  - may defer to codebase-specific instructions where the policy explicitly says they take precedence
 
 - [`bun.md`](bun.md) for this project's Bun-specific conventions.
 - Keep TypeScript 7; do not downgrade TypeScript to accommodate Cursor's older language server.

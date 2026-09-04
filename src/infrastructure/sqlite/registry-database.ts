@@ -238,6 +238,7 @@ export class RegistryDatabase {
       SELECT DISTINCT value, 'Unresolved migrated task override', 'pi', 'migration-unresolved', '{}', 1, ?, ?, ?
       FROM tasks, json_each(tasks.profileOverrides)
       WHERE tasks.profileOverrides IS NOT NULL`).run(now, now, now);
+    // Legacy migration only: reconstruct the pre-catalog built-in names once; runtime never interprets job-type IDs.
     this.db.query(`INSERT OR IGNORE INTO jobTypes
       (id, description, capabilityProfile, worktreeStrategy, defaultAgentProfileId, retired, archiveDate, createdAt, updatedAt)
       SELECT DISTINCT j.jobType, 'Migrated historical job type',
@@ -363,10 +364,14 @@ export class RegistryDatabase {
       BEGIN SELECT RAISE(ABORT, 'active job type requires an active default agent profile'); END;
 
       DROP TRIGGER IF EXISTS job_types_immutable_execution;
-      CREATE TRIGGER job_types_immutable_execution
+      DROP TRIGGER IF EXISTS job_types_active_execution;
+      CREATE TRIGGER job_types_active_execution
       BEFORE UPDATE OF capabilityProfile, worktreeStrategy ON jobTypes
-      WHEN EXISTS (SELECT 1 FROM jobs WHERE jobTypeId = OLD.id)
-      BEGIN SELECT RAISE(ABORT, 'referenced job type execution fields are immutable'); END;
+      WHEN EXISTS (
+        SELECT 1 FROM jobs
+        WHERE jobTypeId = OLD.id AND status IN ('blocked', 'queued', 'running')
+      )
+      BEGIN SELECT RAISE(ABORT, 'job type execution settings cannot change while it has active jobs'); END;
 
       DROP TRIGGER IF EXISTS jobs_active_assignment_insert;
       CREATE TRIGGER jobs_active_assignment_insert BEFORE INSERT ON jobs

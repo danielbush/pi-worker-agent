@@ -1,6 +1,8 @@
 # Workflow
 
-This file defines the default jobs and sequences the manager should use. The user may edit it to change how work is delegated.
+This file defines the job-purpose labels, sequences, dependency meanings, evaluation rules, and user approval points the manager should apply. It decides whether and when completed work should be offered for inspection or merge. The user may edit it to change how work is managed without changing application code.
+
+Job-type IDs such as `plan`, `implement`, and `review` have meaning only in this policy. Application code treats them as opaque labels.
 
 ## Job types
 
@@ -24,12 +26,19 @@ Address specific review findings in the implementation worktree and rerun releva
 
 Run focused verification against an existing worktree without making product changes. Depend on the implementation or fix being tested.
 
-## Execution configuration
+## Required execution catalog
 
-Agent profiles and job types are durable manager-configured prerequisites rather than structured data embedded in this policy. Before creating task work, use the execution-catalog manager tools to configure:
+This workflow expects these active database job types:
 
-- active agent profiles with harness-native model and option values;
-- active job types with trusted capabilities, worktree strategies, and non-null default agent profiles.
+| Job type | Capability | Worktree strategy |
+| --- | --- | --- |
+| `plan` | `read-only` | `workspace` |
+| `implement` | `code` | `new-worktree` |
+| `review` | `read-only` | `dependency-worktree` |
+| `fix` | `code` | `dependency-worktree` |
+| `test` | `test` | `dependency-worktree` |
+
+Each must have an active default agent profile.
 
 Default profiles should use a harness that already launches. If creating or running a job fails because its harness is unavailable, unverified, or otherwise cannot start, stop that transition. Do not retry the same failing harness. Report the failure and suggest an active profile on a harness that already works, typically Pi; continue only after explicitly selecting another profile for the next job or after a later successful verification of the harness.
 
@@ -59,11 +68,11 @@ A failure or ambiguous result stops automatic continuation for manager reassessm
 
 ### Merging completed work
 
-When an implementation is ready under the selected workflow, the manager says that the job has finished and asks whether the user wants to merge it into the project. The user may approve, ask to look at it first, or leave it unmerged for later.
+Under this default policy, when changes produced by completed `implement` or `fix` work are ready, the manager says that the work has finished and asks whether the user wants to merge it into the project. Other policies may choose different job types. Inspection and merge use the completed job that owns the shared worktree. The user may approve, ask to look at it first, or leave it unmerged for later.
 
-If the user asks to inspect or look at completed work, show a readable result summary, changed files, test results, review findings when present, and the diff. Also open the completed implementation's derived worktree using the editor named by `EDITOR`, so the user can browse the actual code. If `EDITOR` is unset or cannot launch, give a helpful setup message and leave the work unmerged. Say **diff** or **`git diff`**, not invented variants. Inspection must not modify the project workspace and does not imply approval.
+If the user asks to inspect or look at completed work, show a readable result summary, changed files, test results, findings when present, and the diff. Also open the completed job-owned worktree using the editor named by `EDITOR`, so the user can browse the actual code. If `EDITOR` is unset or cannot launch, give a helpful setup message and leave the work unmerged. Say **diff** or **`git diff`**, not invented variants. Inspection must not modify the project workspace and does not imply approval.
 
-Call the narrow merge tool only after the user explicitly approves in conversation. Do not ask for a redundant second confirmation. The tool must derive source and destination from the completed implementation job, fail closed for unsafe Git state, report the resulting destination commit, and remove the detached implementation worktree only after the merge succeeds. Unmerged work and failed merges retain their worktrees. Do not manually copy files, run arbitrary Git commands, or treat task completion as merge approval.
+Call the narrow merge tool only after this policy calls for a merge offer and the user explicitly approves in conversation. Do not ask for a redundant second confirmation. The tool checks only that the merge is technically safe: the selected job is complete and owns a worktree, the destination workspace is authorized and clean, and the Git histories still match. It derives source and destination from durable identities, reports the resulting destination commit, and removes the job-owned worktree only after the merge succeeds. Unmerged work and failed merges retain their worktrees. Do not manually copy files, run arbitrary Git commands, or treat task completion as merge approval.
 
 ### User-requested variations
 

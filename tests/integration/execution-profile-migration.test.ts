@@ -35,7 +35,7 @@ test("fresh schema binds catalog relationships and complete snapshots", () => {
   db.close();
 });
 
-test("fresh schema makes job assignment and execution snapshot immutable", () => {
+test("fresh schema protects job snapshots and blocks job-type changes only while jobs are active", () => {
   // arrange
   const root = temp("immutable-job");
   Registry.create(root).close();
@@ -61,8 +61,12 @@ test("fresh schema makes job assignment and execution snapshot immutable", () =>
     .toThrow("job assignment is immutable");
   expect(() => db.query("UPDATE jobs SET profileOptions = '{}' WHERE id = 'job'").run())
     .toThrow("job execution snapshot is immutable");
-  db.query("UPDATE jobs SET status = 'running' WHERE id = 'job'").run();
-  expect(db.query("SELECT status FROM jobs WHERE id = 'job'").get()).toEqual({ status: "running" });
+  expect(() => db.query("UPDATE jobTypes SET capabilityProfile = 'test' WHERE id = 'plan'").run())
+    .toThrow("job type execution settings cannot change while it has active jobs");
+  db.query("UPDATE jobs SET status = 'completed' WHERE id = 'job'").run();
+  db.query("UPDATE jobTypes SET capabilityProfile = 'test', worktreeStrategy = 'new-worktree' WHERE id = 'plan'").run();
+  expect(db.query("SELECT capabilityProfile, worktreeStrategy FROM jobTypes WHERE id = 'plan'").get())
+    .toEqual({ capabilityProfile: "test", worktreeStrategy: "new-worktree" });
   db.close();
 });
 

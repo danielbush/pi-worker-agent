@@ -2,7 +2,7 @@ import type { Job } from "../domain/job.ts";
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 
-/** Locates the implementation worktree inherited through a job's dependency chain. */
+/** Locates a worktree owned by a job or inherited through its dependency chain. */
 export class JobWorktreeLocator {
   constructor(
     private readonly registry: Registry,
@@ -26,7 +26,7 @@ export class JobWorktreeLocator {
       .map((dependency) => this.locateFrom(dependency, new Set(visited)))
       .filter((path): path is string => path !== null);
     const unique = [...new Set(paths)];
-    if (unique.length > 1) throw new Error(`Job ${job.id} depends on multiple implementation worktrees`);
+    if (unique.length > 1) throw new Error(`Job ${job.id} depends on multiple worktrees`);
     return unique[0] ?? null;
   }
 }

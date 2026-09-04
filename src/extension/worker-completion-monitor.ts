@@ -110,10 +110,7 @@ export class WorkerCompletionMonitor {
         "Worker result:",
         result,
         "",
-        "Re-read the active project and workflow policies, evaluate this result, and perform the next required transition. Stop for failures or ambiguous results.",
-        this.registry.jobTypes.get(job.jobTypeId)?.worktreeStrategy === "new-worktree" && job.status === "completed"
-          ? "When the implementation is ready under that workflow, tell the user the job has finished and ask whether they want to merge it into the project. If they ask to look at it, inspect it without merging."
-          : "",
+        "Re-read the active project and workflow policies, evaluate this result, and perform the next required transition. WORKFLOW.md decides whether and when completed work should be offered for inspection or merge. Stop for failures or ambiguous results.",
       ].filter(Boolean).join("\n"));
       this.registry.jobs.markAgentNotified(job.id);
     }

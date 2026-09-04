@@ -89,7 +89,7 @@ export class WorkerRunner {
       const requiresWorktree = jobType.worktreeStrategy !== "workspace";
       const worktreePath = requiresWorktree ? new JobWorktreeLocator(this.registry, this.taskStore).locate(job) : null;
       if (requiresWorktree && !worktreePath) {
-        throw new Error(`${job.jobTypeId} job has no implementation worktree: ${job.id}`);
+        throw new Error(`${job.jobTypeId} job has no worktree: ${job.id}`);
       }
       const cwd = worktreePath ?? workspace.rootDir;
       const verified = this.setup.verify(profile, capability, workspace.rootDir, cwd);

@@ -46,7 +46,7 @@ export interface NullCompletedWorkMergerState {
   removedWorktrees?: string[];
 }
 
-/** Merges one completed implementation worktree into its authorized workspace. */
+/** Inspects and merges a completed job-owned worktree into its authorized workspace. */
 export class CompletedWorkMerger {
   constructor(
     private readonly registry: Registry,
@@ -114,9 +114,9 @@ export class CompletedWorkMerger {
     const destinationStatus = context.destination.status();
     if (destinationStatus) throw new Error(`Workspace has uncommitted changes: ${context.workspace.rootDir}`);
     const sourceStatus = context.source.status();
-    if (!sourceStatus) throw new Error(`Implementation worktree has no changes: ${context.worktreePath}`);
+    if (!sourceStatus) throw new Error(`Job worktree has no changes: ${context.worktreePath}`);
     if (context.source.head() !== context.destination.head()) {
-      throw new Error("Workspace HEAD has changed since the implementation worktree was created");
+      throw new Error("Workspace HEAD has changed since the job worktree was created");
     }
 
     const inspection = this.inspect(jobId);
@@ -152,8 +152,8 @@ export class CompletedWorkMerger {
     const job = this.registry.jobs.get(jobId);
     if (!job) throw new Error(`Unknown job: ${jobId}`);
     const jobType = this.registry.jobTypes.get(job.jobTypeId);
-    if (!jobType || jobType.worktreeStrategy !== "new-worktree") throw new Error(`Job does not own an implementation worktree: ${job.id}`);
-    if (job.status !== "completed") throw new Error(`Implementation job is not completed: ${job.id}`);
+    if (!jobType || jobType.worktreeStrategy !== "new-worktree") throw new Error(`Job does not own a worktree: ${job.id}`);
+    if (job.status !== "completed") throw new Error(`Job is not completed: ${job.id}`);
     const task = this.registry.tasks.get(job.taskId);
     if (!task?.workspaceId) throw new Error(`Task has no registered workspace: ${job.taskId}`);
     const workspace = this.registry.workspaces.get(task.workspaceId);

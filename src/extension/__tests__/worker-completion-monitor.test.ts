@@ -53,7 +53,7 @@ test("delivers a settled worker result once", async () => {
   expect(registry.jobs.get("job_plan")).toMatchObject({ userNotified: true, agentNotified: true });
 });
 
-test("prompts the manager to offer merge choices after an implementation completes", async () => {
+test("defers inspection and merge decisions to workflow policy for every job type", async () => {
   // arrange
   const implementation = { ...completedJob(), id: "job_implement", jobTypeId: "implement" };
   const registry = Registry.createNull({
@@ -82,8 +82,9 @@ test("prompts the manager to offer merge choices after an implementation complet
   await monitor.pollOnce("manager-session");
 
   // assert
-  expect(notifications.state.agent[0]).toContain("ask whether they want to merge it into the project");
-  expect(notifications.state.agent[0]).toContain("inspect it without merging");
+  expect(notifications.state.agent[0]).toContain("WORKFLOW.md decides whether and when");
+  expect(notifications.state.agent[0]).not.toContain("implementation is ready");
+  expect(notifications.state.agent[0]).not.toContain("ask whether they want to merge");
 });
 
 function completedJob(): Job {

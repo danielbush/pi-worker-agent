@@ -13,7 +13,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) removeTestDirectory(root);
 });
 
-test("merges a completed implementation worktree into a clean workspace", async () => {
+test("merges a completed job-owned worktree into a clean workspace", async () => {
   // arrange
   const root = mkdtempSync(join(tmpdir(), "pi-worker-merge-"));
   roots.push(root);

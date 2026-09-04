@@ -459,6 +459,10 @@ export class WorkerAgentExtension {
       label: "Manage job type",
       description: "Create, describe, set the default for, retire, or reactivate one durable job type.",
       promptSnippet: "Configure a job type before task execution",
+      promptGuidelines: [
+        "Treat the job-type ID as an opaque policy label whose workflow meaning comes from WORKFLOW.md.",
+        "The database capability and worktree strategy control execution and can change only when the type has no active jobs.",
+      ],
       parameters: Type.Object({
         operation: Type.Union([Type.Literal("create"), Type.Literal("update"), Type.Literal("describe"), Type.Literal("set-default"), Type.Literal("retire"), Type.Literal("reactivate")]),
         id: Type.String(),
@@ -537,15 +541,15 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_inspect_job_changes",
       label: "Inspect completed job changes",
-      description: "Inspect the changed files and git diff for a completed implementation job without modifying its project workspace.",
-      promptSnippet: "Show a completed implementation before the user decides whether to merge it",
+      description: "Inspect the changed files and git diff for a completed job that owns a worktree without modifying its project workspace.",
+      promptSnippet: "Show completed work before the user decides whether to merge it",
       promptGuidelines: [
-        "Use this when the user asks to look at a completed implementation before merging it.",
-        "Describe the result, changed files, tests, and review findings when available; call the line-by-line output a diff or git diff.",
+        "Use this when WORKFLOW.md calls for inspection or the user asks to look at completed work before merging it.",
+        "Describe the result, changed files, tests, and findings when available; call the line-by-line output a diff or git diff.",
         "Inspection does not authorize a merge.",
       ],
       parameters: Type.Object({
-        jobId: Type.String({ description: "Exact completed implementation job ID" }),
+        jobId: Type.String({ description: "Exact completed job ID for a job that owns a worktree" }),
       }),
       execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
@@ -554,7 +558,7 @@ export class WorkerAgentExtension {
           content: [{
             type: "text",
             text: [
-              `Completed implementation job ${inspection.jobId}`,
+              `Completed job ${inspection.jobId}`,
               `Project workspace: ${inspection.workspaceName} (${inspection.workspaceRoot})`,
               "Changed files:",
               ...inspection.changedFiles.map((path) => `- ${path}`),
@@ -571,15 +575,15 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_open_job_worktree",
       label: "Open completed job worktree",
-      description: "Open a completed implementation job's derived worktree using the user's EDITOR configuration.",
-      promptSnippet: "Open completed implementation work in the user's editor",
+      description: "Open a completed job's owned worktree using the user's EDITOR configuration.",
+      promptSnippet: "Open completed work in the user's editor",
       promptGuidelines: [
-        "Use this as part of inspection when the user asks to view completed implementation code in their editor.",
+        "Use this as part of inspection when WORKFLOW.md calls for it or the user asks to view completed work in their editor.",
         "The worktree path must come from the completed job; never accept or invent an arbitrary directory.",
         "If EDITOR is unavailable, report the setup error and keep the work unmerged.",
       ],
       parameters: Type.Object({
-        jobId: Type.String({ description: "Exact completed implementation job ID" }),
+        jobId: Type.String({ description: "Exact completed job ID for a job that owns a worktree" }),
       }),
       execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
@@ -598,15 +602,15 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_merge_job",
       label: "Merge completed job",
-      description: "Merge a completed implementation job into its authorized project workspace after the user approves in conversation.",
-      promptSnippet: "Merge completed implementation work after the user approves",
+      description: "Merge a completed job-owned worktree into its authorized project workspace after the user approves in conversation.",
+      promptSnippet: "Merge completed work after the workflow and user approval allow it",
       promptGuidelines: [
-        "After an implementation is ready, tell the user the job has finished and ask whether they want to merge it into the project.",
+        "Follow WORKFLOW.md to decide whether and when completed work should be offered for merge.",
         "Call this only when the user says to merge it; if they ask to look first, use worker_inspect_job_changes instead.",
         "The user's conversational approval authorizes the merge; do not ask them to approve a second time.",
       ],
       parameters: Type.Object({
-        jobId: Type.String({ description: "Exact completed implementation job ID" }),
+        jobId: Type.String({ description: "Exact completed job ID for a job that owns a worktree" }),
       }),
       execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
@@ -684,7 +688,7 @@ export class WorkerAgentExtension {
         "Use worker_delegate_job instead of temporary scripts, direct SQLite writes, manual worktree creation, or direct runner invocation.",
         "Before worker_delegate_job, read the target workspace's agent instructions and include relevant guidance in the canonical worker request.",
         "Evaluate a completed dependency and re-read WORKFLOW.md before calling worker_delegate_job for the next workflow transition.",
-        "Review jobs must depend on the completed implementation they inspect and use the reviews relationship.",
+        "Treat job-type IDs and dependency relationships as policy-defined labels; use the configured job type and relationship required by WORKFLOW.md.",
       ],
       parameters: Type.Object({
         taskId: Type.String({ description: "Exact task UUID or unique leading shorthand" }),

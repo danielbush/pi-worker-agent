@@ -23,7 +23,7 @@ class FixedIds {
   createWorkerSessionId(): string { return this.sessionId; }
 }
 
-test("creates a dependent implementation job with an explicit profile, worktree, and detached launch", async () => {
+test("creates a new worktree from database configuration without interpreting the job-type name", async () => {
   // arrange
   const registry = Registry.createNull({
     agentProfiles: [
@@ -32,7 +32,7 @@ test("creates a dependent implementation job with an explicit profile, worktree,
     ],
     jobTypes: [
       { id: "plan", description: null, capabilityProfile: "read-only", worktreeStrategy: "workspace", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
-      { id: "implement", description: null, capabilityProfile: "code", worktreeStrategy: "new-worktree", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+      { id: "draft-change", description: null, capabilityProfile: "code", worktreeStrategy: "new-worktree", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
     ],
     workspaces: [{
       id: "workspace_demo",
@@ -94,7 +94,7 @@ test("creates a dependent implementation job with an explicit profile, worktree,
   // act
   const delegated = await delegator.delegate({
     taskId: TASK_ID,
-    jobType: "implement",
+    jobType: "draft-change",
     agentProfileId: "pi-override",
     title: "Implement greeting CLI",
     request: "Implement the accepted plan.",
@@ -111,7 +111,7 @@ test("creates a dependent implementation job with an explicit profile, worktree,
     worktreePath: "/null-worker-agent/worktrees/job_implement",
   }]);
   expect(registry.tasks.get(TASK_ID)).toMatchObject({ status: "queued", finishedAt: null });
-  expect(registry.jobs.get("job_implement")).toMatchObject({ status: "queued", jobTypeId: "implement", agentProfileId: "pi-override", agentProfileSelectionSource: "explicit" });
+  expect(registry.jobs.get("job_implement")).toMatchObject({ status: "queued", jobTypeId: "draft-change", agentProfileId: "pi-override", agentProfileSelectionSource: "explicit" });
   expect(registry.jobDependencies.listForJob("job_implement")).toEqual([{
     jobId: "job_implement",
     dependsOnJobId: "job_plan",
@@ -168,9 +168,13 @@ test("does not leave a queued orphan when canonical error writing fails after la
   expect(registry.tasks.get(TASK_ID)?.status).toBe("failed");
 });
 
-test("creates a read-only review against its implementation dependency's worktree", async () => {
+test("inherits a dependency worktree from database configuration without interpreting the job-type name", async () => {
   // arrange
   const registry = Registry.createNull({
+    jobTypes: [
+      { id: "draft-change", description: null, capabilityProfile: "code", worktreeStrategy: "new-worktree", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+      { id: "inspect-change", description: null, capabilityProfile: "read-only", worktreeStrategy: "dependency-worktree", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+    ],
     workspaces: [{
       id: "workspace_demo",
       name: "pi-worker-agent",
@@ -189,7 +193,7 @@ test("creates a read-only review against its implementation dependency's worktre
     jobs: [{
       id: "job_implement",
       taskId: TASK_ID,
-      jobTypeId: "implement",
+      jobTypeId: "draft-change",
       agentProfileId: "pi-test",
       agentProfileSelectionSource: "migration-fossil",
       parentSessionId: "manager-session",
@@ -230,8 +234,8 @@ test("creates a read-only review against its implementation dependency's worktre
   // act
   const delegated = await delegator.delegate({
     taskId: TASK_ID,
-    jobType: "review",
-    title: "Review greeting CLI",
+    jobType: "inspect-change",
+    title: "Inspect greeting CLI",
     request: "Review the implementation read-only.",
     dependsOnJobId: "job_implement",
     relationship: "reviews",
@@ -242,7 +246,7 @@ test("creates a read-only review against its implementation dependency's worktre
   // assert
   expect(delegated.worktreePath).toBe("/null-worker-agent/worktrees/job_implement");
   expect(createdWorktrees).toEqual([]);
-  expect(registry.jobs.get("job_review")).toMatchObject({ jobTypeId: "review", status: "queued" });
+  expect(registry.jobs.get("job_review")).toMatchObject({ jobTypeId: "inspect-change", status: "queued" });
   expect(registry.jobDependencies.listForJob("job_review")).toEqual([{
     jobId: "job_review",
     dependsOnJobId: "job_implement",

@@ -5,7 +5,7 @@ import { CompletedWorkMerger } from "../completed-work-merger.ts";
 const TIMESTAMP = "2026-09-03T12:00:00Z";
 const COMMIT = "b".repeat(40);
 
-test("inspects completed implementation changes without merging", () => {
+test("inspects completed job-owned changes without interpreting the job-type name", () => {
   // arrange
   const mergedCommits: string[] = [];
   const merger = CompletedWorkMerger.createNull({
@@ -28,7 +28,7 @@ test("inspects completed implementation changes without merging", () => {
   expect(mergedCommits).toEqual([]);
 });
 
-test("commits and merges completed implementation changes", () => {
+test("commits and merges completed job-owned changes", () => {
   // arrange
   const mergedCommits: string[] = [];
   const removedWorktrees: string[] = [];
@@ -64,18 +64,22 @@ test("fails closed when the destination is dirty or stale", () => {
   expect(() => stale.merge("job_implement")).toThrow("Workspace HEAD has changed");
 });
 
-test("rejects jobs that are not completed implementations", () => {
+test("rejects jobs that do not own a worktree or are not completed", () => {
   // arrange
-  const planning = CompletedWorkMerger.createNull({ registry: registryState(job("plan", "completed")) });
-  const running = CompletedWorkMerger.createNull({ registry: registryState(job("implement", "running")) });
+  const workspaceJob = CompletedWorkMerger.createNull({ registry: registryState(job("research", "completed")) });
+  const running = CompletedWorkMerger.createNull({ registry: registryState(job("deliverable", "running")) });
 
   // act / assert
-  expect(() => planning.inspect("job_implement")).toThrow("Job does not own an implementation worktree");
-  expect(() => running.inspect("job_implement")).toThrow("Implementation job is not completed");
+  expect(() => workspaceJob.inspect("job_implement")).toThrow("Job does not own a worktree");
+  expect(() => running.inspect("job_implement")).toThrow("Job is not completed");
 });
 
-function registryState(implementation = job("implement", "completed")) {
+function registryState(work = job("deliverable", "completed")) {
   return {
+    jobTypes: [
+      { id: "deliverable", description: null, capabilityProfile: "code" as const, worktreeStrategy: "new-worktree" as const, defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+      { id: "research", description: null, capabilityProfile: "read-only" as const, worktreeStrategy: "workspace" as const, defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+    ],
     workspaces: [{
       id: "workspace_demo",
       name: "demo",
@@ -93,7 +97,7 @@ function registryState(implementation = job("implement", "completed")) {
       createdAt: TIMESTAMP,
       finishedAt: TIMESTAMP,
     }],
-    jobs: [implementation],
+    jobs: [work],
   };
 }
 

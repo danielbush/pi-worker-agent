@@ -5,7 +5,7 @@ flowchart LR
     subgraph PolicyKernel[Agentic policy kernel]
         Agents["AGENTS.md<br/><br/>manager role and policy entry point"]
         ProjectManagement["DATA_ROOT/PROJECT.md<br/><br/>project structure and sequencing"]
-        Workflow["DATA_ROOT/WORKFLOW.md<br/><br/>task, job, dependency, and review policy"]
+        Workflow["DATA_ROOT/WORKFLOW.md<br/><br/>job purpose, sequencing, evaluation,<br/>inspection, merge, and approval policy"]
         Coding["DATA_ROOT/CODE.md<br/><br/>coding and codebase policy"]
 
         Agents --> ProjectManagement
@@ -155,15 +155,9 @@ flowchart LR
 
 ## Agentic policy kernel
 
-The core Markdown files act as an agentic policy kernel: they define how the manager interprets work and uses the system without hardcoding one organization's process into application code.
+The core Markdown files form an agentic policy kernel so users can change how the manager organizes and evaluates work without encoding one organization's process in application code. [`AGENTS.md`](AGENTS.md#policy-file-contract) is the normative source for each policy file's role, loading and reconciliation rules, user-owned content, and relationship to database configuration and hard application invariants; those rules are not duplicated here.
 
-- `AGENTS.md` is the entry point for the manager role and policy set.
-- `DATA_ROOT/PROJECT.md` governs project structure, sequencing, and feedback cycles across active `DATA_ROOT/projects/`, diagnostic `DATA_ROOT/projects/.test/`, and archived `DATA_ROOT/projects/.archive/` collections.
-- `DATA_ROOT/WORKFLOW.md` governs how tasks, jobs, dependencies, results, revisions, and approvals are managed.
-- `DATA_ROOT/CODE.md` governs coding and codebase practices used when preparing and evaluating coding work.
-- `examples/` contains policy templates that consumers can copy and customize. This maintainer checkout's `work/` directory symlinks to them only so the examples can be maintained and used in place; symlinking is not a system feature or the expected consumer setup.
-
-Users can revise these policies while the task, job, persistence, and execution mechanisms remain general.
+Architecturally, the manager interprets the active policy files under `DATA_ROOT`, while the application provides general task, job, persistence, execution, and safety mechanisms. `examples/` supplies templates rather than active policy.
 
 ## Data root
 
@@ -203,18 +197,18 @@ The manager decomposes the task into jobs. Each job has:
 
 - **`jobTypeId`** — the selected manager-configured job purpose.
 - **`agentProfileId`** — the selected durable harness-native agent configuration.
-- **`capabilityProfile`** — the job type's separate trusted capability boundary, snapshotted on the job.
+- **`capabilityProfile`** — the trusted capability loaded from the referenced database job type; the job records the value used when its invocation was prepared.
 - **`instructions`** — what that specific worker should do and return.
 
 ## Agent profiles, job types, and trusted capabilities
 
-Execution prerequisites are durable manager configuration rather than prose policy. Before work can run, `agentProfiles` defines available harness-native model configurations and `jobTypes` defines purposes, capabilities, worktree strategies, and non-null default profile references. `WORKFLOW.md` remains human-readable sequencing and review policy; it is not a second structured configuration source.
+Execution prerequisites are durable manager configuration rather than prose policy. Before work can run, `agentProfiles` defines available harness-native model configurations and `jobTypes` defines opaque purpose IDs, capabilities, worktree strategies, and non-null default profile references. The database catalog is the source of truth for how a selected job type executes. `WORKFLOW.md` gives those IDs meaning for the manager and decides sequencing, evaluation, and whether and when completed work should be offered for inspection or merge; it is not a second structured execution source.
 
 The system does not impose a universal model or effort vocabulary. Pi profiles can use a model such as `openai-codex/gpt-5.6-sol` with `thinking: high`, while Cursor SDK profiles can use a catalog ID such as `grok-4.5` with native parameters such as `effort: high` and `fast: false`. Each harness adapter validates its native configuration and model catalog directly. The manager lists live catalogs outside the worker sandbox through `worker_list_models`; job preflight fails closed when a pin or option is invalid.
 
-Delegation uses an explicitly selected active agent profile when supplied, otherwise the job type's active default. It records non-null `jobTypeId`, `agentProfileId`, and assignment source on the job, then snapshots the profile fingerprint, canonical options, capability, harness/version, model, and exact native invocation so later catalog retirement does not rewrite historical execution.
+Delegation uses an explicitly selected active agent profile when supplied, otherwise the job type's active default. It records non-null `jobTypeId`, `agentProfileId`, and assignment source on the job, then records the prepared profile fingerprint, canonical options, capability, harness/version, model, and exact native invocation for launch integrity and historical audit.
 
-Trusted capabilities (`read-only`, `code`, and `test`) and worktree strategies (`workspace`, `new-worktree`, and `dependency-worktree`) belong to job types and are constrained by the application and database. Selecting an agent profile cannot expand them. The runner reloads the referenced job type, verifies its capability against the immutable job snapshot, and derives tools and workspace placement from those trusted values rather than from hardcoded purpose names.
+Trusted capabilities (`read-only`, `code`, and `test`) and worktree strategies (`workspace`, `new-worktree`, and `dependency-worktree`) belong to database job types and are constrained by the application and database. Selecting an agent profile cannot expand them. Job-type IDs and dependency relationships are opaque to application code: the runner reloads the referenced job type and derives tools and workspace placement from its configured fields rather than names such as `implement`, `review`, `fix`, or `test`. Execution-related job-type changes are allowed when no `blocked`, `queued`, or `running` job references the type; retirement retains the row and its foreign-key history while preventing new delegation.
 
 Agent profile execution fields become immutable once referenced; changing harness, model, or options requires a new ID. Retirement preserves foreign keys but prevents new defaults and job assignments. Historical pre-catalog jobs receive explicit archived migration identities and retain the `migration-fossil` snapshot provenance when their exact execution configuration cannot be reconstructed.
 
@@ -250,6 +244,7 @@ SQLite stores structured metadata and query-friendly current-state projections.
 - Stable `id`, optional `description`, non-null trusted `capabilityProfile` and `worktreeStrategy`.
 - Non-null `defaultAgentProfileId` references `agentProfiles.id`.
 - Non-null `retired` state, nullable `archiveDate`, and creation/update timestamps.
+- Capability, worktree strategy, and default profile may be changed only while no active job references the type; completed jobs remain historical references to the retained row.
 
 The remaining tables are operational records that grow as work is configured and performed.
 
@@ -308,7 +303,7 @@ Typical transitions are `queued → running → completed | failed | cancelled`.
 - `agentProfileId` — required reference to the selected `agentProfiles.id`.
 - `agentProfileSelectionSource` — non-null record of `job-type-default`, `explicit`, or an explicit migration fossil.
 - `parentSessionId` and `parentSessionFile` — managing Pi session that owns notifications.
-- `capabilityProfile` — trusted capability copied from the job type into the immutable execution snapshot.
+- `capabilityProfile` — audit record of the trusted capability used to prepare this job's invocation; current job-type configuration remains in `jobTypes`.
 - `harness` — resolved worker harness, such as `pi` or `cursor-agent`.
 - `model` and harness-specific options — exact native values supplied to the harness.
 - `modelName` and `modelVersion` — optional display and query metadata reported by the harness.
@@ -472,18 +467,18 @@ Fields when relevant:
 
 ### Worktree
 
-For an implementation job, the extension:
+For a job whose database job type uses `new-worktree`, the extension:
 
 - Creates the job and assigns its `id`.
 - Loads the workspace through `tasks.workspaceId`.
 - Reads the workspace's `rootDir`.
 - Computes the worktree path as `worktrees/<job-id>/`.
-- Creates the git worktree.
+- Creates the Git worktree.
 - Executes the worker inside it.
 
-The worktree path is derived from the implementation job `id`; it is not stored on the job. A review follows its dependency chain to the implementation job and runs read-only inside that same worktree.
+The path is derived from the worktree-owning job `id`; it is not stored on the job. A job configured with `dependency-worktree` follows its dependency chain to the owning job and runs inside the same worktree with its own configured capability.
 
-When an implementation is ready under the active workflow, the manager asks whether the user wants to merge it into the project. The user may first inspect the result, changed files, tests, review findings, and `git diff` without modifying the destination. Inspection can launch the derived worktree through `WorktreeEditor`, which resolves the executable named by `EDITOR` and never accepts an arbitrary directory. `CompletedWorkMerger` resolves the completed implementation job, its derived worktree, and its authorized workspace from durable identities; it does not accept arbitrary source or destination paths. After the user approves in conversation, the manager calls the merge tool without asking a second time. The tool requires a clean destination whose `HEAD` still matches the implementation worktree, commits the worktree changes with task and job identity in the message, and cherry-picks that commit into the workspace. A conflict triggers `cherry-pick --abort`, so the destination is not left partially merged. After a successful cherry-pick, the workspace repository removes the detached implementation worktree through `git worktree remove`; unmerged work and failed merges retain their worktrees.
+`WORKFLOW.md` decides whether and when the manager offers completed work for inspection or merge. The merge tool does not infer that decision from a job-type name. It checks only that the requested job is complete and owns a worktree, derives that worktree and the authorized destination from durable identities, and refuses unsafe Git state. The user may inspect the result, changed files, tests, findings, and `git diff` without modifying the destination. Inspection can launch the worktree through `WorktreeEditor`, which resolves the executable named by `EDITOR` and never accepts an arbitrary directory. After the user approves in conversation, the manager calls the merge tool without asking a second time. The tool requires a clean destination whose `HEAD` still matches the job worktree, commits the changes with task and job identity in the message, and cherry-picks that commit into the workspace. A conflict triggers `cherry-pick --abort`, so the destination is not left partially merged. After a successful cherry-pick, the workspace repository removes the detached worktree through `git worktree remove`; unmerged work and failed merges retain their worktrees.
 
 ## Manager permissions
 
@@ -493,7 +488,7 @@ Unrestricted coding is an explicit user elevation rather than an agent decision.
 
 When a detached worker settles, the completion monitor injects its durable result and triggers a manager turn. The manager re-reads policy, evaluates the result, and chooses the next transition. The runner does not encode or create workflow successors. If the task outcome is accepted, the manager explicitly completes it through a narrow tool. Application code rejects completion while jobs remain active, but does not infer workflow meaning from job types, order, or settled results.
 
-Workers have a harness-selected process-isolation boundary. `HarnessSandboxCatalog` composes the strategy rather than making `NativeHarness` branch on a provider identity. Pi uses `WorkerSandbox`, which initializes `@anthropic-ai/sandbox-runtime` around the entire worker process tree: macOS uses `sandbox-exec`; Linux uses Bubblewrap and required helper tools; Windows and unsupported or misconfigured platforms fail before a Pi worker starts. Its sandbox denies writes by default and allows only canonical worker-session paths, a non-canonical private OS temporary directory, and the assigned implementation worktree for writable jobs. Cursor uses the explicit `NullSandbox` strategy because Cursor SDK 1.0.30 local-agent streams stall behind the sandbox runtime HTTP proxy; [`ISSUES.md`](ISSUES.md) records the bounded diagnosis under `CURSOR_SDK_PROXY_STREAM_STALL`. This is trusted same-user process execution with worktree isolation, not an OS security boundary.
+Workers have a harness-selected process-isolation boundary. `HarnessSandboxCatalog` composes the strategy rather than making `NativeHarness` branch on a provider identity. Pi uses `WorkerSandbox`, which initializes `@anthropic-ai/sandbox-runtime` around the entire worker process tree: macOS uses `sandbox-exec`; Linux uses Bubblewrap and required helper tools; Windows and unsupported or misconfigured platforms fail before a Pi worker starts. Its sandbox denies writes by default and allows only canonical worker-session paths, a non-canonical private OS temporary directory, and the assigned job worktree for writable jobs. Cursor uses the explicit `NullSandbox` strategy because Cursor SDK 1.0.30 local-agent streams stall behind the sandbox runtime HTTP proxy; [`ISSUES.md`](ISSUES.md) records the bounded diagnosis under `CURSOR_SDK_PROXY_STREAM_STALL`. This is trusted same-user process execution with worktree isolation, not an OS security boundary.
 
 After all possible preflight, `NativeHarness` asks the selected `HarnessEnvironment` adapter to stage only that SDK's credentials in a disposable private `HOME`: Pi receives its agent auth files, while Cursor receives `~/.cursor/sdk/auth.json` or a selected `CURSOR_API_KEY`. `NativeHarness` owns only the common selected-strategy process lifecycle; sandbox implementations own wrapping and reset, while environment adapters own credential paths, denied reads where enforceable, minimal environments, and cleanup. The child never receives the manager environment or another harness's auth. Credentials and private state are removed on success, failure, cancellation, SDK event errors, and spawn exceptions. A post-persistence detached spawn failure settles SQLite first; canonical error append is best effort, so event-log failure cannot leave queued state and both failures remain visible to the caller.
 

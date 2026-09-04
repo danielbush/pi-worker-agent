@@ -97,8 +97,10 @@ export class ExecutionCatalogManager {
   updateJobType(id: string, capabilityProfile: CapabilityProfile, worktreeStrategy: WorktreeStrategy, defaultAgentProfileId: string): JobTypeConfiguration {
     this.requireJobType(id);
     this.requireActiveAgentProfile(defaultAgentProfileId);
-    if (this.registry.tasks.list().some((task) => this.registry.jobs.listForTask(task.id).some((job) => job.jobTypeId === id))) {
-      throw new Error(`Referenced job type capability and worktree strategy are immutable: ${id}`);
+    const activeStatuses = new Set(["blocked", "queued", "running"]);
+    if (this.registry.tasks.list().some((task) => this.registry.jobs.listForTask(task.id)
+      .some((job) => job.jobTypeId === id && activeStatuses.has(job.status)))) {
+      throw new Error(`Job type execution settings cannot change while it has active jobs: ${id}`);
     }
     this.registry.jobTypes.updateConfiguration(id, capabilityProfile, worktreeStrategy, defaultAgentProfileId, this.clock.now());
     return this.requireJobType(id);

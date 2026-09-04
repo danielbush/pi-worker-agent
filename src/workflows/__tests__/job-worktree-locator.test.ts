@@ -6,24 +6,28 @@ import { JobWorktreeLocator } from "../job-worktree-locator.ts";
 
 const TIMESTAMP = "2026-09-03T12:00:00Z";
 
-test("locates the implementation worktree through a review dependency", () => {
+test("locates an owned worktree through a dependency without interpreting job-type names", () => {
   // arrange
-  const implementation = job("job_implementation", "implement");
-  const review = job("job_review", "review");
+  const owner = job("job_owner", "draft-change");
+  const consumer = job("job_consumer", "inspect-change");
   const registry = Registry.createNull({
-    jobs: [implementation, review],
+    jobTypes: [
+      { id: "draft-change", description: null, capabilityProfile: "code", worktreeStrategy: "new-worktree", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+      { id: "inspect-change", description: null, capabilityProfile: "read-only", worktreeStrategy: "dependency-worktree", defaultAgentProfileId: "pi-test", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP },
+    ],
+    jobs: [owner, consumer],
     jobDependencies: [{
-      jobId: review.id,
-      dependsOnJobId: implementation.id,
-      relationship: "reviews",
+      jobId: consumer.id,
+      dependsOnJobId: owner.id,
+      relationship: "checks",
     }],
   });
 
   // act
-  const path = new JobWorktreeLocator(registry, TaskStore.createNull()).locate(review);
+  const path = new JobWorktreeLocator(registry, TaskStore.createNull()).locate(consumer);
 
   // assert
-  expect(path).toBe("/null-worker-agent/worktrees/job_implementation");
+  expect(path).toBe("/null-worker-agent/worktrees/job_owner");
 });
 
 function job(id: string, jobTypeId: Job["jobTypeId"]): Job {

@@ -76,7 +76,7 @@ export class JobDelegator {
         ? new JobWorktreeLocator(this.registry, this.taskStore).locate(dependency)
         : null;
     if (jobType.worktreeStrategy === "dependency-worktree" && !worktreePath) {
-      throw new Error(`Job type ${jobType.id} requires a dependency with an implementation worktree`);
+      throw new Error(`Job type ${jobType.id} requires a dependency with a worktree`);
     }
     const executionPath = worktreePath ?? workspace.rootDir;
     // Harness preflight validates authentication, model/options, capability, and the invocation that the job will snapshot.
