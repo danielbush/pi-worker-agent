@@ -2,13 +2,15 @@ import { randomUUID } from "node:crypto";
 import { lstatSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, win32 } from "node:path";
 
-export type TextFileOperation = "create" | "update" | "delete";
+export type TextFileOperation = "create" | "update" | "patch" | "delete";
 
 export interface TextFileMutation {
   relativePath: string;
   operation: TextFileOperation;
   expectedContent?: string;
   content?: string;
+  expectedText?: string;
+  replacementText?: string;
 }
 
 export interface TextFileChange {
@@ -16,6 +18,8 @@ export interface TextFileChange {
   operation: TextFileOperation;
   before: string | null;
   after: string | null;
+  expectedText?: string;
+  replacementText?: string;
 }
 
 type Entry = { kind: "file"; content: string; mode: number } | { kind: "directory" | "symbolic-link" | "other" } | null;
@@ -70,19 +74,40 @@ export class ConfinedTextFiles {
     let change: TextFileChange;
     if (input.operation === "create") {
       if (current) throw new Error(`Confined text file already exists: ${input.relativePath}`);
+      if (input.expectedContent !== undefined || input.expectedText !== undefined || input.replacementText !== undefined) {
+        throw new Error("Create accepts replacement content only");
+      }
       const content = requireMutationContent(input.content, "create");
       this.driver.write(target, content, 0o644);
       change = { relativePath: input.relativePath, operation: input.operation, before: null, after: content };
     } else if (input.operation === "update") {
       if (!current || current.kind !== "file") throw new Error(`Confined text file does not exist: ${input.relativePath}`);
+      if (input.expectedText !== undefined || input.replacementText !== undefined) throw new Error("Update accepts expectedContent and content only");
       requireExpectedContent(input.expectedContent, current.content);
       const content = requireMutationContent(input.content, "update");
       this.driver.write(target, content, current.mode);
       change = { relativePath: input.relativePath, operation: input.operation, before: current.content, after: content };
+    } else if (input.operation === "patch") {
+      if (!current || current.kind !== "file") throw new Error(`Confined text file does not exist: ${input.relativePath}`);
+      if (input.expectedContent !== undefined || input.content !== undefined) throw new Error("Patch accepts expectedText and replacementText only");
+      const expectedText = requirePatchText(input.expectedText, "expectedText", false);
+      const replacementText = requirePatchText(input.replacementText, "replacementText", true);
+      const occurrences = countOccurrences(current.content, expectedText);
+      if (occurrences === 0) throw new Error("Patch text was not found; inspect the relevant section again before updating");
+      if (occurrences > 1) throw new Error("Patch text is ambiguous because it occurs more than once");
+      const content = current.content.replace(expectedText, replacementText);
+      requireText(content, "Confined text file content");
+      this.driver.write(target, content, current.mode);
+      change = {
+        relativePath: input.relativePath, operation: input.operation,
+        before: current.content, after: content, expectedText, replacementText,
+      };
     } else if (input.operation === "delete") {
       if (!current || current.kind !== "file") throw new Error(`Confined text file does not exist: ${input.relativePath}`);
       requireExpectedContent(input.expectedContent, current.content);
-      if (input.content !== undefined) throw new Error("Delete does not accept replacement content");
+      if (input.content !== undefined || input.expectedText !== undefined || input.replacementText !== undefined) {
+        throw new Error("Delete accepts expectedContent only");
+      }
       this.driver.remove(target);
       change = { relativePath: input.relativePath, operation: input.operation, before: current.content, after: null };
     } else {
@@ -154,6 +179,24 @@ function requireMutationContent(content: string | undefined, operation: string):
   if (content === undefined) throw new Error(`${operation} requires replacement content`);
   requireText(content, "Confined text file content");
   return content;
+}
+
+function requirePatchText(text: string | undefined, field: string, allowEmpty: boolean): string {
+  if (text === undefined || (!allowEmpty && text.length === 0)) throw new Error(`Patch requires ${field}${allowEmpty ? "" : " to be non-empty"}`);
+  requireText(text, `Patch ${field}`);
+  return text;
+}
+
+function countOccurrences(content: string, expectedText: string): number {
+  let count = 0;
+  let offset = 0;
+  while (offset <= content.length - expectedText.length) {
+    const index = content.indexOf(expectedText, offset);
+    if (index < 0) break;
+    count += 1;
+    offset = index + 1;
+  }
+  return count;
 }
 
 function requireExpectedContent(expected: string | undefined, current: string): void {

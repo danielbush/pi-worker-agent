@@ -42,6 +42,8 @@ export class ProjectFileManager {
       operation: input.operation,
       expectedContent: input.expectedContent,
       content: input.content,
+      expectedText: input.expectedText,
+      replacementText: input.replacementText,
     });
     const change = { ...confinedChange, relativePath: input.relativePath };
     return { project, ...change, diff: formatProjectFileDiff(project.directoryName, change) };
@@ -52,12 +54,14 @@ export function formatProjectFileDiff(directoryName: string, change: TextFileCha
   const path = `${directoryName}/${change.relativePath}`;
   const beforePath = change.before === null ? "/dev/null" : `a/${path}`;
   const afterPath = change.after === null ? "/dev/null" : `b/${path}`;
+  const before = change.operation === "patch" ? change.expectedText ?? null : change.before;
+  const after = change.operation === "patch" ? change.replacementText ?? null : change.after;
   return [
     `--- ${beforePath}`,
     `+++ ${afterPath}`,
     "@@",
-    ...diffLines(change.before, "-"),
-    ...diffLines(change.after, "+"),
+    ...diffLines(before, "-"),
+    ...diffLines(after, "+"),
   ].join("\n");
 }
 

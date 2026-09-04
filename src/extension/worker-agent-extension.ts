@@ -247,20 +247,23 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_manage_project_file",
       label: "Manage project file",
-      description: "Create, update, or delete a text file inside a registered policy-owned project directory with containment and stale-content checks.",
+      description: "Create, replace, patch, or delete a text file inside a registered policy-owned project directory with containment and stale-content checks.",
       promptSnippet: "Manage policy-owned files for a registered project",
       promptGuidelines: [
-        "Read PROJECT.md and the target file before deciding what its contents mean or how to change it.",
+        "Read PROJECT.md and the relevant target section before deciding what its contents mean or how to change it.",
         "Use only project-relative paths and preserve user-owned comments and policy content.",
-        "For update and delete, pass the exact current file content as expectedContent; stale changes must be inspected again rather than overwritten.",
+        "Prefer patch for a localized change: pass a small, exact, uniquely occurring expectedText and its replacementText.",
+        "For whole-file update and delete, pass the exact current file content as expectedContent; stale changes must be inspected again rather than overwritten.",
         "Call the returned line-by-line output a diff and report it clearly to the user.",
       ],
       parameters: Type.Object({
         project: Type.String({ description: "Project directory name, exact ID, or unique leading shorthand" }),
         relativePath: Type.String({ description: "Text-file path relative to the registered project directory" }),
-        operation: Type.Union([Type.Literal("create"), Type.Literal("update"), Type.Literal("delete")]),
-        expectedContent: Type.Optional(Type.String({ description: "Exact inspected content required for update or delete" })),
-        content: Type.Optional(Type.String({ description: "Complete replacement content required for create or update" })),
+        operation: Type.Union([Type.Literal("create"), Type.Literal("update"), Type.Literal("patch"), Type.Literal("delete")]),
+        expectedContent: Type.Optional(Type.String({ description: "Exact inspected content required for whole-file update or delete" })),
+        content: Type.Optional(Type.String({ description: "Complete replacement content required for create or whole-file update" })),
+        expectedText: Type.Optional(Type.String({ description: "Small exact uniquely occurring text required for patch" })),
+        replacementText: Type.Optional(Type.String({ description: "Replacement text required for patch; may be empty" })),
       }),
       execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
@@ -269,12 +272,18 @@ export class WorkerAgentExtension {
           content: [{
             type: "text",
             text: [
-              `${result.operation}d ${result.project.directoryName}/${result.relativePath}`,
+              `${result.operation === "patch" ? "patched" : `${result.operation}d`} ${result.project.directoryName}/${result.relativePath}`,
               "diff:",
               result.diff,
             ].join("\n"),
           }],
-          details: result,
+          details: {
+            projectId: result.project.id,
+            projectDirectoryName: result.project.directoryName,
+            relativePath: result.relativePath,
+            operation: result.operation,
+            diff: result.diff,
+          },
         };
       },
     });

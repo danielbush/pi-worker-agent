@@ -45,6 +45,25 @@ test("atomically creates, updates, and deletes confined text files", () => {
   expect(readdirSync(join(root, "nested"))).toEqual([]);
 });
 
+test("atomically patches one exact section without replacing the whole input", () => {
+  // arrange
+  const { root, files } = setup();
+  writeFileSync(join(root, "existing.md"), "# Backlog\n\n## refactor\n\n- Existing\n\n## fix\n");
+
+  // act
+  files.mutate({
+    relativePath: "existing.md",
+    operation: "patch",
+    expectedText: "## refactor\n\n- Existing\n",
+    replacementText: "## refactor\n\n- New\n\n- Existing\n",
+  });
+
+  // assert
+  expect(readFileSync(join(root, "existing.md"), "utf8"))
+    .toBe("# Backlog\n\n## refactor\n\n- New\n\n- Existing\n\n## fix\n");
+  expect(readdirSync(root).sort()).toEqual(["existing.md", "nested"]);
+});
+
 test("rejects traversal, symbolic-link components, and absolute paths", () => {
   // arrange
   const { root, files } = setup();

@@ -52,6 +52,66 @@ test("updates a registered project file and returns its diff", () => {
   }]);
 });
 
+test("patches one exact section and returns only a focused diff", () => {
+  // arrange
+  const files = ConfinedTextFiles.createNull({
+    "demo/backlog.md": "# Backlog\n\n## refactor\n\n- Existing\n\n## fix\n\n- Keep\n",
+  });
+  const manager = new ProjectFileManager(
+    Registry.createNull({ projects: [PROJECT] }),
+    { active: files, test: files, archive: files },
+  );
+
+  // act
+  const result = manager.manage({
+    project: "demo",
+    relativePath: "backlog.md",
+    operation: "patch",
+    expectedText: "## refactor\n\n- Existing\n",
+    replacementText: "## refactor\n\n- New\n\n- Existing\n",
+  });
+
+  // assert
+  expect(result.diff).toBe([
+    "--- a/demo/backlog.md",
+    "+++ b/demo/backlog.md",
+    "@@",
+    "-## refactor",
+    "-",
+    "-- Existing",
+    "+## refactor",
+    "+",
+    "+- New",
+    "+",
+    "+- Existing",
+  ].join("\n"));
+  expect(result.diff).not.toContain("## fix");
+  expect(files.state.changes[0]?.after).toContain("## fix\n\n- Keep\n");
+});
+
+test("rejects missing and ambiguous patch targets", () => {
+  const { manager } = setup();
+
+  expect(() => manager.manage({
+    project: "demo", relativePath: "sequence.md", operation: "patch",
+    expectedText: "missing", replacementText: "replacement",
+  })).toThrow("was not found");
+  expect(() => manager.manage({
+    project: "demo", relativePath: "sequence.md", operation: "patch",
+    expectedText: "#", replacementText: "##",
+  })).not.toThrow();
+
+  const repeated = ConfinedTextFiles.createNull({ "demo/repeated.md": "same\nsame\n" });
+  const repeatedManager = new ProjectFileManager(
+    Registry.createNull({ projects: [PROJECT] }),
+    { active: repeated, test: repeated, archive: repeated },
+  );
+  expect(() => repeatedManager.manage({
+    project: "demo", relativePath: "repeated.md", operation: "patch",
+    expectedText: "same", replacementText: "other",
+  })).toThrow("ambiguous");
+});
+
 test("creates and deletes files with optimistic content checks", () => {
   // arrange
   const { files, manager } = setup();
