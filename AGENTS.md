@@ -21,6 +21,23 @@ state["runs"][-5:]
 Loading costs nothing; printing costs context. Same for `history.jsonl` — read
 the tail, or grep it for a run id.
 
+## Control records and workspaces
+
+`projects/<name>/` is the manager-owned control record. Only the manager may
+create, edit, move, or delete its `README.md`, `state.json`, `history.jsonl`, or
+other control files.
+
+`projects/<name>/runs/` is the narrow exception. The manager creates each run
+directory and assigns each worker exactly one result file. A worker may write
+only that assigned `runs/<run-id>/<job>.md` file in the control record. It must
+not edit another job's result or any other file under `projects/<name>/`.
+
+Workers do project work in an explicit **workspace**, normally outside this
+control repository. The manager selects or creates the workspace, records its
+absolute path in the project context and each run record, and passes that exact
+path to every worker. A workspace may be a normal directory, main checkout, or
+Git worktree.
+
 ## Setup
 
 Offer to run setup when `WORKFLOWS.md` is still at defaults, when `projects/`
@@ -75,23 +92,26 @@ Don't create `state.json`; it appears on the first real run.
    ambiguous — don't guess.
 2. Look up the workflow in `WORKFLOWS.md` to get its jobs, and each job's
    profile — profiles resolve to a model and thinking level in the same file.
-3. Create `projects/<name>/runs/<run-id>/` where `<run-id>` is
+3. Select and verify the exact workspace. Record its absolute path on the run.
+4. Create `projects/<name>/runs/<run-id>/` where `<run-id>` is
    `YYYY-MM-DD-HHMM-<workflow>`.
-4. Run the jobs in order, one worker per job.
-5. Report back to the user in plain language between jobs.
+5. Run the jobs in order, one worker per job.
+6. Report back to the user in plain language between jobs.
 
 ## Spawning workers
 
-Treat the configured project path as the exact execution root. It may be a
+Treat the selected workspace path as the exact execution root. It may be a
 standalone directory, a main checkout, or a Git worktree. Before a run, inspect
 `git rev-parse --show-toplevel` and `git rev-parse --git-common-dir` when Git is
 available. Never substitute the main checkout or common Git directory for the
-configured worktree. Stop if the configured path is missing or no longer
-matches the recorded project context.
+selected worktree. Stop if the workspace is missing or no longer matches the
+recorded project context.
 
-Every worker prompt must contain the **absolute execution path** and tell the
+Every worker prompt must contain the **absolute workspace path** and tell the
 worker to `os.chdir` there first. Workers inherit this control directory, not
-the project. Getting this wrong means workers edit the wrong files.
+the workspace. Getting this wrong means workers edit the wrong files. The
+workspace is the only location where the worker may do project work; the sole
+control-record exception is its assigned result file under `runs/`.
 
 Give each worker a minimal job brief, not the complete project configuration.
 The brief must state:
@@ -110,8 +130,9 @@ deployment, service, and Git-mutating commands explicitly. A worker must not
 improvise an unapproved command in those categories; it must report the need to
 the manager instead.
 
-Every worker prompt must name the file its result goes to:
-`projects/<name>/runs/<run-id>/<job>.md`.
+Every worker prompt must name the one control-record file it may write:
+`projects/<name>/runs/<run-id>/<job>.md`. The manager creates the parent
+run directory before spawning the worker.
 
 Pass paths between jobs, never objects — workers do not share your kernel.
 
@@ -170,6 +191,7 @@ what you need.
       "started": "...",
       "finished": "...",
       "request": "what the user asked for",
+      "workspace": "/absolute/path/to/the/checkout-or-worktree-used",
       "jobs": [{"job": "plan", "model": "...", "status": "done"}],
       "outcome": "one line, written when the run ends"
     }

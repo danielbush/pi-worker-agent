@@ -1,20 +1,27 @@
 # example
 
 A worked example of manager-owned project context. Copy this directory, rename
-it, and replace the contents. Workers should receive only the parts relevant to
-their job, not this whole file.
+it, and replace the contents. Only the manager edits this file. Workers receive
+only the parts relevant to their job, not the whole file.
 
 ---
 
-## Execution path
+## Workspace
 
-`/Users/you/code/example-api`
+Default workspace: `/Users/you/code/example-api`
 
-This is the exact path workers use. It may be a standalone directory, main Git
-checkout, or worktree. Workers `os.chdir` here before doing anything. Record the
-checkout type, Git top-level, common Git directory, and current branch when
-applicable. Never redirect a worker from a configured worktree to the main
-checkout.
+The workspace is separate from this manager control record. It may be a
+standalone directory, main Git checkout, or worktree. The manager selects the
+exact workspace for each run, records it in `state.json`, and tells workers to
+`os.chdir` there. Record checkout type and stable constraints here; inspect
+mutable facts such as the current branch and status at run time. Never redirect
+a worker from a selected worktree to the main checkout.
+
+## Control-record ownership
+
+Only the manager edits `README.md`, `state.json`, `history.jsonl`, and run
+metadata under `projects/<name>/`. The manager creates each run directory. A
+worker may write only its assigned `runs/<run-id>/<job>.md` result file.
 
 ## What it is
 

@@ -42,13 +42,13 @@ delete the folder and the project is gone.
 
 The split inside it matters:
 
-- `README.md` is manager-owned project context: what the project is, its exact
-  checkout or worktree path, approved commands, constraints, and goals. The
-  manager extracts a minimal brief for each worker rather than sending this
-  whole file.
-- `state.json` and `history.jsonl` are the **manager's**. Current status and job
-  history. Don't hand-edit — ask the manager to print what you want to see.
-- `runs/` is worker output, one directory per run.
+- `README.md` is manager-owned project context: what the project is, its
+  workspace options, approved commands, constraints, and goals. The manager
+  extracts a minimal brief for each worker rather than sending this whole file.
+- `state.json` and `history.jsonl` are manager-owned current status and job
+  history. Each run records the exact workspace used.
+- `runs/` is manager-created worker output. A worker may write only its assigned
+  `<job>.md`; the manager owns everything else under `projects/<name>/`.
 
 JSON rather than markdown for state is deliberate. The manager reads and writes
 it in a line of Python and it never drifts. Markdown state gets reformatted a
@@ -66,15 +66,15 @@ rule in `AGENTS.md` is: load, slice, then display.
 
 `rlm.run` accepts exactly three kwargs: `name`, `model`, `thinking`. There is no
 `cwd`. A worker inherits the manager's working directory — this control
-directory, not the target project.
+directory, not the external project workspace.
 
-So every worker task prompt must carry the exact absolute execution path and
-instruct the worker to `os.chdir` to it before doing anything. That path may be
-a Git worktree; the manager must not replace it with the main checkout or Git
-common directory. The prompt also carries only the constraints and approved
-project commands needed for that job. This is the single most important detail
-in the whole setup. Get it wrong and workers quietly edit files in the control
-directory.
+The manager selects or creates an explicit workspace for each run and records
+its absolute path. Every worker prompt carries that path and instructs the
+worker to `os.chdir` there before doing anything. The workspace may be a Git
+worktree; the manager must not replace it with the main checkout or Git common
+directory. The prompt also carries only the constraints and approved commands
+needed for that job. Apart from its assigned `runs/<run-id>/<job>.md` result,
+a worker never edits the manager's `projects/<name>/` control record.
 
 Workers also do not share the manager's Python kernel. Pass paths between them,
 never objects.
@@ -171,7 +171,12 @@ Use `agent_observe` to watch progress, `agent_message.send(...,
 receiver_role="child")` to send a follow-up, and `rlm-heartbeat` for long runs.
 Keep a child alive until you've read its output.
 
-But treat `runs/<run-id>/<job>.md` as the real interface. Files survive context
+The manager creates `runs/<run-id>/` before spawning jobs. Each worker owns only
+its assigned `<job>.md` result file. Review workers may read earlier results but
+must write a separate assigned file. The manager alone updates the project
+README, state, history, and run metadata.
+
+Treat these job result files as the real interface. They survive context
 compaction and kernel death; handles don't.
 
 ### 6. Freeze what stabilises
