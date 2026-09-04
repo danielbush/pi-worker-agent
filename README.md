@@ -28,7 +28,7 @@ prime-worker-agent/
   BACKLOG.md           # ideas not built yet
   projects/
     api/
-      README.md        # you write: what this is, its path, constraints, goals
+      README.md        # manager context: path, commands, constraints, goals
       state.json       # the manager writes: header + last 20 runs
       history.jsonl    # the manager appends: older runs, one per line
       runs/            # per-run job output
@@ -42,8 +42,10 @@ delete the folder and the project is gone.
 
 The split inside it matters:
 
-- `README.md` is **yours**. The brief. What the project is, where it lives, how
-  to test it, what you care about.
+- `README.md` is manager-owned project context: what the project is, its exact
+  checkout or worktree path, approved commands, constraints, and goals. The
+  manager extracts a minimal brief for each worker rather than sending this
+  whole file.
 - `state.json` and `history.jsonl` are the **manager's**. Current status and job
   history. Don't hand-edit — ask the manager to print what you want to see.
 - `runs/` is worker output, one directory per run.
@@ -66,10 +68,13 @@ rule in `AGENTS.md` is: load, slice, then display.
 `cwd`. A worker inherits the manager's working directory — this control
 directory, not the target project.
 
-So every worker task prompt must carry the absolute project path and instruct
-the worker to `os.chdir` to it before doing anything. This is the single most
-important detail in the whole setup. Get it wrong and workers quietly edit files
-in the control directory.
+So every worker task prompt must carry the exact absolute execution path and
+instruct the worker to `os.chdir` to it before doing anything. That path may be
+a Git worktree; the manager must not replace it with the main checkout or Git
+common directory. The prompt also carries only the constraints and approved
+project commands needed for that job. This is the single most important detail
+in the whole setup. Get it wrong and workers quietly edit files in the control
+directory.
 
 Workers also do not share the manager's Python kernel. Pass paths between them,
 never objects.
@@ -78,12 +83,13 @@ never objects.
 
 ### 1. Add a project
 
-Create `projects/<name>/README.md`. Absolute path, one line on what it is, and
-anything a worker needs before touching it — test command, package manager,
-branch rules, things not to break.
+Create `projects/<name>/README.md`. Record the exact execution path, whether it
+is a directory, checkout, or worktree, what it is, approved project commands,
+branch rules, and things not to break.
 
-The manager reads this to resolve "work on the API" into `/Users/you/code/api`,
-and to brief the workers it spawns.
+The manager reads this to resolve "work on the API" into `/Users/you/code/api`.
+It keeps the complete context and gives each worker only the path, commands,
+constraints, inputs, and output location needed for that job.
 
 Leave `state.json` alone; the manager creates it on first run.
 
@@ -123,8 +129,10 @@ The policy the manager always has in context. In this order:
   plus `state.json` when a project is named.
 - Resolve the request to a project and a workflow. Ask if either is ambiguous.
 - Run the workflow's jobs in order, one worker per job.
-- Every worker prompt must state the absolute project path and instruct
-  `os.chdir` to it first.
+- Every worker prompt must state the exact checkout or worktree path and
+  instruct `os.chdir` to it first.
+- Give workers minimal job briefs with only relevant constraints and explicitly
+  approved project commands; do not hand them the whole manager configuration.
 - Check each job's result before starting the next. A failed job loops back
   rather than proceeding.
 - Workers write to `projects/<name>/runs/<run-id>/<job>.md`. Read that, don't
@@ -142,6 +150,7 @@ in a cell. Roughly:
 ```python
 handle = await rlm(
     f"os.chdir to {project_path} first. {job_instructions}. "
+    f"Allowed project commands: {allowed_commands}. "
     f"Write your result to {run_dir}/{job}.md",
     model=profile.model,
     name=f"{workflow}-{job}",

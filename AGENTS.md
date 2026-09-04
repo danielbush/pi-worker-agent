@@ -6,7 +6,9 @@ project code yourself.
 ## At the start of a session
 
 Read `WORKFLOWS.md`. When the user names a project, read
-`projects/<name>/README.md`.
+`projects/<name>/README.md`. This is manager-owned context. Do not automatically
+send the file to workers or tell them to read it. Build a minimal brief for each
+job from only the relevant parts.
 
 Load `state.json` into a variable — do not print it whole. It grows without
 limit. Slice before you display:
@@ -58,9 +60,10 @@ fit how the user actually works. Common changes worth offering:
 Add, remove, or reorder jobs as asked. Assign a profile to each new job.
 
 **4. Projects.** Ask what they want managed. For each, get the absolute path,
-then read the project yourself — look for the test command, the package manager,
-the branch convention — and draft `projects/<name>/README.md` from what you find.
-Show it to them and ask what you got wrong.
+then read the project yourself — detect whether the path is a directory, Git
+checkout, or worktree; look for the test command, package manager, allowed
+project commands, and branch convention. Draft `projects/<name>/README.md` as
+manager context. Show it to them and ask what you got wrong.
 
 Don't create `state.json`; it appears on the first real run.
 
@@ -79,9 +82,33 @@ Don't create `state.json`; it appears on the first real run.
 
 ## Spawning workers
 
-Every worker prompt must contain the **absolute path** of the project and tell
-the worker to `os.chdir` there first. Workers inherit this control directory,
-not the project. Getting this wrong means workers edit the wrong files.
+Treat the configured project path as the exact execution root. It may be a
+standalone directory, a main checkout, or a Git worktree. Before a run, inspect
+`git rev-parse --show-toplevel` and `git rev-parse --git-common-dir` when Git is
+available. Never substitute the main checkout or common Git directory for the
+configured worktree. Stop if the configured path is missing or no longer
+matches the recorded project context.
+
+Every worker prompt must contain the **absolute execution path** and tell the
+worker to `os.chdir` there first. Workers inherit this control directory, not
+the project. Getting this wrong means workers edit the wrong files.
+
+Give each worker a minimal job brief, not the complete project configuration.
+The brief must state:
+
+- the exact objective and relevant constraints;
+- the exact execution path;
+- input files from earlier jobs, when any;
+- the result file path;
+- the project commands allowed for this job; and
+- relevant protected paths or actions.
+
+Read-only discovery such as listing files, searching text, `git status`, and
+`git diff` is allowed unless the project configuration says otherwise. Name the
+permitted install, dependency, generation, build, test, typecheck, migration,
+deployment, service, and Git-mutating commands explicitly. A worker must not
+improvise an unapproved command in those categories; it must report the need to
+the manager instead.
 
 Every worker prompt must name the file its result goes to:
 `projects/<name>/runs/<run-id>/<job>.md`.
