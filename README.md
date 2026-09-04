@@ -42,8 +42,11 @@ flowchart TB
     subgraph Execution[Task and job execution]
         Task[Task<br/>intent and current status]
         Jobs[Jobs<br/>selected type, profile, status]
-        JobState[Dependencies, sessions, events, worktrees]
-        Task -->|contains| Jobs --> JobState
+        JobDependencies[jobDependencies<br/>actual links and relationships]
+        JobArtifacts[Worker sessions, events, worktrees]
+        Task -->|contains| Jobs
+        Jobs --> JobDependencies
+        Jobs --> JobArtifacts
     end
 
     subgraph WorkerAgents[Worker agents]
@@ -57,13 +60,14 @@ flowchart TB
     CursorWorker --> Result
 
     Manager -->|reads| ProjectPolicy
-    Manager -->|reads| WorkflowPolicy
+    WorkflowPolicy -->|defines possible flows| Manager
     Manager -->|reads| CodePolicy
     Manager -->|organises| Projects
     Manager -->|selects| AgentProfiles
     Manager -->|selects| JobTypes
     Manager -->|creates and queries| Task
     Manager -->|creates and sequences| Jobs
+    Manager -->|records the actual flow| JobDependencies
     JobTypes -->|capability and location| Jobs
     AgentProfiles -->|harness and model| PiWorker
     AgentProfiles -->|harness and model| CursorWorker
@@ -75,6 +79,8 @@ There are three deliberately separate parts:
 - **Policy documents** provide flexible, human-readable meaning: how projects are organised, which job types form a workflow, how results are evaluated, and when the user should be asked to inspect, Demo, or merge work.
 - **Database configuration** provides precise, structured choices the user can customise: agent profiles, models, harness options, job types, their selected trusted capabilities, worktree strategies, and defaults.
 - **Task and job execution** provides the general machinery and durable state: persist tasks and jobs, enforce dependencies, launch workers, record events, manage worktrees, and safely inspect or merge results. It follows database configuration rather than assigning special meaning to names such as `implement` or `review`.
+
+`WORKFLOW.md` describes the flows the manager may choose. Each `jobDependencies` row records the concrete link and relationship between jobs in the flow that actually occurred.
 
 The user works with the manager, not the workers directly. The manager interprets the policy, selects database configuration, gives each worker a bounded job, evaluates the returned result, and brings decisions or observable outcomes back to the user.
 
