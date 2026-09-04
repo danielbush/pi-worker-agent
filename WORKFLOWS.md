@@ -1,19 +1,46 @@
 # Workflows
 
-Job types the manager can run. Each is a name, an ordered list of stages, and a
-model per stage.
+Two things live here: **profiles** (which model does what kind of work) and
+**job types** (which stages run in what order).
 
-Edit this file to add, remove, or reshape a job. No code changes needed.
+Edit this file to add, remove, or reshape either. No code changes needed. Ask
+the manager to help — it can check which models you actually have access to.
 
-## Stages
+## Profiles
+
+A profile is a named model plus thinking level. Stages reference profiles, not
+models, so you change your mind in one place.
+
+| Profile | Model | Thinking | For |
+|---|---|---|---|
+| `planner` | `anthropic/claude-opus-5` | high | Working out approach, weighing options |
+| `coder` | `anthropic/claude-sonnet-5` | medium | Writing the change |
+| `reviewer` | `anthropic/claude-opus-5` | high | Judging whether it's right |
+| `quick` | `anthropic/claude-sonnet-5` | off | Mechanical work, summarising |
 
 Every stage runs as a Prime Agent subagent:
 
 ```python
-handle = await rlm(prompt, model="anthropic/claude-opus-5", name="plan")
+handle = await rlm(prompt, model=profile.model, thinking=profile.thinking, name=stage)
 ```
 
-Only `name`, `model`, and `thinking` are accepted. Results arrive by file.
+Only `name`, `model`, and `thinking` are accepted.
+
+### Changing a profile
+
+Ask the manager. It runs `await rlm.find_models(query)` to see what's actually
+configured, and edits the table.
+
+If a model you want isn't there, it needs credentials:
+
+- **Codex** (`openai/gpt-5.1-codex`) — a ChatGPT Plus or Pro subscription. Run
+  `/login` in the TUI and pick ChatGPT.
+- **OpenRouter** (`openrouter/<id>`) — `export OPENROUTER_API_KEY=...`, or
+  `/login` and pick OpenRouter.
+- **Claude** — a Pro/Max subscription via `/login`, or `ANTHROPIC_API_KEY`.
+
+`/login` is interactive, so the manager can't do it for you. It will tell you
+what to run.
 
 ---
 
@@ -24,7 +51,7 @@ Only `name`, `model`, and `thinking` are accepted. Results arrive by file.
 Understand something and produce a plan. No code is changed.
 
 ```
-investigate (opus, thinking=high)
+investigate (planner)
 ```
 
 The output is a written plan: what's going on, what to do about it, in what
@@ -39,9 +66,9 @@ wrong implementation.
 Full cycle for work that needs thinking first.
 
 ```
-plan      (opus,   thinking=high)
-implement (sonnet)
-review    (opus,   thinking=high)
+plan      (planner)
+implement (coder)
+review    (reviewer)
 ```
 
 `plan` produces the approach. `implement` does the work and must leave the
@@ -56,8 +83,8 @@ loops maximum, then report to the user.
 For work where the approach is already obvious.
 
 ```
-implement (sonnet)
-review    (sonnet)
+implement (coder)
+review    (quick)
 ```
 
 Skip the plan stage. If you find yourself wanting one mid-stage, stop and run
@@ -66,7 +93,7 @@ Skip the plan stage. If you find yourself wanting one mid-stage, stop and run
 ### review-only
 
 ```
-review (opus, thinking=high)
+review (reviewer)
 ```
 
 Read the current diff or a named commit range and report. Changes nothing.
@@ -75,8 +102,8 @@ Read the current diff or a named commit range and report. Changes nothing.
 
 ## Defaults
 
-- Unspecified model: `anthropic/claude-sonnet-5`
-- Unspecified thinking: inherited from the manager
+- Unspecified profile: `quick`
+- A stage may override with an explicit model where a profile doesn't fit
 
 ## Notes on model choice
 
@@ -84,4 +111,5 @@ Judgement stages — planning, reviewing — earn a strong model. Mechanical sta
 don't. A cheaper model working against a clear plan and a passing test suite
 often beats an expensive one working from a vague brief.
 
-Every stage names its own model, so mix freely.
+That's the point of profiles: swap `coder` to a cheaper model and every job type
+that uses it changes at once.

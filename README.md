@@ -24,7 +24,7 @@ tracking.
 ```
 prime-worker-agent/
   AGENTS.md            # policy — auto-loaded into the manager's system prompt
-  WORKFLOWS.md         # job types: stages and preferred models (you edit this)
+  WORKFLOWS.md         # profiles + job types (you edit this, or ask the manager)
   BACKLOG.md           # ideas not built yet
   projects/
     api/
@@ -89,24 +89,27 @@ Leave `state.json` alone; the manager creates it on first run.
 
 ### 2. Write `WORKFLOWS.md`
 
-This is the file you will actually maintain. It defines job types. Each is a
-name, an ordered list of stages, and a model per stage.
+This is the file you will actually maintain. Two parts.
+
+**Profiles** name a model and thinking level — `planner`, `coder`, `reviewer`,
+`quick`. **Job types** are ordered stages, each pointing at a profile. So a
+workflow says *what kind of agent* does each stage, and the profile table says
+which model that is. Change the model once, every job type follows.
 
 Suggested shape, but nothing here is hard-coded — invent your own:
 
 ```markdown
 ## implement
-plan (opus) -> implement (sonnet) -> review (opus)
+plan (planner) -> implement (coder) -> review (reviewer)
 
 ## quickfix
-implement (sonnet) -> review (sonnet)
+implement (coder) -> review (quick)
 
 ## investigate
-investigate (opus)
+investigate (planner)
 ```
 
-Add prose under each where a stage name isn't self-explanatory. Add a default
-model line for anything unspecified.
+Add prose under each where a stage name isn't self-explanatory.
 
 Because this is markdown read at runtime, adding a job type is editing a file.
 No code changes, no restart.
@@ -173,10 +176,24 @@ specs from what actually happened.
 
 Do this last. Freezing too early defeats step 4.
 
-## Start here
+## Getting started
 
-Steps 1, 2, and 3 alone give you a working manager. Everything after is
-refinement.
+Install Prime Agent, then run it in this directory:
+
+```bash
+cd prime-worker-agent
+prime-agent
+```
+
+Say "help me set this up". The manager checks which models you have access to,
+walks you through profiles and job types, and drafts a project README by reading
+the project. It'll tell you what to `/login` to if a model you want isn't
+configured.
+
+You can also just edit `WORKFLOWS.md` and `projects/<name>/README.md` yourself —
+it's all markdown, and the manager reads it at runtime.
+
+Steps 1, 2, and 3 above are what setup is doing on your behalf.
 
 ## Sharing
 

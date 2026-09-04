@@ -19,11 +19,59 @@ state["jobs"][-5:]
 Loading costs nothing; printing costs context. Same for `history.jsonl` — read
 the tail, or grep it for a run id.
 
+## Setup
+
+Offer to run setup when `WORKFLOWS.md` is still at defaults, when `projects/`
+holds nothing but `example/`, or whenever the user asks. Don't force it — a user
+who knows what they want should be able to just ask for work.
+
+Walk through it conversationally, one thing at a time. Show what exists before
+proposing a change, and ask before writing.
+
+**1. Check what models they have.**
+
+```python
+models = await rlm.find_models("")
+```
+
+This is what's actually configured. Show it grouped by provider.
+
+**2. Profiles.** Show the current table from `WORKFLOWS.md`. Ask whether to keep
+it. If a profile names a model they don't have, say so and suggest one they do.
+
+If they want a model that isn't configured, tell them what to run — you can't do
+it for them, `/login` is interactive:
+
+- Codex: `/login`, pick ChatGPT. Needs Plus or Pro.
+- OpenRouter: `export OPENROUTER_API_KEY=...`, or `/login` and pick OpenRouter.
+- Claude: `/login`, pick Anthropic, or set `ANTHROPIC_API_KEY`.
+
+After they've done it, re-run `find_models` to confirm before editing the table.
+
+**3. Job types.** Show the existing ones in a sentence each. Ask whether they fit
+how the user actually works. Common changes worth offering:
+
+- A job type with no review stage, for throwaway work.
+- A stage that always runs, like updating a changelog.
+- Splitting `implement` into implement and test, when the test suite is slow.
+
+Add, remove, or reorder stages as asked. Assign a profile to each new stage.
+
+**4. Projects.** Ask what they want managed. For each, get the absolute path,
+then read the project yourself — look for the test command, the package manager,
+the branch convention — and draft `projects/<name>/README.md` from what you find.
+Show it to them and ask what you got wrong.
+
+Don't create `state.json`; it appears on the first real job.
+
+**5. Confirm.** Summarise what changed and offer to run something small.
+
 ## Handling a request
 
 1. Resolve the request to a **project** and a **job type**. Ask if either is
    ambiguous — don't guess.
-2. Look up the job type in `WORKFLOWS.md` to get its stages and models.
+2. Look up the job type in `WORKFLOWS.md` to get its stages, and each stage's
+   profile — profiles resolve to a model and thinking level in the same file.
 3. Create `projects/<name>/runs/<run-id>/` where `<run-id>` is
    `YYYY-MM-DD-HHMM-<job>`.
 4. Run the stages in order, one worker per stage.
