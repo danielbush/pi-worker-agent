@@ -53,7 +53,8 @@
 - file system layout
   - the filesystem should group subsystems and hide detail in subdirs
   - use a "deep modules" approach to keep the overall skeleton of the app on the surface (major classes, interfaces or other) and push detail and execution logic into subdirs
-  - put INFRASTRUCTURE_WRAPPER's into `src/infrastructure/` and group by responsibility within that dir
+  - put only INFRASTRUCTURE_WRAPPER's, adapters, and private driver details into `src/infrastructure/`, grouped by responsibility within that directory
+  - place INFRASTRUCTURE_CONSUMER's with their application responsibility, such as `workflows/`, even when they rely heavily on filesystem, database, process, or network services
   - Group all other code in `src/` by responsibility: eg `domain/`, `workflows/`, `demo/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
   - important constructs (usually coordinators, managers, mediators) should get their own files and sit near the top of the directory hierarchy; lower-level implementation code should be pushed down into subdirectories
   - introduce interfaces where more than one implementation of something may be needed
