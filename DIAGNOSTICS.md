@@ -2,11 +2,13 @@
 
 Use these checks to verify and diagnose the `pi-worker-agent` system itself. This is maintainer documentation, not a policy file under `DATA_ROOT`.
 
-Prefer the smallest check that answers the current question. Do not run broad live integration suites as routine verification. A diagnostic that launches a real worker must be explicit, focused, and user-observed.
+Prefer the smallest check that answers the current question. The manager defaults to quick, non-live checks and stops when they provide enough confidence that the system is probably ready. It must not escalate to model probes or real-worker diagnostics merely because they are available.
 
-## Manager readiness checks
+Do not run broad live integration suites as routine verification. A diagnostic that launches a real worker must be explicit, focused, and user-observed.
 
-Run these checks before using the manager for project work:
+## Quick readiness checks — default
+
+Run these non-live, non-mutating checks first:
 
 1. Call `worker_verify_project_structure`.
    - Expect every immediate project directory to be registered and contain `sequence.md`.
@@ -18,15 +20,31 @@ Run these checks before using the manager for project work:
 4. Call `worker_list_agent_profiles` and `worker_list_job_types`.
    - Confirm required profiles and job types are active.
    - Confirm every active job type has a trusted capability, worktree strategy, and active default profile.
-5. Call `worker_list_models` only when configuring or explicitly selecting a model whose current availability must be verified.
-   - Treat this as a live harness probe, not a routine startup check.
-   - Stop if the selected harness probe fails or the pinned model is missing.
-6. Before delegation, confirm the task has an authorized workspace and that required dependencies have completed.
-7. Delegate only the next job required by `WORKFLOW.md`; inspect its status rather than launching a broad test workflow.
+5. When preparing an actual delegation, confirm the task has an authorized workspace and required dependencies have completed.
 
-A system-level setup verifier may eventually combine the non-live checks, but model catalogs and real worker launches should remain explicit.
+If these checks pass and there is no specific warning or higher-confidence requirement, report that the system is probably ready and do not run a longer diagnostic.
 
-## Focused codebase verification
+A system-level setup verifier may eventually combine these quick checks. It should not silently include network access, model probes, configuration mutations, or real worker launches.
+
+## Deciding whether to run more
+
+Choose a targeted or extended diagnostic only when its additional evidence answers a concrete question, such as:
+
+- a quick check failed or produced an ambiguous result;
+- the relevant database migration, harness adapter, or delegation path changed;
+- a new installation or model configuration has not yet been exercised;
+- an incident points to a particular infrastructure boundary;
+- the user asks for stronger confidence or a specific demonstration.
+
+Do not run every available diagnostic. State what the chosen diagnostic will exercise before starting it, especially when it launches a real model or creates durable records.
+
+Targeted checks include:
+
+- `worker_list_models` when current model availability is relevant; this is a live harness probe, not a default startup check;
+- one explicitly named integration test for the `INFRASTRUCTURE_WRAPPER` under investigation;
+- one extended real-worker diagnostic, such as the profile-selection exercise below, when the full path needs evidence.
+
+## Quick codebase verification
 
 The default code test is intentionally isolated from retained worktrees and project-level integration tests:
 
@@ -43,7 +61,9 @@ Run a live or filesystem integration test only by changing into its directory an
 
 Do not run bare `bun test` from the repository root or the whole `tests/integration/` directory as routine verification. Bun path filters can also match copies under retained worktrees, so changing into the intended test root is part of the isolation boundary.
 
-## Execution profile selection diagnostic
+## Extended diagnostic — execution profile selection
+
+This is not a default readiness check. It takes longer, launches real workers, and creates durable diagnostic records. Run it only when the profile-selection and retirement path specifically needs end-to-end evidence.
 
 This focused real-worker diagnostic verifies that a manager can select an explicit agent profile for one job, otherwise use the job type's default, and preserve both jobs after configuration is retired.
 
