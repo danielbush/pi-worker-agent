@@ -57,6 +57,20 @@ test("registers a project directory and reports its outstanding linked tasks", (
   ]);
 });
 
+test("registers a project from the test collection", () => {
+  const registry = Registry.createNull();
+  const registrar = new ProjectRegistrar(
+    registry,
+    ManagedProjectDirectory.createNull([{ collection: "test", name: "diagnostic" }]),
+    { createProjectId: () => "project_diagnostic" },
+    Clock.createNull(TIMESTAMP),
+  );
+
+  const project = registrar.register({ directoryName: "diagnostic", title: "Diagnostic", collection: "test" });
+
+  expect(project.collection).toBe("test");
+});
+
 test("refuses to register a project without a matching management directory", () => {
   // arrange
   const registrar = new ProjectRegistrar(

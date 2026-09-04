@@ -13,8 +13,10 @@ import { WorktreeEditor } from "../infrastructure/process/worktree-editor.ts";
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
 import { CompletedWorkMerger } from "../workflows/completed-work-merger.ts";
+import { DiagnosticProjectPreparer } from "../workflows/diagnostic-project-preparer.ts";
 import { ExecutionCatalogManager } from "../workflows/execution-catalog-manager.ts";
 import { JobDelegator } from "../workflows/job-delegator.ts";
+import { ProjectArchiver } from "../workflows/project-archiver.ts";
 import { ProjectCatalogReporter } from "../workflows/project-catalog-reporter.ts";
 import { ProjectFileManager } from "../workflows/project-file-manager.ts";
 import { ProjectRegistrar } from "../workflows/project-registrar.ts";
@@ -202,7 +204,7 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_verify_project_structure",
       label: "Verify managed project structure",
-      description: "Verify the structured boundary between registered project metadata and policy-owned DATA_ROOT/projects subdirectories.",
+      description: "Verify registered project metadata across active, test, and archive collection roots.",
       promptSnippet: "Verify that managed-project structure is in order",
       promptGuidelines: [
         "Call this before worker_list_projects at the start of managed-project work.",
@@ -220,8 +222,10 @@ export class WorkerAgentExtension {
               "Managed project structure is valid.",
               `DATA_ROOT=${report.dataRoot}`,
               `PROJECTS_ROOT=${report.projectsRoot}`,
-              `Immediate project subdirectories: ${report.projects.length}`,
-              ...report.projects.map((project) => `- ${project.directoryName} | registered ${project.id} | sequence.md present`),
+              `TEST_ROOT=${report.roots.test}`,
+              `ARCHIVE_ROOT=${report.roots.archive}`,
+              `Managed project directories: ${report.projects.length}`,
+              ...report.projects.map((project) => `- ${project.collection}/${project.directoryName} | registered ${project.id} | sequence.md present`),
             ].join("\n"),
           }],
           details: report,
@@ -296,23 +300,56 @@ export class WorkerAgentExtension {
     this.pi.registerTool({
       name: "worker_register_project",
       label: "Register managed project",
-      description: "Index an existing immediate subdirectory of $DATA_ROOT/projects with durable identifying metadata.",
+      description: "Index an existing project under the active or test collection with durable identifying metadata.",
       promptSnippet: "Register a managed-project directory",
       promptGuidelines: [
         "Read the project's sequence.md first and preserve its title and intent when registering metadata.",
-        "Only immediate directories under $DATA_ROOT/projects with sequence.md can be registered.",
+        "Only immediate directories under the selected collection root with sequence.md can be registered.",
       ],
       parameters: Type.Object({
         directoryName: Type.String(),
         title: Type.String(),
         description: Type.Optional(Type.String()),
+        collection: Type.Optional(Type.Union([Type.Literal("active"), Type.Literal("test")])),
       }),
       execute: async (_toolCallId, params) => {
         const registry = this.registry ??= this.services.registry();
         const project = ProjectRegistrar.create(this.root, registry, Id.create()).register(params);
         return {
           content: [{ type: "text", text: `Registered project ${project.title} (${project.id}).` }],
-          details: { projectId: project.id, directoryName: project.directoryName },
+          details: { projectId: project.id, collection: project.collection, directoryName: project.directoryName },
+        };
+      },
+    });
+
+    this.pi.registerTool({
+      name: "worker_prepare_diagnostic_project",
+      label: "Prepare diagnostic project",
+      description: "Prepare and return the conventional application-owned project and workspace under $DATA_ROOT/.test/.",
+      promptSnippet: "Prepare the conventional diagnostic project without asking the user to choose a workspace",
+      parameters: Type.Object({}),
+      execute: async () => {
+        const registry = this.registry ??= this.services.registry();
+        const result = DiagnosticProjectPreparer.create(this.root, registry).prepare();
+        return {
+          content: [{ type: "text", text: `Diagnostic project ready: ${result.project.id}\nWorkspace: ${result.workspace.id} (${result.workspace.rootDir})` }],
+          details: { projectId: result.project.id, workspaceId: result.workspace.id, workspaceRoot: result.workspace.rootDir },
+        };
+      },
+    });
+
+    this.pi.registerTool({
+      name: "worker_archive_project",
+      label: "Archive managed project",
+      description: "Move an active project into $DATA_ROOT/.archive while preserving its durable identity and task history.",
+      promptSnippet: "Archive an active managed project",
+      parameters: Type.Object({ project: Type.String({ description: "Active project directory name, exact ID, or unique leading shorthand" }) }),
+      execute: async (_toolCallId, params) => {
+        const registry = this.registry ??= this.services.registry();
+        const project = ProjectArchiver.create(this.root, registry).archive(params.project);
+        return {
+          content: [{ type: "text", text: `Archived project ${project.title} (${project.id}) under .archive/${project.directoryName}.` }],
+          details: project,
         };
       },
     });

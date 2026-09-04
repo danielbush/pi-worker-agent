@@ -16,6 +16,8 @@ const MANAGER_TOOL_NAMES = new Set([
   "worker_list_job_types",
   "worker_manage_job_type",
   "worker_register_project",
+  "worker_prepare_diagnostic_project",
+  "worker_archive_project",
   "worker_add_task_to_project",
   "worker_project_tasks",
   "worker_task_status",

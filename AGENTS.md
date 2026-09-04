@@ -25,7 +25,7 @@ The user and manager agent should decide on policies for how to do work.  We can
 
 Before any managed-project work:
 
-1. Call `worker_verify_project_structure`. It verifies that `$DATA_ROOT/projects/` contains only immediate project subdirectories, every project has `sequence.md`, and every directory corresponds to registered project metadata. If it fails, stop and report all structural problems; do not probe or improvise.
+1. Call `worker_verify_project_structure`. It verifies active `$DATA_ROOT/projects/`, diagnostic `$DATA_ROOT/.test/`, and archived `$DATA_ROOT/.archive/` collections, requiring immediate project subdirectories with `sequence.md` and collection-aware registered metadata. If it fails, stop and report all structural problems; do not probe or improvise.
 2. Call `worker_list_projects`. If it fails, stop and report the error; do not probe or improvise.
 3. Read the reported `PROJECT.md` and follow it to interpret the project files. Do not assume their layout.
 4. For project status, call `worker_project_tasks` and combine its relational facts with the policy-defined project files.
@@ -44,10 +44,12 @@ When an implementation is ready under the workflow, tell the user the job has fi
 - **`$DATA_ROOT/PROJECT.md`**
   - active project-management policy; consumers normally copy `examples/PROJECT.md` here or create their own policy; this checkout symlinks the file only as a maintainer convenience for editing and using the example in place
   - how to structure/sequence project work to get outcomes
-  - `$DATA_ROOT/projects/` is the source of truth for managed projects.
-    - Every immediate entry must be a project subdirectory with `sequence.md`, and each subdirectory must map to a synthetic row in SQLite `projects`; use `worker_verify_project_structure` to audit this boundary and manager project tools to register, query, or associate tasks.
+  - `$DATA_ROOT/projects/` contains active managed projects; `$DATA_ROOT/.test/` contains application-owned diagnostic projects; `$DATA_ROOT/.archive/` retains archived projects. Registered collection metadata and these roots must correspond exactly.
+    - Every immediate entry in a collection root must be a project subdirectory with `sequence.md`, directory names must be unique across roots, and each subdirectory must map to a collection-aware row in SQLite `projects`; use `worker_verify_project_structure` to audit this boundary and manager project tools to register, query, archive, or associate tasks.
     - SQLite `projects_tasks` is the relational source of project task membership and status queries; `taskid://...` references remain human-facing links.
     - Do not assume `./projects/` in this repository is the project registry unless `$DATA_ROOT` points here or the user explicitly says so.
+    - Normal project listings show only active projects. Use `worker_prepare_diagnostic_project` when a focused diagnostic needs a workspace; never ask the user to choose one or silently use a production workspace.
+    - Use `worker_archive_project` rather than manually moving a project. It preserves task history, refuses outstanding work, and archived projects are ordinarily read-only.
     - By default this repository uses the gitignored `work/` directory; consumers can set `DATA_ROOT` or `PI_WORKER_AGENT_DATA_ROOT` to use another location.
   - Use `bun run projects` to list projects and `$DATA_ROOT`
   - ALWAYS read `$DATA_ROOT/PROJECT.md` before answering project-structure or project-status questions, because it defines the current layout and meaning of `$DATA_ROOT/projects/`

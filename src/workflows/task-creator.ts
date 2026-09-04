@@ -34,6 +34,7 @@ export class TaskCreator {
     if (!workspace?.authorizedAt) throw new Error(`Workspace is not authorized: ${input.workspaceId}`);
     const project = this.registry.projects.resolve(input.projectId);
     if (!project) throw new Error(`Unknown project: ${input.projectId}`);
+    if (project.collection === "archive") throw new Error(`Archived projects are read-only: ${project.directoryName}`);
     if (!this.registry.jobTypes.list().some((jobType) => !jobType.retired)) {
       throw new Error("Execution configuration has no active job types");
     }

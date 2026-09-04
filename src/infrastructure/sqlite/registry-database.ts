@@ -36,10 +36,11 @@ export class RegistryDatabase {
       if (version > 0 && version < 7) this.migrateProfileOptions();
       if (version > 0 && version < 8) this.migrateExecutionCatalogs();
       if (version > 0 && version < 9) this.migrateTaskOverridesToExplicitJobAssignments();
+      if (version > 0 && version < 10) this.migrateProjectCollections();
       this.createIndexes();
       this.createCatalogGuards();
       this.createExecutionSnapshotGuards();
-      this.exec("PRAGMA user_version = 9");
+      this.exec("PRAGMA user_version = 10");
     } catch (error) {
       this.db.close();
       throw error;
@@ -72,7 +73,9 @@ export class RegistryDatabase {
         authorizedAt TEXT, authorizedBySessionId TEXT
       ) STRICT;
       CREATE TABLE IF NOT EXISTS projects (
-        id TEXT PRIMARY KEY, directoryName TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
+        id TEXT PRIMARY KEY,
+        collection TEXT NOT NULL DEFAULT 'active' CHECK (collection IN ('active', 'test', 'archive')),
+        directoryName TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
         description TEXT, createdAt TEXT NOT NULL, lastUsedAt TEXT NOT NULL
       ) STRICT;
       CREATE TABLE IF NOT EXISTS agentProfiles (
@@ -303,6 +306,13 @@ export class RegistryDatabase {
     const broken = this.db.query("PRAGMA foreign_key_check").get() as { table?: string } | null;
     if (broken?.table) throw new Error(`Task override removal broke a foreign key in ${broken.table}`);
     this.exec("PRAGMA foreign_keys = ON");
+  }
+
+  private migrateProjectCollections(): void {
+    const columns = this.db.query("PRAGMA table_info(projects)").all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "collection")) {
+      this.exec("ALTER TABLE projects ADD COLUMN collection TEXT NOT NULL DEFAULT 'active' CHECK (collection IN ('active', 'test', 'archive'))");
+    }
   }
 
   private createIndexes(): void {

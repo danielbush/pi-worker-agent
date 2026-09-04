@@ -24,10 +24,14 @@ test("requires PROJECT.md and inventories immediate project entries without hidi
   // assert
   expect(snapshot).toEqual({
     dataRoot: root,
-    projectsRoot: join(root, "projects"),
+    roots: {
+      active: join(root, "projects"),
+      test: join(root, ".test"),
+      archive: join(root, ".archive"),
+    },
     entries: [
-      { name: "demo", kind: "directory", hasSequenceFile: true },
-      { name: "misplaced.txt", kind: "file", hasSequenceFile: false },
+      { collection: "active", name: "demo", kind: "directory", hasSequenceFile: true },
+      { collection: "active", name: "misplaced.txt", kind: "file", hasSequenceFile: false },
     ],
   });
 });

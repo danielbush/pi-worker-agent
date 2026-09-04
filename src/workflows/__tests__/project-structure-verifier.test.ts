@@ -5,6 +5,7 @@ import { ProjectStructureVerifier } from "../project-structure-verifier.ts";
 
 const PROJECT = {
   id: "project_demo",
+  collection: "active" as const,
   directoryName: "demo",
   title: "Demo",
   description: null,
@@ -28,8 +29,26 @@ test("verifies immediate project directories and registered identities", () => {
   expect(result).toEqual({
     dataRoot: "/null-worker-agent",
     projectsRoot: "/null-worker-agent/projects",
+    roots: {
+      active: "/null-worker-agent/projects",
+      test: "/null-worker-agent/.test",
+      archive: "/null-worker-agent/.archive",
+    },
     projects: [PROJECT],
   });
+});
+
+test("rejects duplicate names and collection mismatches", () => {
+  const verifier = new ProjectStructureVerifier(
+    Registry.createNull({ projects: [PROJECT] }),
+    ManagedProjectStructure.createNull([
+      { collection: "active", name: "demo", kind: "directory", hasSequenceFile: true },
+      { collection: "test", name: "demo", kind: "directory", hasSequenceFile: true },
+    ]),
+  );
+
+  expect(() => verifier.verify()).toThrow("Project directory names occur in multiple collections: demo");
+  expect(() => verifier.verify()).toThrow("test/demo registered as active");
 });
 
 test("reports every structural and registration problem together", () => {
@@ -46,8 +65,8 @@ test("reports every structural and registration problem together", () => {
   const verification = () => verifier.verify();
 
   // assert
-  expect(verification).toThrow("DATA_ROOT/projects entries must be directories: notes.md (file)");
-  expect(verification).toThrow("Project directories missing a regular sequence.md: demo");
-  expect(verification).toThrow("Project directories are not registered: demo");
-  expect(verification).toThrow("Registered projects have no directory: missing");
+  expect(verification).toThrow("Project collection entries must be directories: active/notes.md (file)");
+  expect(verification).toThrow("Project directories missing a regular sequence.md: active/demo");
+  expect(verification).toThrow("Project directories are not registered: active/demo");
+  expect(verification).toThrow("Registered projects have no directory: active/missing");
 });

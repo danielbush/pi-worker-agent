@@ -18,13 +18,13 @@ export class ProjectCatalogReporter {
   inspect(): ProjectCatalogReport {
     const { dataRoot, projectDirectories } = this.catalog.inspect();
     if (!projectDirectories.length) throw new Error("No project directories found under DATA_ROOT/projects");
-    const projects = this.registry.projects.list();
+    const projects = this.registry.projects.list("active");
     const registered = new Set(projects.map((project) => project.directoryName));
     const directories = new Set(projectDirectories);
     const unregistered = projectDirectories.filter((name) => !registered.has(name));
     if (unregistered.length) throw new Error(`Project directories are not registered: ${unregistered.join(", ")}`);
     const missing = projects.filter((project) => !directories.has(project.directoryName));
-    if (missing.length) throw new Error(`Registered projects have no directory: ${missing.map((project) => project.directoryName).join(", ")}`);
+    if (missing.length) throw new Error(`Registered active projects have no directory: ${missing.map((project) => project.directoryName).join(", ")}`);
     return {
       dataRoot,
       projects: projectDirectories.map((name) => projects.find((project) => project.directoryName === name)!),

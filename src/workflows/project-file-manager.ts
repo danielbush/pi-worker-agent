@@ -1,4 +1,5 @@
 import { isAbsolute, join, win32 } from "node:path";
+import { projectCollectionDirectory, type ProjectCollection } from "../domain/project-collection.ts";
 import type { Project } from "../domain/project.ts";
 import {
   ConfinedTextFiles,
@@ -19,18 +20,23 @@ export interface ManagedProjectFileChange extends TextFileChange {
 
 /** INFRASTRUCTURE_CONSUMER: resolves registered identity before mutating a policy-owned project text file. */
 export class ProjectFileManager {
-  constructor(private readonly registry: Registry, private readonly files: ConfinedTextFiles) {}
+  constructor(private readonly registry: Registry, private readonly files: Record<ProjectCollection, ConfinedTextFiles>) {}
 
   static create(dataRoot: string, registry: Registry): ProjectFileManager {
-    return new ProjectFileManager(registry, ConfinedTextFiles.create(join(dataRoot, "projects")));
+    return new ProjectFileManager(registry, {
+      active: ConfinedTextFiles.create(join(dataRoot, projectCollectionDirectory("active"))),
+      test: ConfinedTextFiles.create(join(dataRoot, projectCollectionDirectory("test"))),
+      archive: ConfinedTextFiles.create(join(dataRoot, projectCollectionDirectory("archive"))),
+    });
   }
 
   manage(input: ManageProjectFileInput): ManagedProjectFileChange {
     const project = this.registry.projects.getByDirectoryName(input.project)
       ?? this.registry.projects.resolve(input.project);
     if (!project) throw new Error(`Unknown project: ${input.project}`);
+    if (project.collection === "archive") throw new Error(`Archived project files are read-only: ${project.directoryName}`);
     requireProjectRelativePath(input.relativePath);
-    const confinedChange = this.files.mutate({
+    const confinedChange = this.files[project.collection].mutate({
       relativePath: `${project.directoryName}/${input.relativePath}`,
       operation: input.operation,
       expectedContent: input.expectedContent,

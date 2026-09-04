@@ -5,6 +5,7 @@ import { ProjectFileManager } from "../project-file-manager.ts";
 
 const PROJECT = {
   id: "project_demo",
+  collection: "active" as const,
   directoryName: "demo",
   title: "Demo",
   description: null,
@@ -18,7 +19,7 @@ function setup() {
   });
   return {
     files,
-    manager: new ProjectFileManager(Registry.createNull({ projects: [PROJECT] }), files),
+    manager: new ProjectFileManager(Registry.createNull({ projects: [PROJECT] }), { active: files, test: files, archive: files }),
   };
 }
 
@@ -66,6 +67,19 @@ test("creates and deletes files with optimistic content checks", () => {
 
   // assert
   expect(files.state.changes.map((change) => change.operation)).toEqual(["create", "delete"]);
+});
+
+test("rejects archived project mutations", () => {
+  const files = ConfinedTextFiles.createNull({ "demo/sequence.md": "# Before\n" });
+  const manager = new ProjectFileManager(
+    Registry.createNull({ projects: [{ ...PROJECT, collection: "archive" }] }),
+    { active: files, test: files, archive: files },
+  );
+
+  expect(() => manager.manage({
+    project: "demo", relativePath: "sequence.md", operation: "update",
+    expectedContent: "# Before\n", content: "# After\n",
+  })).toThrow("Archived project files are read-only");
 });
 
 test("rejects unknown projects, traversal, and stale updates", () => {

@@ -1,4 +1,5 @@
 import type { Id } from "../domain/id.ts";
+import type { ProjectCollection } from "../domain/project-collection.ts";
 import type { Project } from "../domain/project.ts";
 import { ManagedProjectDirectory } from "../infrastructure/filesystem/managed-project-directory.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
@@ -8,6 +9,7 @@ export interface RegisterProjectInput {
   directoryName: string;
   title: string;
   description?: string;
+  collection?: Exclude<ProjectCollection, "archive">;
 }
 
 /** INFRASTRUCTURE_CONSUMER: indexes a management-project directory in durable metadata. */
@@ -24,7 +26,8 @@ export class ProjectRegistrar {
   }
 
   register(input: RegisterProjectInput): Project {
-    this.directories.require(input.directoryName);
+    const collection = input.collection ?? "active";
+    this.directories.require(input.directoryName, collection);
     const timestamp = this.clock.now();
     const existing = this.registry.projects.getByDirectoryName(input.directoryName);
     if (existing) {
@@ -33,6 +36,7 @@ export class ProjectRegistrar {
     }
     const project: Project = {
       id: this.ids.createProjectId(),
+      collection,
       directoryName: input.directoryName,
       title: input.title,
       description: input.description ?? null,

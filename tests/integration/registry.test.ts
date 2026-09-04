@@ -72,6 +72,7 @@ test("composes project, task, job, session, and dependency repositories", () => 
     });
     registry.projects.create({
       id: "project_test",
+      collection: "active",
       directoryName: "greeting-demo",
       title: "Greeting demo",
       description: "A test project",

@@ -1,4 +1,5 @@
 import { resolveIdReference } from "../domain/id.ts";
+import type { ProjectCollection } from "../domain/project-collection.ts";
 import type { Project } from "../domain/project.ts";
 import type { RegistryDatabase } from "../infrastructure/sqlite/registry-database.ts";
 
@@ -8,6 +9,7 @@ interface ProjectPersistence {
   getByDirectoryName(directoryName: string): Project | undefined;
   list(): Project[];
   touch(id: string, lastUsedAt: string): void;
+  updateCollection(id: string, collection: ProjectCollection): void;
 }
 
 /** INFRASTRUCTURE_CONSUMER: persists management-project identity and recovery metadata. */
@@ -17,9 +19,9 @@ export class ProjectRepository {
   static create(database: RegistryDatabase): ProjectRepository {
     return new ProjectRepository({
       create: (project) => database.db.query(`
-        INSERT INTO projects (id, directoryName, title, description, createdAt, lastUsedAt)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(project.id, project.directoryName, project.title, project.description, project.createdAt, project.lastUsedAt),
+        INSERT INTO projects (id, collection, directoryName, title, description, createdAt, lastUsedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(project.id, project.collection, project.directoryName, project.title, project.description, project.createdAt, project.lastUsedAt),
       get: (id) => (database.db.query("SELECT * FROM projects WHERE id = ?").get(id) as Project | null) ?? undefined,
       getByDirectoryName: (name) => (database.db.query(
         "SELECT * FROM projects WHERE directoryName = ?",
@@ -27,6 +29,9 @@ export class ProjectRepository {
       list: () => database.db.query("SELECT * FROM projects ORDER BY lastUsedAt DESC").all() as Project[],
       touch: (id, lastUsedAt) => {
         database.db.query("UPDATE projects SET lastUsedAt = ? WHERE id = ?").run(lastUsedAt, id);
+      },
+      updateCollection: (id, collection) => {
+        database.db.query("UPDATE projects SET collection = ? WHERE id = ?").run(collection, id);
       },
     });
   }
@@ -44,6 +49,7 @@ export class ProjectRepository {
       getByDirectoryName: (name) => clone([...records.values()].find((project) => project.directoryName === name)),
       list: () => [...records.values()].map((project) => structuredClone(project)),
       touch: (id, lastUsedAt) => { const project = records.get(id); if (project) project.lastUsedAt = lastUsedAt; },
+      updateCollection: (id, collection) => { const project = records.get(id); if (project) project.collection = collection; },
     });
   }
 
@@ -55,8 +61,12 @@ export class ProjectRepository {
   getByDirectoryName(directoryName: string): Project | undefined {
     return this.persistence.getByDirectoryName(directoryName);
   }
-  list(): Project[] { return this.persistence.list(); }
+  list(collection?: ProjectCollection): Project[] {
+    const projects = this.persistence.list();
+    return collection ? projects.filter((project) => project.collection === collection) : projects;
+  }
   touch(id: string, lastUsedAt: string): void { this.persistence.touch(id, lastUsedAt); }
+  updateCollection(id: string, collection: ProjectCollection): void { this.persistence.updateCollection(id, collection); }
 }
 
 function clone<T>(value: T | undefined): T | undefined {

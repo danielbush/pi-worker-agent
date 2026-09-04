@@ -5,6 +5,7 @@ import { ProjectCatalogReporter } from "../project-catalog-reporter.ts";
 
 const PROJECT = {
   id: "project_demo",
+  collection: "active" as const,
   directoryName: "demo",
   title: "Demo",
   description: null,
@@ -24,6 +25,19 @@ test("reports configured projects and data root", () => {
 
   // assert
   expect(report).toEqual({ dataRoot: "/null-worker-agent", projects: [PROJECT] });
+});
+
+test("normal listings exclude test and archived projects", () => {
+  const reporter = new ProjectCatalogReporter(
+    Registry.createNull({ projects: [
+      PROJECT,
+      { ...PROJECT, id: "project_test", collection: "test", directoryName: "diagnostic" },
+      { ...PROJECT, id: "project_archive", collection: "archive", directoryName: "old" },
+    ] }),
+    ManagedProjectCatalog.createNull(["demo"]),
+  );
+
+  expect(reporter.inspect().projects).toEqual([PROJECT]);
 });
 
 test("fails when a project directory is not registered", () => {

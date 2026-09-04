@@ -13,7 +13,7 @@ class FixedIds { createTaskId(): string { return TASK_ID; } }
 function state(configured = true) {
   return {
     workspaces: [{ id: "workspace_demo", name: "demo", rootDir: "/demo", createdAt: TIMESTAMP, lastUsedAt: TIMESTAMP, authorizedAt: TIMESTAMP, authorizedBySessionId: "manager" }],
-    projects: [{ id: "project_demo", directoryName: "demo", title: "Demo", description: null, createdAt: TIMESTAMP, lastUsedAt: TIMESTAMP }],
+    projects: [{ id: "project_demo", collection: "active" as const, directoryName: "demo", title: "Demo", description: null, createdAt: TIMESTAMP, lastUsedAt: TIMESTAMP }],
     agentProfiles: configured ? [{ id: "pi-high", description: null, harness: "pi", model: "openai-codex/gpt-5.6-sol", options: '{"thinking":"high"}', retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP } satisfies AgentProfile] : [],
     jobTypes: configured ? [{ id: "implement", description: null, capabilityProfile: "code", worktreeStrategy: "new-worktree", defaultAgentProfileId: "pi-high", retired: false, archiveDate: null, createdAt: TIMESTAMP, updatedAt: TIMESTAMP } satisfies JobTypeConfiguration] : [],
   };

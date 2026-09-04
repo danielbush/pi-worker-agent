@@ -13,6 +13,7 @@ export class ProjectTaskLinker {
   link(projectReference: string, taskReference: string): ProjectTask {
     const project = this.registry.projects.resolve(projectReference);
     if (!project) throw new Error(`Unknown project: ${projectReference}`);
+    if (project.collection === "archive") throw new Error(`Archived projects are read-only: ${project.directoryName}`);
     const task = this.registry.tasks.resolve(taskReference);
     if (!task) throw new Error(`Unknown task: ${taskReference}`);
     const association = { projectId: project.id, taskId: task.id, addedAt: this.clock.now() };
