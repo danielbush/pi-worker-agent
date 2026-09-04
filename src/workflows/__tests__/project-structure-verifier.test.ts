@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ManagedProjectStructure } from "../../infrastructure/filesystem/managed-project-structure.ts";
+import { ManagedProjectStructure } from "../managed-project-structure.ts";
 import { Registry } from "../../storage/registry.ts";
 import { ProjectStructureVerifier } from "../project-structure-verifier.ts";
 

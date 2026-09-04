@@ -1,5 +1,5 @@
-import { ProjectCollectionPaths, type ProjectCollection } from "../../domain/project-collection-paths.ts";
-import { FileSystem } from "./file-system.ts";
+import { ProjectCollectionPaths, type ProjectCollection } from "../domain/project-collection-paths.ts";
+import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
 
 /** INFRASTRUCTURE_CONSUMER: moves one non-symlink project directory between configured collection roots. */
 export class ManagedProjectMover {

@@ -1,6 +1,6 @@
 import { join } from "node:path";
-import { ProjectCollectionPaths, type ProjectCollection } from "../../domain/project-collection-paths.ts";
-import { FileSystem, type FileKind, type NullFileSystemState } from "./file-system.ts";
+import { ProjectCollectionPaths, type ProjectCollection } from "../domain/project-collection-paths.ts";
+import { FileSystem, type FileKind, type NullFileSystemState } from "../infrastructure/filesystem/file-system.ts";
 
 export type ManagedProjectEntryKind = Exclude<FileKind, "missing">;
 

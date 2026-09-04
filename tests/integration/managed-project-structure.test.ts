@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ProjectCollectionPaths } from "../../src/domain/project-collection-paths.ts";
 import { FileSystem } from "../../src/infrastructure/filesystem/file-system.ts";
-import { ManagedProjectStructure } from "../../src/infrastructure/filesystem/managed-project-structure.ts";
+import { ManagedProjectStructure } from "../../src/workflows/managed-project-structure.ts";
 
 const roots: string[] = [];
 afterEach(() => {

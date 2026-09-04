@@ -1,6 +1,6 @@
 import { join } from "node:path";
-import { ProjectCollectionPaths, type ProjectCollection } from "../../domain/project-collection-paths.ts";
-import { FileSystem } from "./file-system.ts";
+import { ProjectCollectionPaths, type ProjectCollection } from "../domain/project-collection-paths.ts";
+import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
 
 /** INFRASTRUCTURE_CONSUMER: validates project identities against configured project collection paths. */
 export class ManagedProjectDirectory {

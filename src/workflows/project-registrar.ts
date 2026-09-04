@@ -2,7 +2,7 @@ import type { Id } from "../domain/id.ts";
 import { ProjectCollectionPaths, type ProjectCollection } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
 import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
-import { ManagedProjectDirectory } from "../infrastructure/filesystem/managed-project-directory.ts";
+import { ManagedProjectDirectory } from "./managed-project-directory.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
 import { Registry } from "../storage/registry.ts";
 

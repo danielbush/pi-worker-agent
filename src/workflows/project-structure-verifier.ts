@@ -1,7 +1,7 @@
 import { ProjectCollectionPaths, type ProjectCollection } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
 import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
-import { ManagedProjectStructure } from "../infrastructure/filesystem/managed-project-structure.ts";
+import { ManagedProjectStructure } from "./managed-project-structure.ts";
 import { Registry } from "../storage/registry.ts";
 
 export interface ProjectStructureVerification {

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { ProjectCollectionPaths } from "../../domain/project-collection-paths.ts";
 import { DiagnosticProjectDirectory } from "../../infrastructure/filesystem/diagnostic-project-directory.ts";
 import { FileSystem } from "../../infrastructure/filesystem/file-system.ts";
-import { ManagedProjectMover } from "../../infrastructure/filesystem/managed-project-mover.ts";
+import { ManagedProjectMover } from "../managed-project-mover.ts";
 import { Clock } from "../../infrastructure/system/clock.ts";
 import { Registry } from "../../storage/registry.ts";
 import { DiagnosticProjectPreparer } from "../diagnostic-project-preparer.ts";

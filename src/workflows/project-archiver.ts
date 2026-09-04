@@ -1,7 +1,7 @@
 import { ProjectCollectionPaths } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
 import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
-import { ManagedProjectMover } from "../infrastructure/filesystem/managed-project-mover.ts";
+import { ManagedProjectMover } from "./managed-project-mover.ts";
 import { Registry } from "../storage/registry.ts";
 
 /** INFRASTRUCTURE_CONSUMER: moves an active project to the archive collection while preserving identity. */

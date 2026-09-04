@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ManagedProjectDirectory } from "../../infrastructure/filesystem/managed-project-directory.ts";
+import { ManagedProjectDirectory } from "../managed-project-directory.ts";
 import { Clock } from "../../infrastructure/system/clock.ts";
 import { Registry } from "../../storage/registry.ts";
 import { ProjectRegistrar } from "../project-registrar.ts";
