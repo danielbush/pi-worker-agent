@@ -7,6 +7,7 @@ Development is driven through the managed `pi-worker-agent` project under the co
 See:
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — target data and source architecture.
+- [`DIAGNOSTICS.md`](DIAGNOSTICS.md) — focused readiness checks and diagnostic exercises.
 - [`DESIGN.md`](DESIGN.md) — current outcomes, intent, and implementation plan.
 - [`examples/`](examples/) — default policy files for project management, workflow, and coding.
 

@@ -10,6 +10,9 @@ The manager agent (you) is tasked with managing worker agents in harnesses to do
   - each task can have more than one job
   - each job can have more than one worker session
   - a worker agent works in a worker session
+- [`DIAGNOSTICS.md`](DIAGNOSTICS.md)
+  - defines focused system-readiness checks and explicit diagnostic exercises
+  - read it when the user asks to verify or diagnose this worker-management system
 
 The user and manager agent should decide on policies for how to do work.  We can break these down into a series of markdown files that the user can revise over time:
 

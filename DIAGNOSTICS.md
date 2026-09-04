@@ -1,0 +1,104 @@
+# Diagnostics
+
+Use these checks to verify and diagnose the `pi-worker-agent` system itself. This is maintainer documentation, not a policy file under `DATA_ROOT`.
+
+Prefer the smallest check that answers the current question. Do not run broad live integration suites as routine verification. A diagnostic that launches a real worker must be explicit, focused, and user-observed.
+
+## Manager readiness checks
+
+Run these checks before using the manager for project work:
+
+1. Call `worker_verify_project_structure`.
+   - Expect every immediate project directory to be registered and contain `sequence.md`.
+   - Stop on any structural error rather than interpreting project files.
+2. Call `worker_list_projects`.
+   - Confirm the reported `DATA_ROOT` and `PROJECT.md` are the intended installation.
+3. Read the active `PROJECT.md` and, before task or job work, `WORKFLOW.md`.
+   - For coding work, also read `CODE.md` and the target codebase instructions.
+4. Call `worker_list_agent_profiles` and `worker_list_job_types`.
+   - Confirm required profiles and job types are active.
+   - Confirm every active job type has a trusted capability, worktree strategy, and active default profile.
+5. Call `worker_list_models` only when configuring or explicitly selecting a model whose current availability must be verified.
+   - Treat this as a live harness probe, not a routine startup check.
+   - Stop if the selected harness probe fails or the pinned model is missing.
+6. Before delegation, confirm the task has an authorized workspace and that required dependencies have completed.
+7. Delegate only the next job required by `WORKFLOW.md`; inspect its status rather than launching a broad test workflow.
+
+A system-level setup verifier may eventually combine the non-live checks, but model catalogs and real worker launches should remain explicit.
+
+## Focused codebase verification
+
+The default code test is intentionally isolated from retained worktrees and project-level integration tests:
+
+```sh
+bun run test
+bun run typecheck
+```
+
+Run a live or filesystem integration test only by changing into its directory and naming the individual test file:
+
+```sh
+(cd tests/integration && bun test <specific-test>.test.ts)
+```
+
+Do not run bare `bun test` from the repository root or the whole `tests/integration/` directory as routine verification. Bun path filters can also match copies under retained worktrees, so changing into the intended test root is part of the isolation boundary.
+
+## Execution profile selection diagnostic
+
+This focused real-worker diagnostic verifies that a manager can select an explicit agent profile for one job, otherwise use the job type's default, and preserve both jobs after configuration is retired.
+
+Use the authorized `worker-sandbox-test` workspace. The jobs must be read-only, must not run tests, and should only read its `README.md` and return a one-sentence identification. The user observes the manager tool output and decides whether the result is accepted.
+
+### Arrange
+
+1. Create two temporary active Pi agent profiles using a currently working model:
+   - one profile for explicit selection;
+   - one profile for the job-type default.
+2. Create a temporary active job type with:
+   - capability `read-only`;
+   - worktree strategy `workspace`;
+   - the default Demo profile as `defaultAgentProfileId`.
+3. Create or reuse a diagnostic task associated with the managed `pi-worker-agent` project and the authorized `worker-sandbox-test` workspace.
+
+### Explicit profile
+
+Delegate the temporary job type with `agentProfileId` set to the explicit Demo profile.
+
+Inspect it with `worker_task_status` in verbose mode. Expect:
+
+- `agentProfileId` is the explicitly supplied profile;
+- `agentProfileSelectionSource` is `explicit`;
+- capability remains `read-only` from the job type;
+- the immutable profile options, fingerprint, harness version, and native invocation are present;
+- the worker completes with the expected one-sentence workspace identification.
+
+### Job-type default
+
+Delegate the same temporary job type again without `agentProfileId`.
+
+Inspect it with `worker_task_status` in verbose mode. Expect:
+
+- `agentProfileId` is the job type's default profile;
+- `agentProfileSelectionSource` is `job-type-default`;
+- capability remains `read-only`;
+- the immutable execution snapshot is present;
+- the worker completes with the same expected identification.
+
+### Retirement and history
+
+1. Retire the temporary job type.
+2. Retire both temporary profiles.
+3. Attempt to set a retired profile as a job-type default; expect it to fail before mutation.
+4. Attempt another delegation using the retired job type; expect it to fail before launch.
+5. Inspect the task again; expect both completed jobs and their immutable snapshots to remain readable.
+
+Retired Demo records remain durable because historical jobs reference them. Do not delete them merely to clean up the diagnostic.
+
+### Result from Vertical slice 14
+
+The diagnostic was exercised against task `a9666661-f8e6-4e8a-9f40-c985907b9d68`:
+
+- Explicit job `job_f10eb263-70f8-4e54-9005-02cdf5ac91e3` selected `slice14-demo-override` and recorded source `explicit`.
+- Default job `job_54387417-a911-4465-a014-1e57572324d8` selected `slice14-demo-default` and recorded source `job-type-default`.
+- Both jobs used capability `read-only`, retained complete execution snapshots, and returned: `The workspace identifies itself as Worker sandbox test.`
+- After the temporary configuration was retired, invalid default assignment and delegation attempts failed while both completed jobs remained readable.
