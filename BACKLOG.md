@@ -2,12 +2,12 @@
 
 ## feat
 
-- **External harnesses as stage runners**
-  - Let a stage name a *runner* — what executes it — instead of always spawning
+- **External harnesses as job runners**
+  - Let a job name a *runner* — what executes it — instead of always spawning
     an in-process subagent.
     - `rlm` — current behaviour, a Prime Agent subagent.
     - `prime` — a separate `prime-agent -p --autonomous` process. Its
-      `--autonomous-gate "<test cmd>"` means the stage isn't done until the
+      `--autonomous-gate "<test cmd>"` means the job isn't done until the
       gate passes. OpenRouter works as `--model openrouter/<id>`; codex is
       `--model openai/gpt-5.1-codex`.
     - `cursor` — `cursor-agent`. Flags unverified.
@@ -15,7 +15,7 @@
     - `bash(command)` takes a command string only — no `cwd`. Put the `cd` in
       the command, and `shlex.quote` the prompt.
     - `h = bash(cmd)` without `await` returns a live handle. Poll with
-      `h.poll()`, `h.tail()`, `h.kill()`. Never block the kernel on a stage.
+      `h.poll()`, `h.tail()`, `h.kill()`. Never block the kernel on a job.
   - Still RLM — orchestration stays code in a cell, and `bash()` is first-class
     in the REPL. Recursion by subprocess rather than by subagent.
   - But we lose the Prime-native features:
@@ -27,5 +27,5 @@
       Everything it needs goes in the prompt or in files.
     - No cost or token accounting across the tree.
   - Worth it for a different agent's judgement, or a hard unattended gate.
-    Possible because stages already pass results by file — live handles between
-    stages would make this impossible.
+    Possible because jobs already pass results by file — live handles between
+    jobs would make this impossible.

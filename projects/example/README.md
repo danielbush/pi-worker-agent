@@ -24,8 +24,7 @@ A small TypeScript HTTP API. Fastify, Postgres via Drizzle, deployed to Fly.
 - Typecheck and lint: `pnpm check`
 - Dev server: `pnpm dev` (needs a local Postgres on 5432)
 
-Use `pnpm check` as the autonomous gate for implement stages. It runs typecheck,
-lint, and tests.
+Use `pnpm check` to verify an `implement` job. It runs typecheck, lint, and tests.
 
 ## Conventions
 

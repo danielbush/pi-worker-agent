@@ -13,7 +13,7 @@ limit. Slice before you display:
 
 ```python
 state = json.loads(Path(f"projects/{name}/state.json").read_text())
-state["jobs"][-5:]
+state["runs"][-5:]
 ```
 
 Loading costs nothing; printing costs context. Same for `history.jsonl` — read
@@ -48,34 +48,34 @@ it for them, `/login` is interactive:
 
 After they've done it, re-run `find_models` to confirm before editing the table.
 
-**3. Job types.** Show the existing ones in a sentence each. Ask whether they fit
-how the user actually works. Common changes worth offering:
+**3. Workflows.** Show the existing ones in a sentence each. Ask whether they
+fit how the user actually works. Common changes worth offering:
 
-- A job type with no review stage, for throwaway work.
-- A stage that always runs, like updating a changelog.
+- A workflow with no review job, for throwaway work.
+- A job that always runs, like updating a changelog.
 - Splitting `implement` into implement and test, when the test suite is slow.
 
-Add, remove, or reorder stages as asked. Assign a profile to each new stage.
+Add, remove, or reorder jobs as asked. Assign a profile to each new job.
 
 **4. Projects.** Ask what they want managed. For each, get the absolute path,
 then read the project yourself — look for the test command, the package manager,
 the branch convention — and draft `projects/<name>/README.md` from what you find.
 Show it to them and ask what you got wrong.
 
-Don't create `state.json`; it appears on the first real job.
+Don't create `state.json`; it appears on the first real run.
 
 **5. Confirm.** Summarise what changed and offer to run something small.
 
 ## Handling a request
 
-1. Resolve the request to a **project** and a **job type**. Ask if either is
+1. Resolve the request to a **project** and a **workflow**. Ask if either is
    ambiguous — don't guess.
-2. Look up the job type in `WORKFLOWS.md` to get its stages, and each stage's
+2. Look up the workflow in `WORKFLOWS.md` to get its jobs, and each job's
    profile — profiles resolve to a model and thinking level in the same file.
 3. Create `projects/<name>/runs/<run-id>/` where `<run-id>` is
-   `YYYY-MM-DD-HHMM-<job>`.
-4. Run the stages in order, one worker per stage.
-5. Report back to the user in plain language between stages.
+   `YYYY-MM-DD-HHMM-<workflow>`.
+4. Run the jobs in order, one worker per job.
+5. Report back to the user in plain language between jobs.
 
 ## Spawning workers
 
@@ -84,46 +84,46 @@ the worker to `os.chdir` there first. Workers inherit this control directory,
 not the project. Getting this wrong means workers edit the wrong files.
 
 Every worker prompt must name the file its result goes to:
-`projects/<name>/runs/<run-id>/<stage>.md`.
+`projects/<name>/runs/<run-id>/<job>.md`.
 
-Pass paths between stages, never objects — workers do not share your kernel.
+Pass paths between jobs, never objects — workers do not share your kernel.
 
-Give a worker the previous stage's output file to read, not a summary you wrote.
+Give a worker the previous job's output file to read, not a summary you wrote.
 
-## Don't block on a stage
+## Don't block on a job
 
-The kernel is single-threaded. A blocking `await` freezes you for the whole
-stage — you can't report progress, run a parallel stage, or answer the user.
+The kernel is single-threaded. A blocking `await` freezes you for the whole job
+— you can't report progress, run a parallel job, or answer the user.
 
 Spawning already returns immediately. Use `agent_observe` to watch a worker and
 `agent_message.send(..., receiver_role="child")` to send a follow-up. Use
-`rlm-heartbeat` for long stages.
+`rlm-heartbeat` for long jobs.
 
 Tell the user what you started, then check back. Don't go quiet for ten minutes.
 
-Where stages are independent, start them all, then collect.
+Where jobs are independent, start them all, then collect.
 
-## Between stages
+## Between jobs
 
-Read the stage's output file. Do not rely on the worker's transcript.
+Read the job's output file. Do not rely on the worker's transcript.
 
-Judge it before continuing. If a stage failed or the output is unusable, loop
-back to the stage that can fix it rather than proceeding. Say so to the user.
+Judge it before continuing. If a job failed or the output is unusable, loop back
+to the job that can fix it rather than proceeding. Say so to the user.
 
 ## Tracking
 
 Two files, split by age.
 
-`state.json` holds the project header and the **last 20 jobs** in full. Write it
-when a job starts, changes status, and finishes.
+`state.json` holds the project header and the **last 20 runs** in full. Write it
+when a run starts, changes status, and finishes.
 
-`history.jsonl` holds everything older, one complete job object per line,
-append-only. When `state.json` exceeds 20 jobs, append the oldest to
+`history.jsonl` holds everything older, one complete run object per line,
+append-only. When `state.json` exceeds 20 runs, append the oldest to
 `history.jsonl` and drop it from `state.json`.
 
 ```python
 with open(hist, "a") as f:
-    f.write(json.dumps(old_job) + "\n")
+    f.write(json.dumps(old_run) + "\n")
 ```
 
 Never rewrite `history.jsonl`. Never load all of it — take the tail, or grep for
@@ -135,26 +135,26 @@ what you need.
 {
   "project": "api",
   "path": "/absolute/path",
-  "jobs": [
+  "runs": [
     {
-      "run_id": "2026-09-04-1430-implement",
-      "job": "implement",
+      "run_id": "2026-09-04-1430-build",
+      "workflow": "build",
       "status": "running|done|failed",
       "started": "...",
       "finished": "...",
       "request": "what the user asked for",
-      "stages": [{"stage": "plan", "model": "...", "status": "done"}],
-      "outcome": "one line, written when the job ends"
+      "jobs": [{"job": "plan", "model": "...", "status": "done"}],
+      "outcome": "one line, written when the run ends"
     }
   ],
   "archived": 0
 }
 ```
 
-`archived` counts jobs moved to `history.jsonl`, so you know history exists
+`archived` counts runs moved to `history.jsonl`, so you know history exists
 without opening it.
 
-Add fields when a project needs them. Don't delete jobs — archive them.
+Add fields when a project needs them. Don't delete runs — archive them.
 
 ## Style
 

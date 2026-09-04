@@ -6,8 +6,8 @@ delegates the actual work to worker agents operating on projects that live
 elsewhere on disk.
 
 You describe what you want in plain language. The manager picks a workflow,
-spawns one worker per stage, checks each result before moving on, and reports
-back between stages. Adding a new kind of job means editing markdown, not code.
+spawns one worker per job, checks each result before moving on, and reports back
+between jobs. Adding a new workflow means editing markdown, not code.
 
 ## Why a separate directory
 
@@ -24,14 +24,14 @@ tracking.
 ```
 prime-worker-agent/
   AGENTS.md            # policy — auto-loaded into the manager's system prompt
-  WORKFLOWS.md         # profiles + job types (you edit this, or ask the manager)
+  WORKFLOWS.md         # profiles + workflows (you edit this, or ask the manager)
   BACKLOG.md           # ideas not built yet
   projects/
     api/
       README.md        # you write: what this is, its path, constraints, goals
-      state.json       # the manager writes: header + last 20 jobs
-      history.jsonl    # the manager appends: older jobs, one per line
-      runs/            # per-run stage output
+      state.json       # the manager writes: header + last 20 runs
+      history.jsonl    # the manager appends: older runs, one per line
+      runs/            # per-run job output
     website/
       ...
   .agents/skills/      # optional, later: frozen orchestration code
@@ -52,9 +52,9 @@ JSON rather than markdown for state is deliberate. The manager reads and writes
 it in a line of Python and it never drifts. Markdown state gets reformatted a
 little more each session until it stops parsing cleanly.
 
-The split by age matters once a project has run a hundred jobs. `state.json`
+The split by age matters once a project has a hundred runs behind it. `state.json`
 stays small enough to hold the recent picture; `history.jsonl` is append-only, so
-old jobs cost nothing to keep and nothing to write past.
+old runs cost nothing to keep and nothing to write past.
 
 The real cost of state is context, not disk. Loading a large file into a Python
 variable is free — only what gets *printed* enters the manager's context. So the
@@ -92,26 +92,26 @@ Leave `state.json` alone; the manager creates it on first run.
 This is the file you will actually maintain. Two parts.
 
 **Profiles** name a model and thinking level — `planner`, `coder`, `reviewer`,
-`quick`. **Job types** are ordered stages, each pointing at a profile. So a
-workflow says *what kind of agent* does each stage, and the profile table says
-which model that is. Change the model once, every job type follows.
+`quick`. **Workflows** are ordered jobs, each pointing at a profile. So a
+workflow says *what kind of agent* does each job, and the profile table says
+which model that is. Change the model once, every workflow follows.
 
 Suggested shape, but nothing here is hard-coded — invent your own:
 
 ```markdown
-## implement
+## build
 plan (planner) -> implement (coder) -> review (reviewer)
 
 ## quickfix
 implement (coder) -> review (quick)
 
-## investigate
-investigate (planner)
+## mockup
+plan (planner) -> mock (coder)
 ```
 
-Add prose under each where a stage name isn't self-explanatory.
+Add prose under each where a job name isn't self-explanatory.
 
-Because this is markdown read at runtime, adding a job type is editing a file.
+Because this is markdown read at runtime, adding a workflow is editing a file.
 No code changes, no restart.
 
 ### 3. Write `AGENTS.md`
@@ -121,16 +121,16 @@ The policy the manager always has in context. In this order:
 - You are a manager. You do not write project code yourself.
 - Read `WORKFLOWS.md` at the start of a session, and `projects/<name>/README.md`
   plus `state.json` when a project is named.
-- Resolve the request to a project and a job type. Ask if either is ambiguous.
-- Run the job type's stages in order, one worker per stage.
+- Resolve the request to a project and a workflow. Ask if either is ambiguous.
+- Run the workflow's jobs in order, one worker per job.
 - Every worker prompt must state the absolute project path and instruct
   `os.chdir` to it first.
-- Check each stage's result before starting the next. A failed stage loops back
+- Check each job's result before starting the next. A failed job loops back
   rather than proceeding.
-- Workers write to `projects/<name>/runs/<run-id>/<stage>.md`. Read that, don't
+- Workers write to `projects/<name>/runs/<run-id>/<job>.md`. Read that, don't
   rely on the transcript.
-- Update `state.json` when a job starts, changes status, or finishes.
-- Report to the user in plain language between stages.
+- Update `state.json` when a run starts, changes status, or finishes.
+- Report to the user in plain language between jobs.
 
 Keep it short. It's a standing instruction, not a manual.
 
@@ -141,18 +141,18 @@ in a cell. Roughly:
 
 ```python
 handle = await rlm(
-    f"os.chdir to {project_path} first. {stage_instructions}. "
-    f"Write your result to {run_dir}/{stage}.md",
-    model=stage_model,
-    name=f"{job}-{stage}",
+    f"os.chdir to {project_path} first. {job_instructions}. "
+    f"Write your result to {run_dir}/{job}.md",
+    model=profile.model,
+    name=f"{workflow}-{job}",
 )
 ```
 
-Fan out with a list comprehension where stages are independent. Sequence with a
+Fan out with a list comprehension where jobs are independent. Sequence with a
 plain `for` loop where they aren't.
 
 This is the part worth leaving flexible. The manager adapting its own
-orchestration to a job type you invented last week is the whole point.
+orchestration to a workflow you invented last week is the whole point.
 
 ### 5. Collect results through files
 
@@ -162,7 +162,7 @@ Use `agent_observe` to watch progress, `agent_message.send(...,
 receiver_role="child")` to send a follow-up, and `rlm-heartbeat` for long runs.
 Keep a child alive until you've read its output.
 
-But treat `runs/<run-id>/<stage>.md` as the real interface. Files survive context
+But treat `runs/<run-id>/<job>.md` as the real interface. Files survive context
 compaction and kernel death; handles don't.
 
 ### 6. Freeze what stabilises
@@ -186,7 +186,7 @@ prime-agent
 ```
 
 Say "help me set this up". The manager checks which models you have access to,
-walks you through profiles and job types, and drafts a project README by reading
+walks you through profiles and workflows, and drafts a project README by reading
 the project. It'll tell you what to `/login` to if a model you want isn't
 configured.
 

@@ -1,17 +1,17 @@
 {
   "project": "example",
   "path": "/Users/you/code/example-api",
-  "jobs": [
+  "runs": [
     {
       "run_id": "2026-08-30-1100-investigate",
-      "job": "investigate",
+      "workflow": "investigate",
       "status": "done",
       "started": "2026-08-30T11:00:04Z",
       "finished": "2026-08-30T11:14:52Z",
       "request": "billing.ts is 2000 lines and nobody wants to touch it — what should we do",
-      "stages": [
+      "jobs": [
         {
-          "stage": "investigate",
+          "job": "investigate",
           "model": "anthropic/claude-opus-5",
           "status": "done",
           "output": "runs/2026-08-30-1100-investigate/investigate.md"
@@ -20,31 +20,31 @@
       "outcome": "Plan written: split into four modules, invoicing first since it has the fewest callers."
     },
     {
-      "run_id": "2026-09-02-0930-implement",
-      "job": "implement",
+      "run_id": "2026-09-02-0930-build",
+      "workflow": "build",
       "status": "done",
       "started": "2026-09-02T09:30:11Z",
       "finished": "2026-09-02T10:26:38Z",
       "request": "do the invoicing split from the plan",
-      "stages": [
+      "jobs": [
         {
-          "stage": "plan",
+          "job": "plan",
           "model": "anthropic/claude-opus-5",
           "status": "done",
-          "output": "runs/2026-09-02-0930-implement/plan.md"
+          "output": "runs/2026-09-02-0930-build/plan.md"
         },
         {
-          "stage": "implement",
+          "job": "implement",
           "model": "openai/gpt-5.1-codex",
           "status": "done",
-          "output": "runs/2026-09-02-0930-implement/implement.md"
+          "output": "runs/2026-09-02-0930-build/implement.md"
         },
         {
-          "stage": "review",
+          "job": "review",
           "model": "anthropic/claude-opus-5",
           "status": "done",
           "attempts": 2,
-          "output": "runs/2026-09-02-0930-implement/review.md",
+          "output": "runs/2026-09-02-0930-build/review.md",
           "note": "First review found the old export left in place; looped back to implement."
         }
       ],

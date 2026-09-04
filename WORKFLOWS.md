@@ -1,14 +1,14 @@
 # Workflows
 
 Two things live here: **profiles** (which model does what kind of work) and
-**job types** (which stages run in what order).
+**workflows** (which jobs run in what order).
 
 Edit this file to add, remove, or reshape either. No code changes needed. Ask
 the manager to help — it can check which models you actually have access to.
 
 ## Profiles
 
-A profile is a named model plus thinking level. Stages reference profiles, not
+A profile is a named model plus thinking level. Jobs reference profiles, not
 models, so you change your mind in one place.
 
 | Profile | Model | Thinking | For |
@@ -18,10 +18,10 @@ models, so you change your mind in one place.
 | `reviewer` | `anthropic/claude-opus-5` | high | Judging whether it's right |
 | `quick` | `anthropic/claude-sonnet-5` | off | Mechanical work, summarising |
 
-Every stage runs as a Prime Agent subagent:
+Every job runs as a Prime Agent subagent:
 
 ```python
-handle = await rlm(prompt, model=profile.model, thinking=profile.thinking, name=stage)
+handle = await rlm(prompt, model=profile.model, thinking=profile.thinking, name=job)
 ```
 
 Only `name`, `model`, and `thinking` are accepted.
@@ -44,7 +44,7 @@ what to run.
 
 ---
 
-## Job types
+## Workflows
 
 ### investigate
 
@@ -55,15 +55,15 @@ investigate (planner)
 ```
 
 The output is a written plan: what's going on, what to do about it, in what
-order, and what could go wrong. This is the input to `implement` later — write
-it so another agent can act on it without re-reading the codebase.
+order, and what could go wrong. This is the input to the `build` workflow later
+— write it so another agent can act on it without re-reading the codebase.
 
 Use this whenever the shape of the work isn't obvious. It's cheap relative to a
 wrong implementation.
 
-### implement
+### build
 
-Full cycle for work that needs thinking first.
+Full cycle for real work that needs thinking first.
 
 ```
 plan      (planner)
@@ -87,8 +87,39 @@ implement (coder)
 review    (quick)
 ```
 
-Skip the plan stage. If you find yourself wanting one mid-stage, stop and run
-`investigate` instead.
+Skip the plan job. If you find yourself wanting one mid-job, stop and run the
+`investigate` workflow instead.
+
+### mockup
+
+Stand something up so the user can see and react to it. Nothing behind it is
+real.
+
+```
+plan (planner)
+mock (coder)
+```
+
+`plan` works out what the user needs to *see* — the screens or outputs, the
+states worth showing, the happy path being demonstrated. Not architecture.
+
+`mock` builds exactly that, faking everything below the surface:
+
+- Hardcoded data inline. No database, no fixtures, no seed scripts.
+- No network calls. Stub every API with a literal response.
+- No auth, no persistence, no error handling beyond what's being shown.
+- Interactions can be shallow — a button may do nothing if the point is the
+  layout.
+- Prefer one file over a structure. It's going to be thrown away.
+
+The worker must be told this explicitly, or it will build something real. Say so
+in the prompt: *this is a throwaway mockup, fake everything, do not integrate
+with existing services.*
+
+No review job. The user is the review.
+
+Keep mockups out of the main branch — a scratch directory or a clearly named
+branch. Say where it is when you report back.
 
 ### review-only
 
@@ -103,13 +134,13 @@ Read the current diff or a named commit range and report. Changes nothing.
 ## Defaults
 
 - Unspecified profile: `quick`
-- A stage may override with an explicit model where a profile doesn't fit
+- A job may override with an explicit model where a profile doesn't fit
 
 ## Notes on model choice
 
-Judgement stages — planning, reviewing — earn a strong model. Mechanical stages
+Judgement jobs — planning, reviewing — earn a strong model. Mechanical jobs
 don't. A cheaper model working against a clear plan and a passing test suite
 often beats an expensive one working from a vague brief.
 
-That's the point of profiles: swap `coder` to a cheaper model and every job type
+That's the point of profiles: swap `coder` to a cheaper model and every workflow
 that uses it changes at once.
