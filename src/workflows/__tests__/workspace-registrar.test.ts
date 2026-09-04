@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { WorkspaceDirectory } from "../../infrastructure/filesystem/workspace-directory.ts";
+import { WorkspaceDirectory } from "../workspace-directory.ts";
 import { Clock } from "../../infrastructure/system/clock.ts";
 import { Registry } from "../../storage/registry.ts";
 import { WorkspaceRegistrar } from "../workspace-registrar.ts";

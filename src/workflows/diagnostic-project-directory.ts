@@ -1,6 +1,6 @@
 import { join } from "node:path";
-import { ProjectCollectionPaths } from "../../domain/project-collection-paths.ts";
-import { FileSystem } from "./file-system.ts";
+import { ProjectCollectionPaths } from "../domain/project-collection-paths.ts";
+import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
 
 export interface DiagnosticProjectLocation {
   directoryName: string;

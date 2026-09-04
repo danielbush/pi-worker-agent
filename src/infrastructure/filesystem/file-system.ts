@@ -1,4 +1,4 @@
-import { lstatSync, mkdirSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { accessSync, constants, lstatSync, mkdirSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 
 export type FileKind = "directory" | "file" | "symbolic-link" | "other" | "missing";
@@ -15,6 +15,8 @@ interface FileSystemDriver {
   createDirectory(path: string): void;
   move(source: string, destination: string): void;
   createTextFile(path: string, content: string): boolean;
+  canonicalPath(path: string): string;
+  isWritable(path: string): boolean;
 }
 
 export interface NullFileSystemState {
@@ -22,6 +24,8 @@ export interface NullFileSystemState {
   files?: string[];
   symbolicLinks?: string[];
   other?: string[];
+  canonicalPaths?: Record<string, string>;
+  unwritable?: string[];
 }
 
 /** INFRASTRUCTURE_WRAPPER: provides application-owned file and directory operations. */
@@ -42,6 +46,8 @@ export class FileSystem {
   createDirectory(path: string): void { this.driver.createDirectory(path); }
   move(source: string, destination: string): void { this.driver.move(source, destination); }
   createTextFile(path: string, content: string): boolean { return this.driver.createTextFile(path, content); }
+  canonicalPath(path: string): string { return this.driver.canonicalPath(path); }
+  isWritable(path: string): boolean { return this.driver.isWritable(path); }
 }
 
 class NodeFileSystemDriver implements FileSystemDriver {
@@ -86,12 +92,22 @@ class NodeFileSystemDriver implements FileSystemDriver {
       throw error;
     }
   }
+
+  canonicalPath(path: string): string { return realpathSync(path); }
+
+  isWritable(path: string): boolean {
+    try { accessSync(path, constants.W_OK); return true; } catch { return false; }
+  }
 }
 
 class MemoryFileSystemDriver implements FileSystemDriver {
   private readonly paths = new Map<string, Exclude<FileKind, "missing">>();
+  private readonly canonicalPaths = new Map<string, string>();
+  private readonly unwritable: Set<string>;
 
   constructor(state: NullFileSystemState) {
+    this.unwritable = new Set((state.unwritable ?? []).map((path) => resolve(path)));
+    for (const [path, canonical] of Object.entries(state.canonicalPaths ?? {})) this.canonicalPaths.set(resolve(path), resolve(canonical));
     for (const path of state.directories ?? []) this.addDirectory(path);
     for (const path of state.files ?? []) this.add(path, "file");
     for (const path of state.symbolicLinks ?? []) this.add(path, "symbolic-link");
@@ -121,6 +137,17 @@ class MemoryFileSystemDriver implements FileSystemDriver {
     const moving = [...this.paths.entries()].filter(([path]) => path === from || path.startsWith(`${from}${sep}`));
     for (const [path] of moving) this.paths.delete(path);
     for (const [path, kind] of moving) this.paths.set(path === from ? to : `${to}${path.slice(from.length)}`, kind);
+  }
+
+  canonicalPath(path: string): string {
+    const target = resolve(path);
+    if (this.kind(target) === "missing") throw new Error(`Path does not exist: ${path}`);
+    return this.canonicalPaths.get(target) ?? target;
+  }
+
+  isWritable(path: string): boolean {
+    const target = resolve(path);
+    return this.kind(target) !== "missing" && !this.unwritable.has(target);
   }
 
   createTextFile(path: string, _content: string): boolean {

@@ -3,7 +3,8 @@ import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { removeTestDirectory } from "../../__tests__/test-directory.ts";
-import { WorkspaceDirectory } from "../../src/infrastructure/filesystem/workspace-directory.ts";
+import { FileSystem } from "../../src/infrastructure/filesystem/file-system.ts";
+import { WorkspaceDirectory } from "../../src/workflows/workspace-directory.ts";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -15,7 +16,7 @@ test("preflights and materializes a user-approved missing workspace", () => {
   const root = mkdtempSync(join(tmpdir(), "pi-worker-workspace-directory-"));
   roots.push(root);
   const path = join(root, "nested", "workspace");
-  const directories = WorkspaceDirectory.create(root);
+  const directories = WorkspaceDirectory.create(root, FileSystem.create());
 
   // act
   const preflight = directories.inspect(path);
@@ -33,7 +34,7 @@ test("recognizes an existing Git workspace without modifying it", () => {
   const root = mkdtempSync(join(tmpdir(), "pi-worker-workspace-directory-"));
   roots.push(root);
   mkdirSync(join(root, ".git"));
-  const directories = WorkspaceDirectory.create(root);
+  const directories = WorkspaceDirectory.create(root, FileSystem.create());
 
   // act
   const preflight = directories.inspect(root);

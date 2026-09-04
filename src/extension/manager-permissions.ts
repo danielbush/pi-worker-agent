@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { PiExtension } from "../infrastructure/pi/pi-extension.ts";
 
 const DEVELOPMENT_TOOL_NAMES = ["bash", "write", "edit"];
 
@@ -30,63 +30,52 @@ const MANAGER_TOOL_NAMES = new Set([
   "worker_delegate_job",
 ]);
 
-type ManagerPermissionPi = Pick<
-  ExtensionAPI,
-  "getActiveTools" | "on" | "registerCommand" | "setActiveTools"
->;
-
 export interface ManagerPermissionState {
   mode: "manager" | "development";
   activeTools: string[];
 }
 
-/** INFRASTRUCTURE_WRAPPER: enforces the manager's Pi tool boundary. */
+/** INFRASTRUCTURE_CONSUMER: enforces the manager's tool boundary through the Pi wrapper. */
 export class ManagerPermissions {
   private developmentMode = false;
   private developmentTools: string[] = [];
 
-  constructor(private readonly pi: ManagerPermissionPi) {}
+  constructor(private readonly pi: PiExtension) {}
 
-  static create(pi: ExtensionAPI): ManagerPermissions {
+  static create(pi: PiExtension): ManagerPermissions {
     return new ManagerPermissions(pi);
   }
 
   static createNull(activeTools: string[] = []): ManagerPermissions {
-    let currentTools = [...activeTools];
-    return new ManagerPermissions({
-      getActiveTools: () => [...currentTools],
-      setActiveTools: (tools: string[]) => { currentTools = [...tools]; },
-      on: () => {},
-      registerCommand: () => {},
-    } as unknown as ManagerPermissionPi);
+    return new ManagerPermissions(PiExtension.createNull(activeTools));
   }
 
   get state(): ManagerPermissionState {
     return {
       mode: this.developmentMode ? "development" : "manager",
-      activeTools: this.pi.getActiveTools(),
+      activeTools: this.pi.activeTools(),
     };
   }
 
   register(): void {
-    this.pi.on("session_start", async () => {
+    this.pi.onSessionStart(async () => {
       this.startSession();
     });
-    this.pi.on("tool_call", async (event) => this.blockedToolCall(event.toolName));
+    this.pi.onToolCall((toolName) => this.blockedToolCall(toolName));
     this.pi.registerCommand("development-mode", {
       description: "Explicitly enable unrestricted coding tools for this Pi session",
       handler: async (_args, ctx) => {
         if (!ctx.hasUI) {
-          ctx.ui.notify("Development mode requires interactive confirmation.", "error");
+          ctx.notify("Development mode requires interactive confirmation.", "error");
           return;
         }
-        const confirmed = await ctx.ui.confirm(
+        const confirmed = await ctx.confirm(
           "Enable development mode?",
           "This gives the agent unrestricted coding tools with your full user permissions for this session.",
         );
         if (!confirmed) return;
         this.enableDevelopment();
-        ctx.ui.notify(
+        ctx.notify(
           "Development mode enabled for this session. Return to restricted access with /manager-mode.",
           "warning",
         );
@@ -96,7 +85,7 @@ export class ManagerPermissions {
       description: "Return immediately to restricted manager tools",
       handler: async (_args, ctx) => {
         this.lock();
-        ctx.ui.notify("Manager mode enabled.", "info");
+        ctx.notify("Manager mode enabled.", "info");
       },
     });
   }
@@ -105,7 +94,7 @@ export class ManagerPermissions {
     this.developmentMode = false;
     this.developmentTools = [...new Set([
       ...this.developmentTools,
-      ...this.pi.getActiveTools(),
+      ...this.pi.activeTools(),
       ...DEVELOPMENT_TOOL_NAMES,
     ])];
     this.lock();
@@ -113,12 +102,12 @@ export class ManagerPermissions {
 
   lock(): void {
     this.developmentMode = false;
-    this.pi.setActiveTools(this.pi.getActiveTools().filter((name) => MANAGER_TOOL_NAMES.has(name)));
+    this.pi.activateTools(this.pi.activeTools().filter((name) => MANAGER_TOOL_NAMES.has(name)));
   }
 
   enableDevelopment(): void {
     this.developmentMode = true;
-    this.pi.setActiveTools(this.developmentTools);
+    this.pi.activateTools(this.developmentTools);
   }
 
   blockedToolCall(toolName: string): { block: true; reason: string; terminate: true } | undefined {

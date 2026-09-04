@@ -1,14 +1,14 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { fileURLToPath } from "node:url";
 import { Type } from "typebox";
 import { DATA_ROOT } from "../config.ts";
 import { Id } from "../domain/id.ts";
 import type { JobType } from "../domain/job.ts";
-import { WorkspaceDirectory } from "../infrastructure/filesystem/workspace-directory.ts";
+import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
 import {
   DetachedRunnerLauncher,
   type DetachedRunnerLaunch,
 } from "../infrastructure/process/detached-runner-launcher.ts";
+import { PiExtension } from "../infrastructure/pi/pi-extension.ts";
 import { WorktreeEditor } from "../infrastructure/process/worktree-editor.ts";
 import { Registry } from "../storage/registry.ts";
 import { TaskStore } from "../storage/task-store.ts";
@@ -25,16 +25,12 @@ import { ProjectTaskReporter } from "../workflows/project-task-reporter.ts";
 import { ProjectStructureVerifier } from "../workflows/project-structure-verifier.ts";
 import { TaskCompleter } from "../workflows/task-completer.ts";
 import { TaskCreator } from "../workflows/task-creator.ts";
+import { WorkspaceDirectory } from "../workflows/workspace-directory.ts";
 import { WorkspaceRegistrar } from "../workflows/workspace-registrar.ts";
 import { formatModelCatalog, ModelCatalog } from "../workflows/model-catalog.ts";
 import { ManagerPermissions } from "./manager-permissions.ts";
 import { WorkerCompletionMonitor } from "./worker-completion-monitor.ts";
 import { formatTaskStatus, TaskStatusReporter } from "./task-status-reporter.ts";
-
-type WorkerAgentPi = Pick<
-  ExtensionAPI,
-  "getActiveTools" | "on" | "registerCommand" | "registerTool" | "sendMessage" | "setActiveTools"
->;
 
 interface WorkerAgentServices {
   registry(): Registry;
@@ -53,20 +49,20 @@ export interface NullWorkerAgentExtensionState {
   runnerPid?: number;
 }
 
-/** INFRASTRUCTURE_WRAPPER: owns Pi registration and worker-agent service lifecycle. */
+/** INFRASTRUCTURE_CONSUMER: connects manager tools and lifecycle workflows through the Pi wrapper. */
 export class WorkerAgentExtension {
   private registry: Registry | undefined;
   private completionMonitor: WorkerCompletionMonitor | undefined;
   private registered = false;
 
   constructor(
-    private readonly pi: WorkerAgentPi,
+    private readonly pi: PiExtension,
     private readonly root: string,
     private readonly runner: DetachedRunnerLauncher,
     private readonly services: WorkerAgentServices,
   ) {}
 
-  static create(pi: ExtensionAPI): WorkerAgentExtension {
+  static create(pi: PiExtension): WorkerAgentExtension {
     return new WorkerAgentExtension(
       pi,
       DATA_ROOT,
@@ -79,14 +75,7 @@ export class WorkerAgentExtension {
   }
 
   static createNull(state: NullWorkerAgentExtensionState = {}): WorkerAgentExtension {
-    const pi = {
-      getActiveTools: () => [],
-      on: () => {},
-      registerCommand: () => {},
-      registerTool: () => {},
-      sendMessage: () => {},
-      setActiveTools: () => {},
-    } as unknown as WorkerAgentPi;
+    const pi = PiExtension.createNull();
     return new WorkerAgentExtension(
       pi,
       state.root ?? "/null-worker-agent",
@@ -119,26 +108,19 @@ export class WorkerAgentExtension {
   }
 
   private registerLifecycle(): void {
-    this.pi.on("session_start", async (_event, ctx) => {
+    this.pi.onSessionStart(async (ctx) => {
       const registry = this.registry ??= this.services.registry();
       this.completionMonitor?.stop();
       this.completionMonitor = WorkerCompletionMonitor.create(
         registry,
         this.services.taskStore(),
-        (message, level) => ctx.ui.notify(message, level),
-        (message) => this.pi.sendMessage({
-          customType: "worker-agent-result",
-          content: message,
-          display: false,
-        }, {
-          triggerTurn: true,
-          deliverAs: "followUp",
-        }),
+        (message, level) => ctx.notify(message, level),
+        (message) => this.pi.sendManagerMessage(message),
       );
-      this.completionMonitor.start(ctx.sessionManager.getSessionId());
+      this.completionMonitor.start(ctx.sessionId);
     });
 
-    this.pi.on("session_shutdown", async () => {
+    this.pi.onSessionShutdown(async () => {
       this.completionMonitor?.stop();
       this.completionMonitor = undefined;
       this.registry?.close();
@@ -162,15 +144,15 @@ export class WorkerAgentExtension {
         path: Type.String({ description: "Existing path, or path to create after approval" }),
         createIfMissing: Type.Optional(Type.Boolean({ description: "Create the directory after approval when it does not exist" })),
       }),
-      execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
-        const directories = WorkspaceDirectory.create(ctx.cwd);
+      execute: async (params, ctx) => {
+        const directories = WorkspaceDirectory.create(ctx.cwd, FileSystem.create());
         const preflight = directories.inspect(params.path);
         if (!preflight.exists && !params.createIfMissing) {
           throw new Error(`Workspace does not exist; set createIfMissing only if creation is intended: ${preflight.requestedPath}`);
         }
         if (!ctx.hasUI) throw new Error("Workspace registration requires interactive user approval");
         const action = preflight.exists ? "Register existing directory" : "Create and register directory";
-        const approved = await ctx.ui.confirm(
+        const approved = await ctx.confirm(
           "Authorize worker workspace?",
           [
             `Name: ${params.name}`,
@@ -187,7 +169,7 @@ export class WorkerAgentExtension {
           preflight,
           createIfMissing: params.createIfMissing ?? false,
           userApproved: true,
-          approvedBySessionId: ctx.sessionManager.getSessionId(),
+          approvedBySessionId: ctx.sessionId,
         });
         return {
           content: [{
@@ -280,7 +262,7 @@ export class WorkerAgentExtension {
         expectedContent: Type.Optional(Type.String({ description: "Exact inspected content required for update or delete" })),
         content: Type.Optional(Type.String({ description: "Complete replacement content required for create or update" })),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const result = ProjectFileManager.create(this.root, registry).manage(params);
         return {
@@ -312,7 +294,7 @@ export class WorkerAgentExtension {
         description: Type.Optional(Type.String()),
         collection: Type.Optional(Type.Union([Type.Literal("active"), Type.Literal("test")])),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const project = ProjectRegistrar.create(this.root, registry, Id.create()).register(params);
         return {
@@ -344,7 +326,7 @@ export class WorkerAgentExtension {
       description: "Move an active project into the archive collection while preserving its durable identity and task history.",
       promptSnippet: "Archive an active managed project",
       parameters: Type.Object({ project: Type.String({ description: "Active project directory name, exact ID, or unique leading shorthand" }) }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const project = ProjectArchiver.create(this.root, registry).archive(params.project);
         return {
@@ -363,7 +345,7 @@ export class WorkerAgentExtension {
         projectId: Type.String({ description: "Exact project ID or unique leading shorthand" }),
         taskId: Type.String({ description: "Exact task ID or unique leading shorthand" }),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const association = ProjectTaskLinker.create(registry).link(params.projectId, params.taskId);
         return {
@@ -382,7 +364,7 @@ export class WorkerAgentExtension {
         project: Type.String({ description: "Project directory name, exact ID, or unique leading shorthand" }),
         outstandingOnly: Type.Optional(Type.Boolean()),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const report = ProjectTaskReporter.create(registry).inspect(
           params.project,
@@ -439,7 +421,7 @@ export class WorkerAgentExtension {
         model: Type.Optional(Type.String()),
         options: Type.Optional(Type.Record(Type.String(), Type.String())),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const manager = ExecutionCatalogManager.create(registry);
         const profile = params.operation === "create"
@@ -485,7 +467,7 @@ export class WorkerAgentExtension {
         worktreeStrategy: Type.Optional(Type.Union([Type.Literal("workspace"), Type.Literal("new-worktree"), Type.Literal("dependency-worktree")])),
         defaultAgentProfileId: Type.Optional(Type.String()),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const manager = ExecutionCatalogManager.create(registry);
         const jobType = params.operation === "create"
@@ -526,7 +508,7 @@ export class WorkerAgentExtension {
         workspaceId: Type.String({ description: "Exact authorized workspace ID or unique leading shorthand" }),
         projectId: Type.String({ description: "Exact registered project ID or unique leading shorthand" }),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const created = await TaskCreator.create(
           registry,
@@ -565,7 +547,7 @@ export class WorkerAgentExtension {
       parameters: Type.Object({
         jobId: Type.String({ description: "Exact completed implementation job ID" }),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const inspection = CompletedWorkMerger.create(registry, this.services.taskStore()).inspect(params.jobId);
         return {
@@ -599,7 +581,7 @@ export class WorkerAgentExtension {
       parameters: Type.Object({
         jobId: Type.String({ description: "Exact completed implementation job ID" }),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const inspection = CompletedWorkMerger.create(registry, this.services.taskStore()).inspect(params.jobId);
         const launch = WorktreeEditor.create().open(inspection.worktreePath);
@@ -626,7 +608,7 @@ export class WorkerAgentExtension {
       parameters: Type.Object({
         jobId: Type.String({ description: "Exact completed implementation job ID" }),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const merger = CompletedWorkMerger.create(registry, this.services.taskStore());
         const merged = merger.merge(params.jobId);
@@ -657,7 +639,7 @@ export class WorkerAgentExtension {
           description: "Optional harness to list; omit to list every configured harness",
         })),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const reports = ModelCatalog.create(registry.agentProfiles).discover(params.harness);
         return {
@@ -681,7 +663,7 @@ export class WorkerAgentExtension {
       parameters: Type.Object({
         taskId: Type.String({ description: "Exact task UUID or unique leading shorthand" }),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const task = TaskCompleter.create(registry).complete(params.taskId);
         return {
@@ -713,14 +695,14 @@ export class WorkerAgentExtension {
         dependsOnJobId: Type.Optional(Type.String()),
         relationship: Type.Optional(Type.String()),
       }),
-      execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
+      execute: async (params, ctx) => {
         const registry = this.registry ??= this.services.registry();
         const task = registry.tasks.resolve(params.taskId);
         if (!task) throw new Error(`Unknown task: ${params.taskId}`);
         const workspace = task.workspaceId ? registry.workspaces.get(task.workspaceId) : undefined;
         if (!workspace) throw new Error(`Task has no registered workspace: ${task.id}`);
         if (!workspace.authorizedAt) throw new Error(`Task workspace is not authorized: ${workspace.id}`);
-        const preflight = WorkspaceDirectory.create(ctx.cwd).inspect(workspace.rootDir);
+        const preflight = WorkspaceDirectory.create(ctx.cwd, FileSystem.create()).inspect(workspace.rootDir);
         if (!preflight.exists || preflight.canonicalPath !== workspace.rootDir) {
           throw new Error(`Task workspace path changed or is inaccessible: ${workspace.rootDir}`);
         }
@@ -738,8 +720,8 @@ export class WorkerAgentExtension {
           request: params.request,
           dependsOnJobId: params.dependsOnJobId,
           relationship: params.relationship,
-          parentSessionId: ctx.sessionManager.getSessionId(),
-          parentSessionFile: ctx.sessionManager.getSessionFile() ?? null,
+          parentSessionId: ctx.sessionId,
+          parentSessionFile: ctx.sessionFile ?? null,
         });
         return {
           content: [{
@@ -780,7 +762,7 @@ export class WorkerAgentExtension {
         taskId: Type.String({ description: "Exact task UUID or unique leading shorthand" }),
         verbose: Type.Optional(Type.Boolean()),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (params) => {
         const registry = this.registry ??= this.services.registry();
         const task = registry.tasks.resolve(params.taskId);
         if (!task) throw new Error(`Unknown worker task: ${params.taskId}`);
@@ -802,7 +784,7 @@ export class WorkerAgentExtension {
         const taskId = arguments_.find((argument) => !argument.startsWith("--"));
         const verbose = arguments_.includes("--verbose");
         if (!taskId) {
-          ctx.ui.notify("Pass a task UUID or unique shorthand: /task-status <task-id>", "info");
+          ctx.notify("Pass a task UUID or unique shorthand: /task-status <task-id>", "info");
           return;
         }
         try {
@@ -813,13 +795,13 @@ export class WorkerAgentExtension {
             this.services.taskStore(),
           ).inspect(task.id) : null;
           if (!status) {
-            ctx.ui.notify(`Unknown worker task: ${taskId}`, "error");
+            ctx.notify(`Unknown worker task: ${taskId}`, "error");
             return;
           }
-          ctx.ui.notify(formatTaskStatus(status, { includeResults: verbose }), "info");
+          ctx.notify(formatTaskStatus(status, { includeResults: verbose }), "info");
         } catch (error) {
           const detail = error instanceof Error ? error.message : String(error);
-          ctx.ui.notify(`Unable to read task status: ${detail}`, "error");
+          ctx.notify(`Unable to read task status: ${detail}`, "error");
         }
       },
     });

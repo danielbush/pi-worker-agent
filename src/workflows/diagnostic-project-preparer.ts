@@ -3,7 +3,7 @@ import { ProjectCollectionPaths } from "../domain/project-collection-paths.ts";
 import type { Project } from "../domain/project.ts";
 import type { Workspace } from "../domain/workspace.ts";
 import { Id as ProductionId } from "../domain/id.ts";
-import { DiagnosticProjectDirectory } from "../infrastructure/filesystem/diagnostic-project-directory.ts";
+import { DiagnosticProjectDirectory } from "./diagnostic-project-directory.ts";
 import { FileSystem } from "../infrastructure/filesystem/file-system.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
 import { Registry } from "../storage/registry.ts";

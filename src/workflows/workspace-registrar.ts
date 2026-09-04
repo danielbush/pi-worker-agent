@@ -1,6 +1,6 @@
 import type { Id } from "../domain/id.ts";
 import type { Workspace } from "../domain/workspace.ts";
-import { WorkspaceDirectory, type WorkspacePreflight } from "../infrastructure/filesystem/workspace-directory.ts";
+import { WorkspaceDirectory, type WorkspacePreflight } from "./workspace-directory.ts";
 import { Clock } from "../infrastructure/system/clock.ts";
 import { Registry } from "../storage/registry.ts";
 
