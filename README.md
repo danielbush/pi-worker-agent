@@ -86,7 +86,7 @@ The user works with the manager, not the workers directly. The manager interpret
 
 ## Try it locally
 
-> ⚠️ **Not quite ready:** a clean installation has not yet been tested end to end. The intended experience is that, after you launch Pi, the manager agent walks you through creating the policy documents and configuring agent profiles and job types. Expect gaps until that setup flow has been exercised on a fresh clone.
+> ⚠️ **Not quite ready:** the clean-install and conversational setup path described below has not yet been tested end to end. Expect gaps on a fresh clone.
 
 You need Pi and Bun installed. Clone the repository, install dependencies, and launch Pi from inside it:
 
@@ -102,6 +102,12 @@ Pi loads the local extension from:
 ```text
 .pi/extensions/worker-agent/index.ts
 ```
+
+Once Pi opens, ask the manager agent:
+
+> What should I do next?
+
+The intended flow is for the manager to explain the system, check its setup, and walk you through policy and execution configuration.
 
 The manager starts with restricted tools. Use `/development-mode` only when you intentionally want to let it modify this codebase directly; `/manager-mode` returns to restricted manager tools.
 
@@ -125,7 +131,7 @@ The data root holds the SQLite registry, durable task/job files, project-managem
 - `WORKFLOW.md` — how jobs are sequenced, reviewed, revised, and accepted.
 - `CODE.md` — coding, architecture, testing, and safety conventions.
 
-Copy and adapt the examples rather than treating the author's preferences as hardcoded product behavior.
+Ask the manager to help create or adapt these files from the examples rather than treating the author's preferences as hardcoded product behavior.
 
 ## Safety warning
 
@@ -144,13 +150,10 @@ bun run test
 bun run typecheck
 ```
 
-See [`DIAGNOSTICS.md`](DIAGNOSTICS.md) for focused readiness checks. It defaults to quick, non-live checks rather than launching models unnecessarily.
-
 For implementation details, see:
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - [`DESIGN.md`](DESIGN.md)
-- [`DIAGNOSTICS.md`](DIAGNOSTICS.md)
 - [`ISSUES.md`](ISSUES.md)
 
 ## Inspiration
