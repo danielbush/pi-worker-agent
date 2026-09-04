@@ -34,7 +34,13 @@
   - call any INFRASTRUCTURE_WRAPPER or INFRASTRUCTURE_CONSUMER that is used by a class an INFRASTRUCTRUE_DEPENDENCY
   - both types of INFRASTRUCTURE_CODE must support a static .create() that creates production instances and .createNull() that creates NULL_VARIANT's;
   - aim to provide useful defaults for .create and .createNull to avoid having to specify too many parameters
-  - in general: find the direct interface with the environment, extract it if not already and make this the INFRASTRUCTURE_WRAPPER, identify the required DRIVER_CODE and stub it out for the NULL_VARIANT (EMBEDDED_STUB's) ;  then make consumers of this wrapper into INFRASTRUCTURE_CONSUMER's; code tests use nulled versions of the code, see testing section below.
+  - Define INFRASTRUCTURE_WRAPPER boundaries around external systems or APIs, not around each application use case. Prefer one cohesive filesystem, database, process, or network wrapper over many wrappers that repeat the same environmental calls.
+  - Design a wrapper's public API around what the application needs. It need not mirror, generalize, or expose the underlying driver API; it should provide cohesive application-facing operations and values.
+  - DRIVER_CODE and driver interfaces are private implementation details of the wrapper. Consumers receive the wrapper, never its driver, and should not need to understand how its production or null behavior is implemented.
+  - A wrapper may coordinate driver calls to fulfil its application-facing contract. Domain interpretation such as project listing rules, validation policy, filtering, or workflow sequencing belongs in an INFRASTRUCTURE_CONSUMER that uses the wrapper.
+  - Keep wrappers cohesive rather than universal. Consumers should depend on only the wrapper capabilities they require, while related consumers may share one wrapper instance and one NULL_VARIANT state.
+  - Do not leak environment-library representations such as filesystem directory-entry or stat objects. Wrappers translate them into small application-owned values before returning them.
+  - In general: identify the direct interface with the environment and make that the INFRASTRUCTURE_WRAPPER. Identify and inject its DRIVER_CODE, provide an EMBEDDED_STUB for the NULL_VARIANT, and make domain-aware users of that wrapper INFRASTRUCTURE_CONSUMER's; code tests use nulled versions of the wrapper as described below.
   - Constructors should NOT receive null flags, nullable backends, or null-specific state.  The class instance should NEVER know it is using a NULL_VARIANT or not.
   - createNull() configuration is confined to each class’s static createNull().
   - Production DRIVER_CODE is injected by create().
