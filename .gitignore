@@ -1,0 +1,4 @@
+projects/*
+!projects/example/
+projects/example/runs/*
+!projects/example/runs/.gitkeep

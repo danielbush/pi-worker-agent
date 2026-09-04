@@ -1,0 +1,59 @@
+{
+  "project": "example",
+  "path": "/Users/you/code/example-api",
+  "jobs": [
+    {
+      "run_id": "2026-08-30-1100-investigate",
+      "job": "investigate",
+      "status": "done",
+      "started": "2026-08-30T11:00:04Z",
+      "finished": "2026-08-30T11:14:52Z",
+      "request": "billing.ts is 2000 lines and nobody wants to touch it — what should we do",
+      "stages": [
+        {
+          "stage": "investigate",
+          "runner": "rlm",
+          "model": "anthropic/claude-opus-5",
+          "status": "done",
+          "output": "runs/2026-08-30-1100-investigate/investigate.md"
+        }
+      ],
+      "outcome": "Plan written: split into four modules, invoicing first since it has the fewest callers."
+    },
+    {
+      "run_id": "2026-09-02-0930-implement",
+      "job": "implement",
+      "status": "done",
+      "started": "2026-09-02T09:30:11Z",
+      "finished": "2026-09-02T10:26:38Z",
+      "request": "do the invoicing split from the plan",
+      "stages": [
+        {
+          "stage": "plan",
+          "runner": "rlm",
+          "model": "anthropic/claude-opus-5",
+          "status": "done",
+          "output": "runs/2026-09-02-0930-implement/plan.md"
+        },
+        {
+          "stage": "implement",
+          "runner": "prime",
+          "model": "openai/gpt-5.1-codex",
+          "gate": "pnpm check",
+          "status": "done",
+          "output": "runs/2026-09-02-0930-implement/implement.md"
+        },
+        {
+          "stage": "review",
+          "runner": "rlm",
+          "model": "anthropic/claude-opus-5",
+          "status": "done",
+          "attempts": 2,
+          "output": "runs/2026-09-02-0930-implement/review.md",
+          "note": "First review found the old export left in place; looped back to implement."
+        }
+      ],
+      "outcome": "Invoicing extracted to src/services/invoicing.ts on branch agent/split-invoicing. Gate green. Not merged."
+    }
+  ]
+}
