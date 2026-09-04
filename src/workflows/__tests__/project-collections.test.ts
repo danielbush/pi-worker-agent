@@ -12,9 +12,11 @@ const TIMESTAMP = "2026-09-04T00:00:00Z";
 
 test("prepares one conventional diagnostic project and authorized workspace idempotently", () => {
   const registry = Registry.createNull();
+  const paths = new ProjectCollectionPaths("/null-worker-agent");
+  const fileSystem = FileSystem.createNull();
   const preparer = new DiagnosticProjectPreparer(
     registry,
-    DiagnosticProjectDirectory.createNull(),
+    DiagnosticProjectDirectory.create(paths, fileSystem),
     { createProjectId: () => "project_diagnostic", createWorkspaceId: () => "workspace_diagnostic" },
     Clock.createNull(TIMESTAMP),
   );
@@ -29,6 +31,7 @@ test("prepares one conventional diagnostic project and authorized workspace idem
     authorizedBySessionId: "system-diagnostic-convention",
   });
   expect(registry.projects.list("active")).toEqual([]);
+  expect(fileSystem.kind(`${paths.projectPath("test", "system-diagnostics")}/.agent`)).toBe("missing");
 });
 
 test("refuses to archive a project with outstanding tasks", () => {

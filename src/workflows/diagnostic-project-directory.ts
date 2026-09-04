@@ -23,9 +23,7 @@ export class DiagnosticProjectDirectory {
   prepare(): DiagnosticProjectLocation {
     const result = this.location();
     this.fileSystem.createDirectory(result.workspaceRoot);
-    this.fileSystem.createDirectory(join(result.projectRoot, ".agent"));
     this.fileSystem.createTextFile(join(result.projectRoot, "sequence.md"), "# System diagnostics\n\nApplication-owned location for focused, opt-in diagnostics.\n");
-    this.fileSystem.createTextFile(join(result.projectRoot, ".agent", "tasks.md"), "# taskId|created|status|title\n");
     this.fileSystem.createTextFile(join(result.workspaceRoot, "AGENTS.md"), "# Diagnostic worker instructions\n\nKeep diagnostics narrow, non-destructive, and limited to the requested contract.\n");
     this.fileSystem.createTextFile(join(result.workspaceRoot, "README.md"), "# System diagnostics workspace\n");
     return result;

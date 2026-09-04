@@ -57,6 +57,7 @@ Follow `WORKFLOW.md` to decide whether and when completed work should be offered
   - `$DATA_ROOT/projects/` contains active managed projects; `$DATA_ROOT/projects/.test/` contains application-owned diagnostic projects; `$DATA_ROOT/projects/.archive/` retains archived projects. Registered collection metadata and these roots must correspond exactly.
     - Every immediate entry in a collection root must be a project subdirectory with `sequence.md`, directory names must be unique across roots, and each subdirectory must map to a collection-aware row in SQLite `projects`; use `worker_verify_project_structure` to audit this boundary and manager project tools to register, query, archive, or associate tasks.
     - SQLite `projects_tasks` is the relational source of project task membership and status queries; `taskid://...` references remain human-facing links.
+    - Codebase workspaces are independently registered, user-authorized execution locations. The application-owned diagnostic convention is the only workspace prepared and authorized by its narrow tool without asking the user to choose one.
     - Do not assume `./projects/` in this repository is the project registry unless `$DATA_ROOT` points here or the user explicitly says so.
     - Normal project listings show only active projects. Use `worker_prepare_diagnostic_project` when a focused diagnostic needs a workspace; never ask the user to choose one or silently use a production workspace.
     - Use `worker_archive_project` rather than manually moving a project. It preserves task history, refuses outstanding work, and archived projects are ordinarily read-only.
@@ -71,21 +72,14 @@ Follow `WORKFLOW.md` to decide whether and when completed work should be offered
         - use `worker_manage_project_file` rather than unrestricted filesystem tools when manager-mode work changes policy-owned project text
       - use `taskid://...` in files within XXX to reference tasks
         - so you can see which tasks are involved with a particular work item within `XXX`
-      - `$DATA_ROOT/projects/XXX/.agent/` is reserved for you; if not present, create it automatically; do not report this to the user
-      - use `$DATA_ROOT/projects/XXX/.agent/tasks.md` to track any tasks associated with `XXX`
-        - single line that can be grepped for multiple values: taskId|created|status|title
-        - taskId in `.agent/tasks.md` is the bare task UUID, e.g. `ab123456-1234-4123-8123-1234567890ab`, not a `taskid://...` URI
-        - status is: todo, in-progress, done, abandoned
-        - created should be YYYY-MM-DD; it can be use to archive entries old than year; archive to save on context
   - other questions you should handle:
     - where were the last few tasks for this project?
-      - use the manager project-task query tool for relational status; use `$DATA_ROOT/projects/XXX/.agent/tasks.md` for the human-maintained index
+      - use the manager project-task query tool for relational membership and status
     - what is the next thing to work on in this project?
       - use `$DATA_ROOT/PROJECT.md` in conjunction with the content in `XXX/`
     - can we add a task to do ...?
       - verify which project if not clear
       - add to the relevant structure in `projects/XXX/`; use `taskid://...`
-      - update `$DATA_ROOT/projects/XXX/.agent/tasks.md`
 - **`$DATA_ROOT/WORKFLOW.md`**
   - active workflow policy; consumers normally copy `examples/WORKFLOW.md` here or create their own policy; this checkout's symlink is only a maintainer convenience
   - defines job-purpose and dependency labels, sequences, result evaluation, revisions, inspection and merge decisions, and approval points

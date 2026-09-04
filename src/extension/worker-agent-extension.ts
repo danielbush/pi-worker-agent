@@ -502,7 +502,7 @@ export class WorkerAgentExtension {
       promptGuidelines: [
         "Use worker_create_task instead of temporary scripts, direct SQLite writes, or manual task-directory creation.",
         "Pass a workspace ID returned by worker_register_workspace and a project ID returned by worker_register_project; worker_create_task cannot authorize a path or invent a project.",
-        "After worker_create_task succeeds, reference its UUID from the managed-project slice and .agent/tasks.md.",
+        "After worker_create_task succeeds, reference its UUID from the managed-project slice when the active PROJECT.md policy calls for it.",
       ],
       parameters: Type.Object({
         title: Type.String(),

@@ -20,8 +20,6 @@ projects/
 
 Tentative later slices are brief entries in `sequence.md`, not separate files. Create a slice file only when an item becomes **Next**. Prefix slice filenames with their two-digit position in the sequence. When the path changes, renumber the affected slice files and update their links; the numbers describe the current intended order rather than permanent identity.
 
-Each immediate project subdirectory maps to a synthetic row in SQLite `projects`, including its collection, directory name, title, and optional recovery description. Directory names are unique across active `projects/`, diagnostic `projects/.test/`, and archived `projects/.archive/` roots. Normal listings show active projects only. Use the conventional diagnostic-project tool rather than asking users to choose a diagnostic workspace, and use the archive tool rather than moving directories manually; archiving preserves project/task history and refuses projects with outstanding tasks. SQLite `projects_tasks` is the queryable source of task membership and status; `taskid://...` links and `.agent/tasks.md` remain human-readable references and indexes rather than relational authority. Codebase workspaces are independently authorized execution locations, except that the application-owned diagnostic convention is prepared and authorized by its narrow tool.
-
 Intent and outcomes appear at project, slice, and task scope:
 
 - **Intent** preserves the user's statement about why they want the work and the shape it should take. Preserve their wording where available; otherwise write a minimal faithful statement without inventing requirements.

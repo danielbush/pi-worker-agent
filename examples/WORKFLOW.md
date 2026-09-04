@@ -54,7 +54,7 @@ Coding tasks use planning and review by default:
 plan → implement → review
 ```
 
-1. Create a task with explicit intent, outcomes, and background, associate it with the managed project, reference it from the current slice with `taskid://<uuid>`, and update the project's `.agent/tasks.md` index.
+1. Create a task with explicit intent, outcomes, and background, associate it with the managed project, and reference it from the current slice with `taskid://<uuid>`.
 2. Create a read-only `plan` job.
 3. After successful planning, the manager evaluates the result and creates an `implement` job with an `implements-plan` dependency. Include the accepted plan in its canonical `request.md`.
 4. Run implementation in an isolated worktree.
