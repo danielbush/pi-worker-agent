@@ -13,10 +13,10 @@ models, so you change your mind in one place.
 
 | Profile | Model | Thinking | For |
 |---|---|---|---|
-| `planner` | `anthropic/claude-opus-5` | high | Working out approach, weighing options |
-| `coder` | `anthropic/claude-sonnet-5` | medium | Writing the change |
-| `reviewer` | `anthropic/claude-opus-5` | high | Judging whether it's right |
-| `quick` | `anthropic/claude-sonnet-5` | off | Mechanical work, summarising |
+| `planner` | `openai-codex/gpt-5.6-sol` | medium | Working out approach, weighing options |
+| `coder` | `openrouter/z-ai/glm-5.3-flash` | medium | Writing the change |
+| `reviewer` | `openai-codex/gpt-5.6-sol` | medium | Judging whether it's right |
+| `quick` | `openrouter/z-ai/glm-5.3-flash` | off | Mechanical work, summarising |
 
 Every job runs as a Prime Agent subagent:
 
