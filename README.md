@@ -8,15 +8,75 @@ This is experimental and has barely been tested beyond the author's hot little h
 
 The user talks to one manager agent in Pi. That manager can organise workers across different models and harnesses—for example, Sol 5.6 workers through the Pi harness and Grok workers through the Cursor harness.
 
-Every piece of work is represented as a durable **task** containing one or more **jobs**. Jobs can be sequenced into workflows such as:
+Every piece of work is represented as a durable **task** containing one or more **jobs**. You can design any workflow you want by defining its job types, dependencies, order, evaluation, and approval points in `WORKFLOW.md`. For example, the author's default coding workflow is:
 
 ```text
 plan → implement → review
 ```
 
+That sequence is an example policy, not a workflow built into the application.
+
 The runner does not hardcode what higher-level work means. Project management—the stories, epics, priorities, review rules, and acceptance process—is deliberately controlled by editable policy documents. The author's policy favours small **Vertical slices**, real user-observed Demos, and a tight OODA loop so agent work stays grounded in outcomes.
 
 See [`examples/`](examples/) for the policy documents used by the author.
+
+## How it works
+
+```mermaid
+flowchart TB
+    User([User]) <-->|conversation, feedback, approval| Manager[Manager agent in Pi]
+
+    subgraph Policy[Unstructured policy and project context]
+        ProjectPolicy[PROJECT.md]
+        WorkflowPolicy[WORKFLOW.md]
+        CodePolicy[CODE.md]
+        Projects[projects/XXX/<br/>sequence, slices, backlog]
+        ProjectPolicy -->|governs| Projects
+    end
+
+    subgraph Database[Structured SQLite configuration]
+        AgentProfiles[agentProfiles<br/>harness, model, options]
+        JobTypes[jobTypes<br/>capability, worktree strategy, default profile]
+    end
+
+    subgraph Execution[Task and job execution]
+        Task[Task<br/>intent and current status]
+        Jobs[Jobs<br/>selected type, profile, status]
+        JobState[Dependencies, sessions, events, worktrees]
+        Task -->|contains| Jobs --> JobState
+    end
+
+    subgraph WorkerAgents[Worker agents]
+        PiWorker[Pi worker agent]
+        CursorWorker[Cursor worker agent]
+    end
+
+    Jobs -->|launches| PiWorker
+    Jobs -->|launches| CursorWorker
+    PiWorker --> Result[Events, result, worktree]
+    CursorWorker --> Result
+
+    Manager -->|reads| ProjectPolicy
+    Manager -->|reads| WorkflowPolicy
+    Manager -->|reads| CodePolicy
+    Manager -->|organises| Projects
+    Manager -->|selects| AgentProfiles
+    Manager -->|selects| JobTypes
+    Manager -->|creates and queries| Task
+    Manager -->|creates and sequences| Jobs
+    JobTypes -->|capability and location| Jobs
+    AgentProfiles -->|harness and model| PiWorker
+    AgentProfiles -->|harness and model| CursorWorker
+    Result -->|reported for policy-based evaluation| Manager
+```
+
+There are three deliberately separate parts:
+
+- **Policy documents** provide flexible, human-readable meaning: how projects are organised, which job types form a workflow, how results are evaluated, and when the user should be asked to inspect, Demo, or merge work.
+- **Database configuration** provides precise, structured choices the user can customise: agent profiles, models, harness options, job types, their selected trusted capabilities, worktree strategies, and defaults.
+- **Task and job execution** provides the general machinery and durable state: persist tasks and jobs, enforce dependencies, launch workers, record events, manage worktrees, and safely inspect or merge results. It follows database configuration rather than assigning special meaning to names such as `implement` or `review`.
+
+The user works with the manager, not the workers directly. The manager interprets the policy, selects database configuration, gives each worker a bounded job, evaluates the returned result, and brings decisions or observable outcomes back to the user.
 
 ## Try it locally
 
