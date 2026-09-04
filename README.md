@@ -33,25 +33,31 @@ flowchart TB
     end
 
     subgraph DataRoot["$DATA_ROOT"]
-        Projects[projects/XXX/<br/>governed by PROJECT.md]
+        Projects[projects/&lt;project&gt;/<br/>governed by PROJECT.md]
     end
 
     ProjectPolicy --> Projects
 
-    subgraph Database[Structured SQLite configuration]
+    subgraph Database["Structured configuration (SQLite)"]
         AgentProfiles[agentProfiles<br/>harness, model, options]
         JobTypes[jobTypes<br/>capability, worktree strategy, default profile]
     end
 
-    subgraph Execution["Task and job execution (SQLite)"]
+    subgraph Execution["Task and job tracking (SQLite)"]
         Task[Task<br/>intent and current status]
         Jobs[Jobs<br/>selected type, profile, status]
         JobDependencies[jobDependencies<br/>actual links and relationships]
-        JobArtifacts[Worker sessions, events, worktrees]
         Task -->|contains| Jobs
         Jobs --> JobDependencies
-        Jobs --> JobArtifacts
     end
+
+    subgraph ExecutionDataRoot["$DATA_ROOT"]
+        TaskArtifacts[tasks/<br/>task, job, worker-session, and event files]
+        Worktrees[worktrees/<br/>job-owned worktrees]
+    end
+
+    Jobs --> TaskArtifacts
+    Jobs --> Worktrees
 
     subgraph WorkerAgents[Worker agents]
         PiWorker[Pi worker agent]
