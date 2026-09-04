@@ -23,7 +23,7 @@ the tail, or grep it for a run id.
 
 1. Resolve the request to a **project** and a **job type**. Ask if either is
    ambiguous — don't guess.
-2. Look up the job type in `WORKFLOWS.md` to get its stages, models, and runner.
+2. Look up the job type in `WORKFLOWS.md` to get its stages and models.
 3. Create `projects/<name>/runs/<run-id>/` where `<run-id>` is
    `YYYY-MM-DD-HHMM-<job>`.
 4. Run the stages in order, one worker per stage.
@@ -47,13 +47,9 @@ Give a worker the previous stage's output file to read, not a summary you wrote.
 The kernel is single-threaded. A blocking `await` freezes you for the whole
 stage — you can't report progress, run a parallel stage, or answer the user.
 
-Start workers detached and check on them instead:
-
-- `rlm` workers: spawning already returns immediately. Use `agent_observe` to
-  watch and `agent_message.send(..., receiver_role="child")` to send a follow-up.
-- `bash` workers: `h = bash(cmd)` without `await` gives a live handle. Use
-  `h.poll()`, `h.tail()`, and `h.kill()`.
-- Long stages either way: `rlm-heartbeat`.
+Spawning already returns immediately. Use `agent_observe` to watch a worker and
+`agent_message.send(..., receiver_role="child")` to send a follow-up. Use
+`rlm-heartbeat` for long stages.
 
 Tell the user what you started, then check back. Don't go quiet for ten minutes.
 
@@ -99,7 +95,7 @@ what you need.
       "started": "...",
       "finished": "...",
       "request": "what the user asked for",
-      "stages": [{"stage": "plan", "runner": "rlm", "model": "...", "status": "done"}],
+      "stages": [{"stage": "plan", "model": "...", "status": "done"}],
       "outcome": "one line, written when the job ends"
     }
   ],

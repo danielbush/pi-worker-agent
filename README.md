@@ -25,6 +25,7 @@ tracking.
 prime-worker-agent/
   AGENTS.md            # policy — auto-loaded into the manager's system prompt
   WORKFLOWS.md         # job types: stages and preferred models (you edit this)
+  BACKLOG.md           # ideas not built yet
   projects/
     api/
       README.md        # you write: what this is, its path, constraints, goals
@@ -89,13 +90,7 @@ Leave `state.json` alone; the manager creates it on first run.
 ### 2. Write `WORKFLOWS.md`
 
 This is the file you will actually maintain. It defines job types. Each is a
-name, an ordered list of stages, and a model and runner per stage.
-
-A **runner** is what executes a stage. `rlm` is an in-process Prime Agent
-subagent. `prime` shells out to a separate `prime-agent -p --autonomous` process
-behind a test gate. `cursor` shells out to `cursor-agent`. Adding another is a
-section in `WORKFLOWS.md` with the exact invocation — the manager reads it at
-runtime.
+name, an ordered list of stages, and a model per stage.
 
 Suggested shape, but nothing here is hard-coded — invent your own:
 
