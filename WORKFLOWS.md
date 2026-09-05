@@ -75,8 +75,9 @@ review    (reviewer)
 project's test command passing. `review` reads the diff and the plan and says
 whether they match.
 
-If review fails, loop back to `implement` with the review file as input. Two
-loops maximum, then report to the user.
+If review fails, loop back to `implement` with the review file as input. After
+two failed review attempts, stop and check in with the user before starting any
+more implementation or review work.
 
 ### build-no-plan
 
@@ -91,7 +92,9 @@ review    (reviewer)
 Use this when acceptance criteria are already explicit. `implement` must leave
 the authorized verification commands passing. `review` reads `task.md`, the
 implementation report, and the workspace diff. If review fails, loop back to
-`implement` with the review file as input. Two loops maximum.
+`implement` with the review file as input. After two failed review attempts,
+stop and check in with the user before starting any more implementation or
+review work.
 
 ### quickfix
 
