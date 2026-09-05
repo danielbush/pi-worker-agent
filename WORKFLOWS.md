@@ -11,13 +11,21 @@ the manager to help — it can check which models you actually have access to.
 A profile names a harness, model, and thinking level. Jobs reference profiles,
 so model and harness choices stay in one place.
 
-| Profile | Harness | Model | Thinking | For |
-|---|---|---|---|---|
-| `planner` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | Working out approach, weighing options |
-| `coder` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | high | Writing the change |
-| `reviewer` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | Judging whether it's right |
-| `quick` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | low | Mechanical work, summarising |
-| `cursor-coder` | `cursor-agent` | `cursor-grok-4.6-high-fast` | high | Independent implementation through Cursor Agent |
+| Profile | Harness | Model | Thinking | Route | For |
+|---|---|---|---|---|---|
+| `planner` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | — | Working out approach, weighing options |
+| `coder` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | high | `modal/fp8` | Writing the change |
+| `reviewer` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | — | Judging whether it's right |
+| `quick` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | low | `modal/fp8` | Mechanical work, summarising |
+| `cursor-coder` | `cursor-agent` | `cursor-grok-4.6-high-fast` | high | Cursor-managed | Independent implementation through Cursor Agent |
+| `kimi-coder` | `rlm` | `openrouter-morph/moonshotai/kimi-k3` | high | `morph/fp4` | Independent implementation with Kimi K3 |
+| `kimi-coder-modal` | `rlm` | `openrouter/moonshotai/kimi-k3` | high | `modal/mxfp4` | Alternate Kimi K3 route through Modal |
+
+`Route` records provider routing that must also be configured in the harness. For
+OpenRouter, this repository expects matching `modelOverrides` or routed provider
+aliases in `~/.prime/agent/models.json`; `rlm()` does not accept routing fields
+per call.
+Use a new or reloaded Prime Agent session after changing that file.
 
 For an `rlm` profile, spawn a Prime Agent subagent:
 
@@ -122,6 +130,21 @@ stream separately from its written report. `review` remains an independent RLM
 review unless its profile is explicitly changed. If review fails, loop back to
 `implement` with the review file as input. After two failed review attempts,
 stop and check in with the user before starting more work.
+
+### build-kimi-no-plan
+
+Run the same shape as `build-no-plan`, using Kimi K3 through the RLM/OpenRouter
+harness for implementation.
+
+```
+implement (kimi-coder)
+review    (reviewer)
+```
+
+Use this for an independent Kimi implementation or model comparison. Standard
+RLM messaging and observation apply. If review fails, loop back to `implement`
+with the review file as input. After two failed review attempts, stop and check
+in with the user before starting more work.
 
 ### quickfix
 
