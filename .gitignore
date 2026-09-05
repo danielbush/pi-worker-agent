@@ -2,3 +2,9 @@ projects/*
 !projects/example/
 projects/example/runs/*
 !projects/example/runs/.gitkeep
+
+# TASKS.md
+TASKS.md
+
+# python
+**/__pycache__
