@@ -8,28 +8,36 @@ the manager to help — it can check which models you actually have access to.
 
 ## Profiles
 
-A profile is a named model plus thinking level. Jobs reference profiles, not
-models, so you change your mind in one place.
+A profile names a harness, model, and thinking level. Jobs reference profiles,
+so model and harness choices stay in one place.
 
-| Profile | Model | Thinking | For |
-|---|---|---|---|
-| `planner` | `openai-codex/gpt-5.6-sol` | medium | Working out approach, weighing options |
-| `coder` | `openrouter/z-ai/glm-5.3-flash` | high | Writing the change |
-| `reviewer` | `openai-codex/gpt-5.6-sol` | medium | Judging whether it's right |
-| `quick` | `openrouter/z-ai/glm-5.3-flash` | low | Mechanical work, summarising |
+| Profile | Harness | Model | Thinking | For |
+|---|---|---|---|---|
+| `planner` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | Working out approach, weighing options |
+| `coder` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | high | Writing the change |
+| `reviewer` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | Judging whether it's right |
+| `quick` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | low | Mechanical work, summarising |
+| `cursor-coder` | `cursor-agent` | `cursor-grok-4.6-high-fast` | high | Independent implementation through Cursor Agent |
 
-Every job runs as a Prime Agent subagent:
+For an `rlm` profile, spawn a Prime Agent subagent:
 
 ```python
 handle = await rlm(prompt, model=profile.model, thinking=profile.thinking, name=job)
 ```
 
-Only `name`, `model`, and `thinking` are accepted.
+For a `cursor-agent` profile, launch the configured CLI non-interactively with
+`bash()`, persist its stream output in the run's manager-owned `logs/`
+directory, and create the internal monitoring heartbeat required by `AGENTS.md`.
+The model identifier already encodes Cursor's speed and effort variant. Follow
+the non-RLM worker policy; do not pretend the process supports agent messaging
+or observation.
 
 ### Changing a profile
 
-Ask the manager. It runs `await rlm.find_models(query)` to see what's actually
-configured, and edits the table.
+Ask the manager. For an `rlm` profile it runs
+`await rlm.find_models(query)`. For a `cursor-agent` profile it runs
+`cursor-agent status` and `cursor-agent models`. It records the exact model ID
+shown by that harness rather than translating names between providers.
 
 If a model you want isn't there, it needs credentials:
 
@@ -38,9 +46,11 @@ If a model you want isn't there, it needs credentials:
 - **OpenRouter** (`openrouter/<id>`) — `export OPENROUTER_API_KEY=...`, or
   `/login` and pick OpenRouter.
 - **Claude** — a Pro/Max subscription via `/login`, or `ANTHROPIC_API_KEY`.
+- **Cursor Agent** — run `cursor-agent login`, then verify with
+  `cursor-agent status` and `cursor-agent models`.
 
-`/login` is interactive, so the manager can't do it for you. It will tell you
-what to run.
+Login is interactive, so the manager cannot complete it for you. It will tell
+you what to run.
 
 ---
 
@@ -95,6 +105,23 @@ implementation report, and the workspace diff. If review fails, loop back to
 `implement` with the review file as input. After two failed review attempts,
 stop and check in with the user before starting any more implementation or
 review work.
+
+### build-cursor-no-plan
+
+Run the same shape as `build-no-plan`, but use Cursor Agent and Grok for the
+implementation job.
+
+```
+implement (cursor-coder)
+review    (reviewer)
+```
+
+Use this for an independent Cursor implementation or model comparison. The
+manager launches `implement` as a non-RLM process and captures its raw event
+stream separately from its written report. `review` remains an independent RLM
+review unless its profile is explicitly changed. If review fails, loop back to
+`implement` with the review file as input. After two failed review attempts,
+stop and check in with the user before starting more work.
 
 ### quickfix
 

@@ -148,14 +148,73 @@ Pass paths between jobs, never objects — workers do not share your kernel.
 
 Give a worker the previous job's output file to read, not a summary you wrote.
 
+## Non-RLM workers
+
+A workflow profile may use an external harness such as `cursor-agent`. The same
+workspace, prompt, command-authorization, protected-path, and numbered-report
+rules still apply. The harness does not become a Prime Agent child: there is no
+`agent_message`, `agent_observe`, family roster, or completion message.
+
+Launch external workers as managed, nonblocking `bash()` processes. For Cursor
+Agent, use `--print --output-format stream-json`, the exact model ID from
+`cursor-agent models`, the exact workspace, and a strict job brief. Run with
+sandboxing when supported. `--force` auto-approves tool calls and may be used
+only when the brief has an explicit command allowlist and protected paths.
+Never put credentials in the prompt or captured output.
+
+Before launch, the manager must:
+
+- create the run's `reports/` and manager-owned `logs/` directories;
+- assign the worker exactly one numbered report path;
+- record `harness`, exact `model`, `harness_log`, and status in `state.json`;
+- direct the CLI event stream to
+  `runs/<run-id>/logs/<NN>-<job>.<harness>.jsonl`;
+- use shell `pipefail` if `tee` is used, so the recorded exit status is the
+  harness status rather than `tee`'s status; and
+- immediately create an internal RLM heartbeat for the external job and record
+  its ID in the job state.
+
+Label the heartbeat with project, run ID, and job. Default to a two-minute
+interval with `delivery_mode="follow_up"`. Its instruction must name the process
+handle variable when available, state path, durable log, assigned report, and
+completion checks. On each tick, poll without blocking and read only the log
+tail. Report only a meaningful milestone, blocker, or completion; do not repeat
+unchanged status.
+
+Keep the returned process handle in the Python kernel while the job runs. Check
+`handle.running` and `handle.poll()` without blocking. Read only a tail of the
+durable log for progress; do not print the full event stream into model context.
+When available, extract and record the harness session or chat ID from the
+stream so a later manager can resume it. When the job becomes terminal, capture
+its exit and report, complete manager verification, delete the heartbeat, and
+remove its ID from active job state. A heartbeat is a scheduler, not durable
+state; the log and control record remain authoritative.
+
+A zero process exit is not enough. Completion requires a usable assigned report
+and manager inspection of the workspace. Record the exit code, inspect the
+report, run authorized verification, and then update state. The written report,
+not the raw harness log, is the normal input to the next job. Raw logs are audit
+records and may include verbose model output; do not pass them onward or expose
+them by default.
+
+If the Python process handle is lost, use the recorded PID only as a hint; PIDs
+can be reused. Inspect the durable log and saved harness session ID. If liveness
+cannot be proved, mark the job blocked rather than launching a duplicate. Resume
+through the harness when safe, or allocate a new numbered attempt. To cancel a
+live process, call `handle.kill()`, record the exit, and update task state.
+
 ## Don't block on a job
 
 The kernel is single-threaded. A blocking `await` freezes you for the whole job
 — you can't report progress, run a parallel job, or answer the user.
 
-Spawning already returns immediately. Use `agent_observe` to watch a worker and
-`agent_message.send(..., receiver_role="child")` to send a follow-up. Use
-`rlm-heartbeat` for long jobs.
+An `rlm()` spawn returns immediately. Use `agent_observe` to watch that kind of
+worker and `agent_message.send(..., receiver_role="child")` for a follow-up.
+RLM workers normally send their own completion message, so do not create a
+heartbeat for every short RLM job. Use one when a job is expected to run longer
+than five minutes, is silent, or needs stall detection. For an external harness,
+retain the `bash()` handle and always follow the heartbeat, process, and log
+policy above.
 
 Tell the user what you started, then check back. Don't go quiet for ten minutes.
 
