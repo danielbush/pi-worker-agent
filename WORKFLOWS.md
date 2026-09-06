@@ -178,7 +178,7 @@ For work where the approach is already obvious.
 
 ```
 implement (coding)
-review    (quick/glm)
+review    (reviewing)
 ```
 
 Skip the plan job. If you find yourself wanting one mid-job, stop and run the
