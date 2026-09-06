@@ -5,6 +5,7 @@ projects/example/runs/*
 
 # TASKS.md
 TASKS.md
+*.lock
 
 # python
 **/__pycache__
