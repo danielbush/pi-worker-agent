@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve a managed task.md and open it in the selected GUI editor."""
+"""Resolve an authoritative Prime Worker Agent file and open it in a GUI editor."""
 
 from __future__ import annotations
 
@@ -21,12 +21,21 @@ TERMINAL_EDITORS = {
 }
 KNOWN_GUI_EDITORS = ("code", "cursor", "zed", "subl", "mate", "idea", "pycharm", "fleet")
 ALIASES = {
-    "vscode": "code",
-    "visual-studio-code": "code",
-    "sublime": "subl",
-    "sublime-text": "subl",
-    "textmate": "mate",
-    "intellij": "idea",
+    "vscode": "code", "visual-studio-code": "code", "sublime": "subl",
+    "sublime-text": "subl", "textmate": "mate", "intellij": "idea",
+}
+TARGET_ALIASES = {
+    "task": "task", "original-task": "task", "brief": "task",
+    "original-brief": "task", "models": "models", "model": "models",
+    "model-config": "models", "models.json": "models",
+    "workflow": "workflows", "workflows": "workflows",
+    "architecture": "architecture", "arch": "architecture",
+    "policy": "policy", "agents": "policy", "manager-policy": "policy",
+    "project": "project", "project-context": "project",
+    "project-readme": "project", "state": "state", "state.json": "state",
+    "tasks": "project-tasks", "project-tasks": "project-tasks",
+    "project-index": "project-tasks", "root-tasks": "root-tasks",
+    "root-index": "root-tasks",
 }
 
 
@@ -42,6 +51,13 @@ def parse_time(value: object) -> tuple[int, str]:
         return (1, datetime.fromisoformat(value.replace("Z", "+00:00")).isoformat())
     except ValueError:
         return (0, value)
+
+
+def require_file(path: Path, description: str) -> Path:
+    target = path.expanduser().resolve()
+    if not target.is_file():
+        fail(f"{description} does not exist: {target}")
+    return target
 
 
 def load_state(project_dir: Path) -> dict:
@@ -87,7 +103,8 @@ def select_run(state: dict, run_id: str | None) -> dict:
     return max(pool, key=lambda r: (parse_time(r.get("created")), str(r.get("run_id", ""))))
 
 
-def task_path(project_dir: Path, run: dict) -> Path:
+def managed_task(project_dir: Path, run_id: str | None) -> Path:
+    run = select_run(load_state(project_dir), run_id)
     raw = run.get("task_file")
     if not isinstance(raw, str) or not raw:
         fail(f"run {run.get('run_id')!r} has no task_file")
@@ -97,9 +114,30 @@ def task_path(project_dir: Path, run: dict) -> Path:
         target.relative_to(project_root)
     except ValueError:
         fail(f"task_file escapes project control directory: {raw!r}")
-    if not target.is_file():
-        fail(f"task file does not exist: {target}")
-    return target
+    return require_file(target, "task file")
+
+
+def resolve_target(root: Path, target: str, project_name: str | None, run_id: str | None) -> Path:
+    kind = TARGET_ALIASES.get(target.strip().lower())
+    if not kind:
+        fail(f"unknown target {target!r}; use --list-targets")
+    if run_id and kind != "task":
+        fail("--run-id is valid only for the task target")
+    if kind == "models":
+        return require_file(Path.home() / ".prime/agent/models.json", "model configuration")
+    if kind == "workflows":
+        return require_file(root / "WORKFLOWS.md", "workflow configuration")
+    if kind == "architecture":
+        return require_file(root / "docs/ARCHITECTURE.md", "architecture document")
+    if kind == "policy":
+        return require_file(root / "AGENTS.md", "manager policy")
+    if kind == "root-tasks":
+        return require_file(root / "TASKS.md", "root task index")
+    project = select_project(root, project_name)
+    if kind == "task":
+        return managed_task(project, run_id)
+    names = {"project": "README.md", "state": "state.json", "project-tasks": "TASKS.md"}
+    return require_file(project / names[kind], f"{kind} file")
 
 
 def available_gui_editors() -> list[str]:
@@ -114,25 +152,19 @@ def editor_command(editor: str | None, editor_app: str | None) -> list[str]:
     if editor:
         normalized = editor.strip().lower().replace(" ", "-")
         command = ALIASES.get(normalized, editor.strip())
-        base = Path(command).name.lower()
-        if base in TERMINAL_EDITORS:
-            fail(f"terminal editor {base!r} is intentionally unsupported")
+        if Path(command).name.lower() in TERMINAL_EDITORS:
+            fail(f"terminal editor {Path(command).name.lower()!r} is intentionally unsupported")
         executable = shutil.which(command)
         if not executable:
             fail(f"GUI editor command is not available: {command!r}")
         return [executable]
-
     term_program = os.environ.get("TERM_PROGRAM", "").lower()
-    signaled = []
     if "cursor" in term_program and shutil.which("cursor"):
-        signaled.append("cursor")
-    elif term_program == "vscode" and shutil.which("code"):
-        signaled.append("code")
-    elif "zed" in term_program and shutil.which("zed"):
-        signaled.append("zed")
-    if len(signaled) == 1:
-        return [shutil.which(signaled[0]) or signaled[0]]
-
+        return [shutil.which("cursor") or "cursor"]
+    if term_program == "vscode" and shutil.which("code"):
+        return [shutil.which("code") or "code"]
+    if "zed" in term_program and shutil.which("zed"):
+        return [shutil.which("zed") or "zed"]
     available = available_gui_editors()
     if len(available) == 1:
         return [shutil.which(available[0]) or available[0]]
@@ -143,20 +175,25 @@ def editor_command(editor: str | None, editor_app: str | None) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
+    parser.add_argument("--target")
     parser.add_argument("--project")
     parser.add_argument("--run-id")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--editor", help="GUI editor executable or known alias")
     group.add_argument("--editor-app", help="macOS GUI application name for `open -a`")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--list-targets", action="store_true")
     args = parser.parse_args()
-
+    if args.list_targets:
+        print("task models workflows architecture policy project state project-tasks root-tasks")
+        return 0
+    if not args.target:
+        fail("--target is required")
     root = args.root.expanduser().resolve()
-    project = select_project(root, args.project)
-    target = task_path(project, select_run(load_state(project), args.run_id))
+    target = resolve_target(root, args.target, args.project, args.run_id)
     command = [*editor_command(args.editor, args.editor_app), str(target)]
     if args.dry_run:
-        print(f"task: {target}")
+        print(f"file: {target}")
         print(f"command: {shlex.join(command)}")
         return 0
     return subprocess.run(command, check=False).returncode
