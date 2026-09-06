@@ -114,37 +114,48 @@ implementation report, and the workspace diff. If review fails, loop back to
 stop and check in with the user before starting any more implementation or
 review work.
 
-### build-cursor-no-plan
+### Per-run job overrides
 
-Run the same shape as `build-no-plan`, but use Cursor Agent and Grok for the
-implementation job.
+Do not create a new workflow only to change a model or harness. Keep the
+workflow's job sequence and override the selected job for that run:
 
-```
-implement (cursor-coder)
-review    (reviewer)
-```
-
-Use this for an independent Cursor implementation or model comparison. The
-manager launches `implement` as a non-RLM process and captures its raw event
-stream separately from its written report. `review` remains an independent RLM
-review unless its profile is explicitly changed. If review fails, loop back to
-`implement` with the review file as input. After two failed review attempts,
-stop and check in with the user before starting more work.
-
-### build-kimi-no-plan
-
-Run the same shape as `build-no-plan`, using Kimi K3 through the RLM/OpenRouter
-harness for implementation.
-
-```
-implement (kimi-coder)
-review    (reviewer)
+```yaml
+workflow: build-no-plan
+job_overrides:
+  implement: kimi-coder
 ```
 
-Use this for an independent Kimi implementation or model comparison. Standard
-RLM messaging and observation apply. If review fails, loop back to `implement`
-with the review file as input. After two failed review attempts, stop and check
-in with the user before starting more work.
+The override value is normally a profile name. This keeps the harness, model,
+thinking level, and route together. Examples:
+
+```yaml
+job_overrides:
+  implement: cursor-coder
+```
+
+```yaml
+job_overrides:
+  implement: kimi-coder-modal
+  review: quick
+```
+
+An explicit mapping may be used when no reusable profile fits:
+
+```yaml
+job_overrides:
+  implement:
+    harness: rlm
+    model: openrouter-morph/moonshotai/kimi-k3
+    thinking: high
+    route: morph/fp4
+```
+
+These YAML fragments are request notation only. Never copy a `job_overrides`
+object or profile selector into `state.json`. Resolve every job before creating
+the run, then store only the actual `harness`, `model`, `thinking`, and `route`
+on that job record. Those resolved fields are the historical truth even if a
+profile later changes. Retries inherit them unless the user explicitly requests
+a different execution choice; each attempt records the values it actually used.
 
 ### quickfix
 
@@ -201,8 +212,10 @@ Read the current diff or a named commit range and report. Changes nothing.
 
 ## Defaults
 
-- Unspecified profile: `quick`
-- A job may override with an explicit model where a profile doesn't fit
+- Unspecified standalone job profile: `quick`
+- A workflow job uses its listed profile unless that run supplies a job override
+- Prefer a profile override; use an explicit resolved mapping only when no profile fits
+- State always records the actual resolved execution fields, not only the profile name
 
 ## Notes on model choice
 

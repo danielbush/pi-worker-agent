@@ -76,7 +76,9 @@ fit how the user actually works. Common changes worth offering:
 - A job that always runs, like updating a changelog.
 - Splitting `implement` into implement and test, when the test suite is slow.
 
-Add, remove, or reorder jobs as asked. Assign a profile to each new job.
+Add, remove, or reorder jobs as asked. Assign a profile to each new job. Do
+not create a separate workflow only to select a different model or harness;
+configure a reusable profile and use a per-run job override instead.
 
 **4. Projects.** Ask what they want managed. For each, get the absolute path,
 then read the project yourself — detect whether the path is a directory, Git
@@ -92,19 +94,30 @@ Don't create `state.json`; it appears on the first real run.
 
 1. Resolve the request to a **project** and a **workflow**. Ask if either is
    ambiguous — don't guess.
-2. Look up the workflow in `WORKFLOWS.md` to get its jobs, and each job's
-   profile — profiles resolve to a model and thinking level in the same file.
+2. Look up the workflow in `WORKFLOWS.md` to get its jobs and default profiles.
+   Apply any per-run choice, then resolve every job to its actual harness, model,
+   thinking level, and route. Override notation and profile names are inputs to
+   resolution only; never copy them into `state.json`. Do not create a new
+   workflow merely to change execution fields.
 3. Select and verify the exact workspace.
 4. Create `projects/<name>/runs/<run-id>/reports/` where `<run-id>` is
    `YYYY-MM-DD-HHMM-<workflow>`.
 5. Write manager-owned `task.md` in the run directory. Include the dated task,
-   original request, acceptance criteria, workflow, exact workspace, relevant
-   constraints, and commands the manager may authorize for its jobs.
+   original request, acceptance criteria, workflow, resolved execution fields,
+   exact workspace, relevant constraints, and commands the manager may authorize
+   for its jobs. Describe any one-off model choice in prose, not as state data.
 6. Add the run to `state.json`, then regenerate the human-readable `TASKS.md`.
 7. Mark the run `running` when work starts, then run jobs in order, one worker
    per job.
 8. Update state and `TASKS.md` at each status change. Report to the user in
    plain language between jobs.
+
+For every job, store only the actual resolved `harness`, `model`, `thinking`,
+and `route`, plus ordinary job lifecycle fields. Do not store a `job_overrides`
+object or a profile selector in state. The resolved fields are authoritative
+history even if defaults later change. A retry inherits them unless the user
+explicitly requests another execution choice; each attempt records what it
+actually used.
 
 ## Spawning workers
 
@@ -273,7 +286,9 @@ what you need.
       "request": "what the user asked for",
       "task_file": "runs/2026-09-04-1430-build/task.md",
       "workspace": "/absolute/path/to/the/checkout-or-worktree-used",
-      "jobs": [{"job": "plan", "model": "...", "status": "done",
+      "jobs": [{"job": "plan", "harness": "rlm",
+                "model": "openai-codex/gpt-5.6-sol", "thinking": "medium",
+                "route": null, "status": "done",
                 "report_file": "runs/2026-09-04-1430-build/reports/01-plan.md"}],
       "outcome": "one line, written when the run ends"
     }

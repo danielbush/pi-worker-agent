@@ -112,10 +112,18 @@ recorded and generates `TASKS.md` from it.
 
 This is the file you will actually maintain. Two parts.
 
-**Profiles** name a model and thinking level — `planner`, `coder`, `reviewer`,
-`quick`. **Workflows** are ordered jobs, each pointing at a profile. So a
-workflow says *what kind of agent* does each job, and the profile table says
-which model that is. Change the model once, every workflow follows.
+**Profiles** name a harness, model, thinking level, and optional route —
+`planner`, `coder`, `reviewer`, `quick`. **Workflows** are ordered jobs, each
+pointing at a default profile. So a workflow says *what jobs run*, and the
+profile table says how each job normally runs. Change a profile once and every
+workflow using it follows.
+
+For a one-off model comparison or alternate harness, keep the same workflow and
+request a per-run job choice, such as `implement: kimi-coder`. Do not duplicate
+the workflow merely to swap its model. That notation is input to the manager,
+not state structure. Before execution, the manager resolves each job and stores
+only its actual harness, model, thinking level, and route in `state.json`; those
+resolved values remain historical truth if defaults change.
 
 Suggested shape, but nothing here is hard-coded — invent your own:
 
@@ -143,6 +151,8 @@ The policy the manager always has in context. In this order:
 - Read `WORKFLOWS.md` at the start of a session, and `projects/<name>/README.md`
   plus `state.json` when a project is named.
 - Resolve the request to a project and a workflow. Ask if either is ambiguous.
+- Resolve any per-run model choice and record only each job's actual execution
+  fields in state; never copy override notation into state.
 - Run the workflow's jobs in order, one worker per job.
 - Every worker prompt must state the exact checkout or worktree path and
   instruct `os.chdir` to it first.
@@ -168,7 +178,8 @@ handle = await rlm(
     f"os.chdir to {project_path} first. {job_instructions}. "
     f"Allowed project commands: {allowed_commands}. "
     f"Write your result to {run_dir}/{job}.md",
-    model=profile.model,
+    model=resolved_job.model,
+    thinking=resolved_job.thinking,
     name=f"{workflow}-{job}",
 )
 ```
