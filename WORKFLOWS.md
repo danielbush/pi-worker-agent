@@ -17,10 +17,10 @@ profile workflows use by default.
 | `planner/sol` | `rlm` | `openai-codex/gpt-5.6-sol` | high | — | Planning and approach design |
 | `review/sol` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | — | Independent review |
 | `coder/grok` | `cursor-agent` | `cursor-grok-4.6-medium-fast` | medium | Cursor-managed | Coding through Cursor Agent |
-| `coder/glm` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | high | `modal/fp8` | Coding with GLM; medium is unsupported |
+| `coder/glm` | `rlm` | `openrouter-modal/z-ai/glm-5.3-flash` | high | `modal/fp8` | Coding with GLM; medium is unsupported |
 | `coder/kimi/morph` | `rlm` | `openrouter-morph/moonshotai/kimi-k3` | medium | `morph/fp4` | Coding with Kimi through Morph |
-| `coder/kimi/modal` | `rlm` | `openrouter/moonshotai/kimi-k3` | medium | `modal/mxfp4` | Coding with Kimi through Modal |
-| `quick/glm` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | low | `modal/fp8` | Mechanical work and summarising |
+| `coder/kimi/modal` | `rlm` | `openrouter-modal/moonshotai/kimi-k3` | medium | `modal/mxfp4` | Coding with Kimi through Modal |
+| `quick/glm` | `rlm` | `openrouter-modal/z-ai/glm-5.3-flash` | low | `modal/fp8` | Mechanical work and summarising |
 
 ## Preferred profiles
 
