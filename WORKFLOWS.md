@@ -49,9 +49,9 @@ handle = await rlm(prompt, model=profile.model, thinking=profile.thinking, name=
 For a `cursor-agent` profile, launch the configured CLI non-interactively with
 `bash()`, persist its stream output in the run's manager-owned `logs/`
 directory, and create the internal monitoring heartbeat required by `AGENTS.md`.
-The model identifier already encodes Cursor's speed and effort variant. Follow
-the non-RLM worker policy; do not pretend the process supports agent messaging
-or observation.
+The model identifier already encodes Cursor's speed and effort variant. Read and
+follow `.agents/skills/run-external-worker/SKILL.md` before launch; do not
+pretend the process supports agent messaging or observation.
 
 ### Changing a profile
 

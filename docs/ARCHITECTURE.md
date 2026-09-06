@@ -242,7 +242,8 @@ need of stall detection.
 ### External workers
 
 A process such as `cursor-agent` is not an RLM child. It has no agent messaging,
-family roster, or observation channel. The manager therefore:
+family roster, or observation channel. When such a harness is selected, the
+manager conditionally loads `.agents/skills/run-external-worker/SKILL.md` and:
 
 - starts it nonblockingly and retains its process handle;
 - writes its `stream-json` output to a durable run log;
