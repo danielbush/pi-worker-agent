@@ -110,32 +110,33 @@ recorded and generates `TASKS.md` from it.
 
 ### 2. Write `WORKFLOWS.md`
 
-This is the file you will actually maintain. Two parts.
+This is the file you will actually maintain. It has three parts.
 
-**Profiles** name a harness, model, thinking level, and optional route —
-`planner`, `coder`, `reviewer`, `quick`. **Workflows** are ordered jobs, each
-pointing at a default profile. So a workflow says *what jobs run*, and the
-profile table says how each job normally runs. Change a profile once and every
-workflow using it follows.
+**Concrete profiles** use names such as `planner/sol`, `coder/grok`, and
+`coder/kimi/morph`; each bundles a harness, model, thinking level, and optional
+route. **Preferred roles** map `planning`, `coding`, and `reviewing` to concrete
+profiles. **Workflows** define ordered jobs using those roles. Change a preferred
+role once and every workflow using it follows.
 
 For a one-off model comparison or alternate harness, keep the same workflow and
-request a per-run job choice, such as `implement: kimi-coder`. Do not duplicate
-the workflow merely to swap its model. That notation is input to the manager,
-not state structure. Before execution, the manager resolves each job and stores
-only its actual harness, model, thinking level, and route in `state.json`; those
-resolved values remain historical truth if defaults change.
+request a concrete profile for that job, such as
+`implement: coder/kimi/morph`. Do not duplicate the workflow merely to swap its
+model. That notation is input to the manager, not state structure. Before
+execution, the manager resolves each job and stores only its actual harness,
+model, thinking level, and route in `state.json`; those values remain historical
+truth if preferences change.
 
 Suggested shape, but nothing here is hard-coded — invent your own:
 
 ```markdown
 ## build
-plan (planner) -> implement (coder) -> review (reviewer)
+plan (planning) -> implement (coding) -> review (reviewing)
 
 ## quickfix
-implement (coder) -> review (quick)
+implement (coding) -> review (quick/glm)
 
 ## mockup
-plan (planner) -> mock (coder)
+plan (planning) -> mock (coding)
 ```
 
 Add prose under each where a job name isn't self-explanatory.

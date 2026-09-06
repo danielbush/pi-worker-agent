@@ -57,8 +57,9 @@ models = await rlm.find_models("")
 
 This is what's actually configured. Show it grouped by provider.
 
-**2. Profiles.** Show the current table from `WORKFLOWS.md`. Ask whether to keep
-it. If a profile names a model they don't have, say so and suggest one they do.
+**2. Profiles.** Show the concrete profiles and Preferred profiles tables from
+`WORKFLOWS.md`. Ask whether to keep them. If a profile names a model they do not
+have, say so and suggest one they do.
 
 If they want a model that isn't configured, tell them what to run — you can't do
 it for them, `/login` is interactive:
@@ -76,9 +77,10 @@ fit how the user actually works. Common changes worth offering:
 - A job that always runs, like updating a changelog.
 - Splitting `implement` into implement and test, when the test suite is slow.
 
-Add, remove, or reorder jobs as asked. Assign a profile to each new job. Do
-not create a separate workflow only to select a different model or harness;
-configure a reusable profile and use a per-run job override instead.
+Add, remove, or reorder jobs as asked. Assign a preferred role or an explicit
+concrete profile to each new job. Do not create a separate workflow only to
+select a different model or harness; configure a reusable concrete profile and
+use a per-run job choice instead.
 
 **4. Projects.** Ask what they want managed. For each, get the absolute path,
 then read the project yourself — detect whether the path is a directory, Git
@@ -94,9 +96,10 @@ Don't create `state.json`; it appears on the first real run.
 
 1. Resolve the request to a **project** and a **workflow**. Ask if either is
    ambiguous — don't guess.
-2. Look up the workflow in `WORKFLOWS.md` to get its jobs and default profiles.
-   Apply any per-run choice, then resolve every job to its actual harness, model,
-   thinking level, and route. Override notation and profile names are inputs to
+2. Look up the workflow in `WORKFLOWS.md` to get its jobs and preferred roles.
+   Resolve each role through the Preferred profiles table, then apply any
+   per-run concrete-profile choice. Resolve every job to its actual harness,
+   model, thinking level, and route. Role and profile names are inputs to
    resolution only; never copy them into `state.json`. Do not create a new
    workflow merely to change execution fields.
 3. Select and verify the exact workspace.

@@ -17,13 +17,13 @@ flowchart TB
         subgraph CONFIG["Configuration and policy"]
             direction TB
             AG["AGENTS.md<br/>ownership and lifecycle rules"]
-            WF["WORKFLOWS.md<br/>job sequences and default profiles"]
+            WF["WORKFLOWS.md<br/>job sequences, concrete profiles,<br/>preferred roles"]
             MC["models.json<br/>provider-specific routes and aliases"]
         end
 
         subgraph RESOLUTION["Per-run resolution — not persisted as override syntax"]
             direction TB
-            RS(["Resolve workflow defaults<br/>and one-off choice"])
+            RS(["Resolve preferred role<br/>and one-off profile choice"])
             RJ["Resolved jobs<br/>harness, model, thinking, route"]
             RS --> RJ
         end
@@ -133,9 +133,11 @@ enough. Group outlines show ownership or placement, not additional processes.
 
 ## Request and job resolution
 
-A workflow defines job order and default profiles. A profile bundles a harness,
-model selector, thinking level, and optional provider route. A one-off model or
-harness choice changes a job for one run; it does not create another workflow.
+A workflow defines job order using preferred roles. The Preferred profiles table
+maps each role to a concrete `role/model[/route]` profile, which bundles a
+harness, model selector, thinking level, and optional provider route. A one-off
+concrete-profile choice changes one job for one run; it does not create another
+workflow.
 
 Override-like YAML shown in `WORKFLOWS.md` is request notation only. The manager
 must never copy a `job_overrides` object or profile selector into `state.json`.
@@ -147,15 +149,15 @@ values:
   "job": "implement",
   "harness": "rlm",
   "model": "openrouter-morph/moonshotai/kimi-k3",
-  "thinking": "high",
+  "thinking": "medium",
   "route": "morph/fp4",
   "status": "pending",
   "report_file": "runs/2026-09-06-0140-build-no-plan/reports/01-implement.md"
 }
 ```
 
-These resolved values are historical facts. Later edits to a profile do not
-change an existing run. A retry inherits the prior execution choice unless the
+These resolved values are historical facts. Later edits to a concrete profile or
+preferred-role mapping do not change an existing run. A retry inherits the prior execution choice unless the
 user explicitly requests another one. Each attempt records what it actually
 used.
 

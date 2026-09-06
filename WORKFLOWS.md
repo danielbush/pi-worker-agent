@@ -8,18 +8,31 @@ the manager to help — it can check which models you actually have access to.
 
 ## Profiles
 
-A profile names a harness, model, and thinking level. Jobs reference profiles,
-so model and harness choices stay in one place.
+A concrete profile is named `role/model[/route]` and bundles its harness,
+model, thinking level, and provider route. Preferred roles select which concrete
+profile workflows use by default.
 
 | Profile | Harness | Model | Thinking | Route | For |
 |---|---|---|---|---|---|
-| `planner` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | — | Working out approach, weighing options |
-| `coder` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | high | `modal/fp8` | Writing the change |
-| `reviewer` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | — | Judging whether it's right |
-| `quick` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | low | `modal/fp8` | Mechanical work, summarising |
-| `cursor-coder` | `cursor-agent` | `cursor-grok-4.6-high-fast` | high | Cursor-managed | Independent implementation through Cursor Agent |
-| `kimi-coder` | `rlm` | `openrouter-morph/moonshotai/kimi-k3` | high | `morph/fp4` | Independent implementation with Kimi K3 |
-| `kimi-coder-modal` | `rlm` | `openrouter/moonshotai/kimi-k3` | high | `modal/mxfp4` | Alternate Kimi K3 route through Modal |
+| `planner/sol` | `rlm` | `openai-codex/gpt-5.6-sol` | high | — | Planning and approach design |
+| `review/sol` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | — | Independent review |
+| `coder/grok` | `cursor-agent` | `cursor-grok-4.6-medium-fast` | medium | Cursor-managed | Coding through Cursor Agent |
+| `coder/glm` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | high | `modal/fp8` | Coding with GLM; medium is unsupported |
+| `coder/kimi/morph` | `rlm` | `openrouter-morph/moonshotai/kimi-k3` | medium | `morph/fp4` | Coding with Kimi through Morph |
+| `coder/kimi/modal` | `rlm` | `openrouter/moonshotai/kimi-k3` | medium | `modal/mxfp4` | Coding with Kimi through Modal |
+| `quick/glm` | `rlm` | `openrouter/z-ai/glm-5.3-flash` | low | `modal/fp8` | Mechanical work and summarising |
+
+## Preferred profiles
+
+| Workflow role | Preferred profile | Used for |
+|---|---|---|
+| `planning` | `planner/sol` | Planning jobs |
+| `coding` | `coder/grok` | Implementation and mock jobs |
+| `reviewing` | `review/sol` | Independent review jobs |
+
+Preferences are defaults, not aliases stored in run state. The manager resolves
+the role to the preferred concrete profile before creating a run, then records
+only the actual execution fields on each job.
 
 `Route` records provider routing that must also be configured in the harness. For
 OpenRouter, this repository expects matching `modelOverrides` or routed provider
@@ -62,6 +75,51 @@ you what to run.
 
 ---
 
+## Per-run execution choices
+
+Do not create a new workflow only to change a model or harness. Keep the
+workflow's job sequence and override the selected job for that run:
+
+```yaml
+workflow: build-no-plan
+job_overrides:
+  implement: coder/kimi/morph
+```
+
+The override value is normally a profile name. This keeps the harness, model,
+thinking level, and route together. Examples:
+
+```yaml
+job_overrides:
+  implement: coder/grok
+```
+
+```yaml
+job_overrides:
+  implement: coder/kimi/modal
+  review: quick/glm
+```
+
+An explicit mapping may be used when no reusable profile fits:
+
+```yaml
+job_overrides:
+  implement:
+    harness: rlm
+    model: openrouter-morph/moonshotai/kimi-k3
+    thinking: medium
+    route: morph/fp4
+```
+
+These YAML fragments are request notation only. Never copy a `job_overrides`
+object or profile selector into `state.json`. Resolve every job before creating
+the run, then store only the actual `harness`, `model`, `thinking`, and `route`
+on that job record. Those resolved fields are the historical truth even if a
+profile later changes. Retries inherit them unless the user explicitly requests
+a different execution choice; each attempt records the values it actually used.
+
+---
+
 ## Workflows
 
 ### investigate
@@ -69,7 +127,7 @@ you what to run.
 Understand something and produce a plan. No code is changed.
 
 ```
-investigate (planner)
+investigate (planning)
 ```
 
 The output is a written plan: what's going on, what to do about it, in what
@@ -84,9 +142,9 @@ wrong implementation.
 Full cycle for real work that needs thinking first.
 
 ```
-plan      (planner)
-implement (coder)
-review    (reviewer)
+plan      (planning)
+implement (coding)
+review    (reviewing)
 ```
 
 `plan` produces the approach. `implement` does the work and must leave the
@@ -103,8 +161,8 @@ Implement a well-specified change without a planning job, then use the regular
 reviewer for an independent quality check.
 
 ```
-implement (coder)
-review    (reviewer)
+implement (coding)
+review    (reviewing)
 ```
 
 Use this when acceptance criteria are already explicit. `implement` must leave
@@ -114,56 +172,13 @@ implementation report, and the workspace diff. If review fails, loop back to
 stop and check in with the user before starting any more implementation or
 review work.
 
-### Per-run job overrides
-
-Do not create a new workflow only to change a model or harness. Keep the
-workflow's job sequence and override the selected job for that run:
-
-```yaml
-workflow: build-no-plan
-job_overrides:
-  implement: kimi-coder
-```
-
-The override value is normally a profile name. This keeps the harness, model,
-thinking level, and route together. Examples:
-
-```yaml
-job_overrides:
-  implement: cursor-coder
-```
-
-```yaml
-job_overrides:
-  implement: kimi-coder-modal
-  review: quick
-```
-
-An explicit mapping may be used when no reusable profile fits:
-
-```yaml
-job_overrides:
-  implement:
-    harness: rlm
-    model: openrouter-morph/moonshotai/kimi-k3
-    thinking: high
-    route: morph/fp4
-```
-
-These YAML fragments are request notation only. Never copy a `job_overrides`
-object or profile selector into `state.json`. Resolve every job before creating
-the run, then store only the actual `harness`, `model`, `thinking`, and `route`
-on that job record. Those resolved fields are the historical truth even if a
-profile later changes. Retries inherit them unless the user explicitly requests
-a different execution choice; each attempt records the values it actually used.
-
 ### quickfix
 
 For work where the approach is already obvious.
 
 ```
-implement (coder)
-review    (quick)
+implement (coding)
+review    (quick/glm)
 ```
 
 Skip the plan job. If you find yourself wanting one mid-job, stop and run the
@@ -175,8 +190,8 @@ Stand something up so the user can see and react to it. Nothing behind it is
 real.
 
 ```
-plan (planner)
-mock (coder)
+plan (planning)
+mock (coding)
 ```
 
 `plan` works out what the user needs to *see* — the screens or outputs, the
@@ -203,7 +218,7 @@ branch. Say where it is when you report back.
 ### review-only
 
 ```
-review (reviewer)
+review (reviewing)
 ```
 
 Read the current diff or a named commit range and report. Changes nothing.
@@ -212,10 +227,11 @@ Read the current diff or a named commit range and report. Changes nothing.
 
 ## Defaults
 
-- Unspecified standalone job profile: `quick`
-- A workflow job uses its listed profile unless that run supplies a job override
-- Prefer a profile override; use an explicit resolved mapping only when no profile fits
-- State always records the actual resolved execution fields, not only the profile name
+- Workflow roles resolve through the Preferred profiles table
+- Unspecified standalone mechanical job profile: `quick/glm`
+- A run may select another concrete profile for one job
+- Prefer a concrete profile choice; use an explicit resolved mapping only when none fits
+- State records only actual resolved execution fields, never roles or profile names
 
 ## Notes on model choice
 
@@ -223,5 +239,6 @@ Judgement jobs — planning, reviewing — earn a strong model. Mechanical jobs
 don't. A cheaper model working against a clear plan and a passing test suite
 often beats an expensive one working from a vague brief.
 
-That's the point of profiles: swap `coder` to a cheaper model and every workflow
-that uses it changes at once.
+That's the point of preferred roles: change the `coding` preference once and
+every workflow using that role follows, while historical run state keeps the
+actual model that ran.
