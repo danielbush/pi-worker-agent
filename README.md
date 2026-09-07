@@ -60,7 +60,10 @@ How the author happens to run this today — documentation of one working
 setup, not instructions:
 
 - **Manager**: Prime Agent running `moonshotai/kimi-k3` (Kimi K3) as the
-  default model, configured in `~/.prime/agent/settings.json`.
+  default model, configured in `~/.prime/agent/settings.json`. Chosen because
+  it's easy to talk to and has a large context window — both valuable in the
+  manager seat, which spends its life in conversation and carries run state
+  around.
 - **Workers**: a mix of RLM-native (GLM, Kimi via OpenRouter routes) and
   external harnesses — `cursor-agent` (Grok) and `codex` (GPT-5.6 Sol). No
   settled doctrine here; the open question is whether to spend on
