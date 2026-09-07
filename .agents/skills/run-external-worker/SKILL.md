@@ -90,11 +90,15 @@ For Claude Code (`claude`; verified with Claude Code 2.1.263):
   never copy the returned account fields into prompts or logs;
 - use `--print --output-format stream-json --verbose` for non-interactive,
   durable event output;
-- pass the prompt as the final positional argument (`-p` means `--print`, not
-  “prompt”);
-- use an explicit `--model` alias or full model ID and record the actual model
-  reported by the init event;
-- start the process from the exact workspace and close stdin (`</dev/null`);
+- supply the brief through controlled stdin (`< <brief-file>`). Do not put a
+  positional prompt after `--allowedTools`: that option is variadic and can
+  consume the prompt, causing `Input must be provided ...` before session init.
+  (`-p` means `--print`, not “prompt”);
+- use an explicit `--model` alias or full model ID and `--effort
+  <low|medium|high|max>` when the profile resolves an effort level. Record the
+  concrete model reported by the init event;
+- start the process from the exact workspace. Redirect stdin from the brief
+  file; never inherit manager stdin;
 - do not use Claude Code's `--background`/`--bg` mode for managed jobs. Keep
   the Python `bash()` handle alive as the process authority and stream directly
   to the manager-owned JSONL log;
@@ -109,21 +113,26 @@ For Claude Code (`claude`; verified with Claude Code 2.1.263):
   event stream. It cannot write the assigned report;
 - capture `session_id` from the stream-json init/result events; and
 - resume non-interactively with `claude --print --output-format stream-json
-  --verbose --resume <session-id> --model <model> [permission flags]
-  "<follow-up prompt>"`. Resume from the original workspace, keep the same
-  report/log constraints, append to the durable log, and close stdin.
+  --verbose --resume <session-id> --model <model> --effort <effort>
+  [permission flags] < <follow-up-brief-file>`. Resume from the original
+  workspace, keep the same report/log constraints, append to the durable log,
+  and use only controlled stdin.
 
 A typical launch shape is:
 
 ```bash
 claude --print --output-format stream-json --verbose \
-  --model <model> --permission-mode dontAsk \
+  --model <model> --effort <effort> --permission-mode dontAsk \
   --allowedTools "Read,Glob,Grep,Edit,Write,Bash(<authorized-pattern>)" \
-  --add-dir <absolute-run-dir> "<prompt>" </dev/null
+  --add-dir <absolute-run-dir> < <brief-file>
 ```
 
 If output is piped through `tee`, enable shell `pipefail` so the captured exit
-status belongs to the harness rather than `tee`.
+status belongs to the harness rather than `tee`. If Claude exits before any
+`system/init` event and neither the workspace nor report changed, correct the
+launch command and append the diagnostic plus retry stream to the same log. If
+session init occurred or mutation is possible, allocate a new numbered attempt
+instead.
 
 ## 4. Start the required heartbeat
 
