@@ -61,7 +61,7 @@
   - use a "deep modules" approach to keep the overall skeleton of the app on the surface (major classes, interfaces or other) and push detail and execution logic into subdirs
   - put only INFRASTRUCTURE_WRAPPER's, adapters, and private driver details into `src/infrastructure/`, grouped by responsibility within that directory
   - place INFRASTRUCTURE_CONSUMER's with their application responsibility, such as `workflows/`, even when they rely heavily on filesystem, database, process, or network services
-  - Group all other code in `src/` by responsibility: eg `domain/`, `workflows/`, `demo/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
+  - Group all other code in `src/` by responsibility: eg `domain/`, `application/` (or `workflows/`), `storage/`.
   - three-way classification for every construct: DOMAIN (what the program is
     about; encodes its rules), INFRASTRUCTURE (talks to the outside world), and
     APPLICATION/WORKFLOW (orchestrates domain + infrastructure for a use case).
@@ -71,13 +71,6 @@
     code, and to existing code only when the user asks for a refactor.
   - important constructs (usually coordinators, managers, mediators) should get their own files and sit near the top of the directory hierarchy; lower-level implementation code should be pushed down into subdirectories
   - introduce interfaces where more than one implementation of something may be needed
-
-Specific to this project
-
-- Keep database metadata separate from canonical file-based task data.
-- Avoid duplicate sources of truth. For example, `request.md` is the canonical job prompt and is not duplicated as `jobs.instructions`.
-- Do not invent extra entities, IDs, or current-state fields without a concrete need. Event logs should record obvious observable harness activity using only IDs the harness provides or that correlation strictly requires.
-- In this project, “demo” means a policy-defined workflow through the real architecture against the managed project, not a hardcoded command or a separate fake domain model, registry, runner, or generated project.
 
 ## Testing and safety
 
