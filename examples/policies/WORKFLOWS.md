@@ -188,6 +188,26 @@ if you edited it.
 
 ---
 
+## Project READMEs
+
+Every managed project's README leads with a **Demo** section, followed by an
+**Outcomes** list. Demo is first because it's what the user reads to recall
+what the project is about when many runs are in flight.
+
+The Demo says what the user should **see, touch, or handle** — it must be
+real: concrete commands to run, screens to open, things to click. It may
+change, because details of what hasn't been built yet are hard to tie down,
+but it always needs grounding in specific detail, not aspirations.
+
+Outcomes is a simple list of items that lets the manager and the user decide
+whether a piece of work is finished. Items take obvious cues from the Demo —
+each outcome should be checkable against something the Demo shows.
+
+Both are written with the user and must exist before the project's first run
+— the manager asks for them explicitly and does not create runs until they
+are recorded. User feedback that changes the Demo or an outcome is recorded
+by editing the README, not just the run.
+
 ## Workflows
 
 All workflows below run with `approval: required`.
