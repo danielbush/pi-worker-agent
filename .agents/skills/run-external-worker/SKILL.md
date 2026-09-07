@@ -1,6 +1,6 @@
 ---
 name: run-external-worker
-description: Launch, monitor, recover, cancel, and finalize any Prime Worker Agent job whose resolved harness is not `rlm`, including `cursor-agent`. Use this skill before preparing or launching every external worker and whenever an external process stalls, loses its handle, needs resumption, or finishes. Enforces durable JSONL logs, numbered reports, nonblocking process handles, internal heartbeats, session capture, and manager verification.
+description: Launch, monitor, recover, cancel, and finalize any Prime Worker Agent job whose resolved harness is not `rlm`, including Cursor Agent, Codex CLI, and Claude Code. Use this skill before preparing or launching every external worker and whenever an external process stalls, loses its handle, needs resumption, or finishes. Enforces durable JSONL logs, numbered reports, nonblocking process handles, internal heartbeats, session capture, and manager verification.
 compatibility: Requires the Python `bash()` process API, `rlm-heartbeat`, manager-owned project control records, and the selected external harness CLI.
 ---
 
@@ -83,6 +83,44 @@ For Codex (`codex exec`):
   "<prompt>"` — note resume has a DIFFERENT flag set than `codex exec`:
   no `-C` or `--sandbox` (the session's original settings carry over), flags
   go before the session id.
+
+For Claude Code (`claude`; verified with Claude Code 2.1.263):
+
+- verify authentication with `claude auth status`; require `loggedIn: true` and
+  never copy the returned account fields into prompts or logs;
+- use `--print --output-format stream-json --verbose` for non-interactive,
+  durable event output;
+- pass the prompt as the final positional argument (`-p` means `--print`, not
+  “prompt”);
+- use an explicit `--model` alias or full model ID and record the actual model
+  reported by the init event;
+- start the process from the exact workspace and close stdin (`</dev/null`);
+- do not use Claude Code's `--background`/`--bg` mode for managed jobs. Keep
+  the Python `bash()` handle alive as the process authority and stream directly
+  to the manager-owned JSONL log;
+- use `--add-dir <run-dir>` when the assigned report is outside the workspace;
+  the brief must still name the single allowed report file and protect every
+  other control-record path;
+- avoid `--dangerously-skip-permissions`. Prefer `--permission-mode dontAsk`
+  plus the narrowest practical `--allowedTools` list so an unattended job
+  denies unexpected permission prompts instead of hanging. Include only the
+  Bash command patterns explicitly authorized by the job brief;
+- use `--permission-mode plan` only for jobs whose deliverable stays in the
+  event stream. It cannot write the assigned report;
+- capture `session_id` from the stream-json init/result events; and
+- resume non-interactively with `claude --print --output-format stream-json
+  --verbose --resume <session-id> --model <model> [permission flags]
+  "<follow-up prompt>"`. Resume from the original workspace, keep the same
+  report/log constraints, append to the durable log, and close stdin.
+
+A typical launch shape is:
+
+```bash
+claude --print --output-format stream-json --verbose \
+  --model <model> --permission-mode dontAsk \
+  --allowedTools "Read,Glob,Grep,Edit,Write,Bash(<authorized-pattern>)" \
+  --add-dir <absolute-run-dir> "<prompt>" </dev/null
+```
 
 If output is piped through `tee`, enable shell `pipefail` so the captured exit
 status belongs to the harness rather than `tee`.
