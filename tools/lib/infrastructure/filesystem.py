@@ -10,7 +10,7 @@ from tools.lib.infrastructure.path_driver import PathDriver
 
 
 class EmbeddedPathStub:
-    """EMBEDDED_STUB that fakes path operations for Filesystem.createNull."""
+    """EMBEDDED_STUB that fakes path operations for Filesystem.create_null."""
 
     def __init__(
         self,
@@ -95,8 +95,6 @@ class Filesystem:
                 atomic_write_failures=atomic_write_failures,
             )
         )
-
-    createNull = create_null
 
     def read_text(self, path: Path) -> str:
         return self.driver.read_text(path)

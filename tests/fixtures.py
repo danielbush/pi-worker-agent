@@ -64,7 +64,7 @@ def null_projects_fs(
     directories = [str(root / "projects" / name) for name in (extra_dirs or [])]
     if extra_dirs and not projects:
         directories.append(str(root / "projects"))
-    return Filesystem.createNull(files=files, directories=directories)
+    return Filesystem.create_null(files=files, directories=directories)
 
 
 def render_projects(

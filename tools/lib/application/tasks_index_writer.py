@@ -36,7 +36,7 @@ class TasksIndexWriter:
         return TasksIndexWriter(repo_root, Filesystem.create())
 
     @staticmethod
-    def createNull(
+    def create_null(
         repo_root: Path,
         *,
         files: dict[str, str] | None = None,
@@ -44,7 +44,7 @@ class TasksIndexWriter:
     ) -> TasksIndexWriter:
         return TasksIndexWriter(
             repo_root,
-            Filesystem.createNull(files=files, directories=directories),
+            Filesystem.create_null(files=files, directories=directories),
         )
 
     def write(self, generated_at: str | None = None) -> Path:

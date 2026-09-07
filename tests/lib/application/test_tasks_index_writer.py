@@ -39,7 +39,7 @@ def test_write_and_check_round_trip_with_null_filesystem() -> None:
 
 def test_check_missing_file() -> None:
     # arrange
-    writer = TasksIndexWriter.createNull(Path("/repo"), directories=["/repo/projects"])
+    writer = TasksIndexWriter.create_null(Path("/repo"), directories=["/repo/projects"])
 
     # act
     current = writer.is_current()
