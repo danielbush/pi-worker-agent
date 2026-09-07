@@ -18,10 +18,9 @@ profile workflows use by default.
 | `planner/sol` | `rlm` | `openai-codex/gpt-5.6-sol` | high | — | Planning and approach design |
 | `review/sol` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | — | Independent review |
 | `coder/grok` | `cursor-agent` | `cursor-grok-4.6-medium-fast` | medium | Cursor-managed | Coding through Cursor Agent |
-| `coder/glm` | `rlm` | `openrouter-modal/z-ai/glm-5.3-flash` | high | `modal/fp8` | Coding with GLM; medium is unsupported |
-| `coder/kimi/morph` | `rlm` | `openrouter-morph/moonshotai/kimi-k3` | medium | `morph/fp4` | Coding with Kimi through Morph |
-| `coder/kimi/modal` | `rlm` | `openrouter-modal/moonshotai/kimi-k3` | medium | `modal/mxfp4` | Coding with Kimi through Modal |
-| `quick/glm` | `rlm` | `openrouter-modal/z-ai/glm-5.3-flash` | low | `modal/fp8` | Mechanical work and summarising |
+| `coder/glm` | `rlm` | `openrouter-routed/z-ai/glm-5.3-flash` | high | — | Coding with GLM; medium is unsupported |
+| `coder/kimi` | `rlm` | `openrouter-routed/moonshotai/kimi-k3` | medium | — | Coding with Kimi |
+| `quick/glm` | `rlm` | `openrouter-routed/z-ai/glm-5.3-flash` | low | — | Mechanical work and summarising |
 | `coder/codex-medium` | `codex` | `gpt-5.6-sol` | medium | — | Coding through Codex CLI |
 | `coder/codex-high` | `codex` | `gpt-5.6-sol` | high | — | Harder coding through Codex CLI |
 
@@ -67,7 +66,7 @@ If a model you want isn't there, it needs credentials:
 
 - **Codex** (`openai/gpt-5.1-codex`) — a ChatGPT Plus or Pro subscription. Run
   `/login` in the TUI and pick ChatGPT.
-- **OpenRouter** (`openrouter/<id>`) — `export OPENROUTER_API_KEY=...`, or
+- **OpenRouter** (`openrouter-routed/<id>`) — `export OPENROUTER_API_KEY=...`, or
   `/login` and pick OpenRouter.
 - **Claude** — a Pro/Max subscription via `/login`, or `ANTHROPIC_API_KEY`.
 - **Cursor Agent** — run `cursor-agent login`, then verify with
@@ -86,7 +85,7 @@ workflow's job sequence and override the selected job for that run:
 ```yaml
 workflow: build-no-plan
 job_overrides:
-  implement: coder/kimi/morph
+  implement: coder/kimi
 ```
 
 The override value is normally a profile name. This keeps the harness, model,
@@ -99,7 +98,7 @@ job_overrides:
 
 ```yaml
 job_overrides:
-  implement: coder/kimi/modal
+  implement: coder/kimi
   review: quick/glm
 ```
 
@@ -109,7 +108,7 @@ An explicit mapping may be used when no reusable profile fits:
 job_overrides:
   implement:
     harness: rlm
-    model: openrouter-morph/moonshotai/kimi-k3
+    model: openrouter-routed/moonshotai/kimi-k3
     thinking: medium
     route: morph/fp4
 ```

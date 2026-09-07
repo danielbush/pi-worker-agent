@@ -92,30 +92,28 @@ setup, not instructions:
 OpenRouter hosts the same model through multiple upstream providers, and any one
 route can be slow or down (modal is quite fast and reliable but will issue
 429's; other providers in openrouter may silently hang and may or may
-not recover).  You can represent each openrouter / provider combo as a *separate
-Prime Agent provider* pinned with `openRouterRouting.only` and `allow_fallbacks:
-false`:
+not recover). Define one custom provider with a fallback chain per model via
+`openRouterRouting.order` — the first route is tried first, and
+`allow_fallbacks: false` keeps the chain to exactly the routes you list:
 
 ```json
 "providers": {
-  "openrouter-modal": { "baseUrl": "https://openrouter.ai/api/v1", ...,
+  "openrouter-routed": { "baseUrl": "https://openrouter.ai/api/v1", ...,
     "models": [{ "id": "moonshotai/kimi-k3",
-      "compat": { "openRouterRouting": { "only": ["modal/mxfp4"],
-        "allow_fallbacks": false } } }] },
-  "openrouter-morph": { ... "only": ["morph/fp4"] ... }
+      "compat": { "openRouterRouting": { "order": ["modal/mxfp4", "morph/fp4"],
+        "allow_fallbacks": false } } }] }
 }
 ```
 
-Profiles in `policies/WORKFLOWS.md` then name the route explicitly, e.g.
-`openrouter-modal/moonshotai/kimi-k3` with route `modal/mxfp4`. Changing route
-= changing profile, which is a one-line per-run choice.
+Name the custom provider key something that does not collide with the built-in
+`openrouter` provider (e.g. `openrouter-routed`) — a colliding key silently
+drops your custom model list (verified 2026-09-07). Profiles in
+`policies/WORKFLOWS.md` then just name the model, e.g.
+`openrouter-routed/moonshotai/kimi-k3`; routing lives in one place.
 
-**Operational note:** OpenRouter routes do drop out mid-session. When a
-worker stalls or errors on a dead route, stop it (left-arrow in the TUI to
-interrupt), and re-run the session — sometimes switching to the sibling
-provider (modal ↔ morph). It happens often enough to be expected, not
-alarming. Use a new or reloaded Prime Agent session after editing
-`models.json`.
+**Caveat:** the chain fails over on fast errors (429, provider down), not on
+silent hangs — a stalled stream stays stalled. Use a new or reloaded Prime
+Agent session after editing `models.json`.
 
 ## Learn more
 
