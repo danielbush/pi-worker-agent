@@ -33,17 +33,20 @@ task start      # runs the Prime Agent manager
 ```
 
 This repository uses [mise](https://mise.jdx.dev/) to pin its tools
-(`mise.toml`: uv for Python, and go-task). Install mise, then
-`mise install` in the repo. Common commands are wrapped as
-[go-task](https://taskfile.dev/) tasks: `task start` runs the manager, and
-`task test` runs the tools/ test suite and static checks (`uv run pytest`,
-`uv run ty check`, `uv run ruff check`).
+(`mise.toml`) and wraps common commands as [go-task](https://taskfile.dev/)
+tasks (`task --list` shows them).
 
-Then say **"onboard me"**. The manager checks whether `policies/` is set up,
-offers to copy `examples/policies/` into it, checks which models you have
-access to, shapes workflows to how you work, and reads your first project to
-draft its context. It'll tell you what to `/login` to if a model you want
-isn't configured.
+Then say **"onboard me"**. The manager walks you through setup
+conversationally — copying the example policies, checking which models you
+can access, and shaping things to how you work.
+
+The broad shape: the manager runs on **policy documents**. `AGENTS.md` fixes
+how it supervises work; `policies/` is *your* configuration — which models
+run which jobs, what workflows look like, what coding standards apply —
+markdown you edit, not code. Work happens in **runs**: you describe what you
+want, the manager writes a dated task spec, you approve it, workers do the
+jobs one at a time and each leaves a written report, and the manager tracks
+it all in generated task indexes you can browse between sessions.
 
 ## Why Prime Agent
 
@@ -86,11 +89,12 @@ setup, not instructions:
 
 ### Provider routing via `~/.prime/agent/models.json`
 
-OpenRouter hosts the same model through multiple upstream providers, and any
-one route can be slow or down (will issue 429's or sometimes hang).
-You can represent each openrouter / provider combo as a *separate
-Prime Agent provider* pinned with `openRouterRouting.only` and
-`allow_fallbacks: false`:
+OpenRouter hosts the same model through multiple upstream providers, and any one
+route can be slow or down (modal is quite fast and reliable but will issue
+429's; other providers in openrouter may silently hang and may or may
+not recover).  You can represent each openrouter / provider combo as a *separate
+Prime Agent provider* pinned with `openRouterRouting.only` and `allow_fallbacks:
+false`:
 
 ```json
 "providers": {
