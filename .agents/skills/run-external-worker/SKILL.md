@@ -60,6 +60,22 @@ For Cursor Agent:
 - use `--force` only when the brief contains an explicit command allowlist and
   protected paths.
 
+For Codex (`codex exec`):
+
+- verify authentication with `codex login status`;
+- use an explicit `--model` ID and
+  `-c 'model_reasoning_effort="<low|medium|high|xhigh>"'` for thinking level;
+- run from the exact workspace with `-C <workspace>`;
+- use `--json` and direct the event stream to the durable JSONL log;
+- prefer `--sandbox workspace-write`, which scopes writes to the workspace —
+  do not use `--dangerously-bypass-approvals-and-sandbox`; the brief's command
+  allowlist and protected paths still apply as policy;
+- the workspace must be trusted in `~/.codex/config.toml` (a first-run trust
+  prompt otherwise blocks non-interactive use); check before launch and ask
+  the user to trust it rather than bypassing; and
+- capture the session id from the event stream; resume with
+  `codex exec resume <session-id>` for revisions instead of starting fresh.
+
 If output is piped through `tee`, enable shell `pipefail` so the captured exit
 status belongs to the harness rather than `tee`.
 

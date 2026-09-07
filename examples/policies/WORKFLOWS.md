@@ -22,6 +22,8 @@ profile workflows use by default.
 | `coder/kimi/morph` | `rlm` | `openrouter-morph/moonshotai/kimi-k3` | medium | `morph/fp4` | Coding with Kimi through Morph |
 | `coder/kimi/modal` | `rlm` | `openrouter-modal/moonshotai/kimi-k3` | medium | `modal/mxfp4` | Coding with Kimi through Modal |
 | `quick/glm` | `rlm` | `openrouter-modal/z-ai/glm-5.3-flash` | low | `modal/fp8` | Mechanical work and summarising |
+| `coder/codex-medium` | `codex` | `gpt-5.6-sol` | medium | — | Coding through Codex CLI |
+| `coder/codex-high` | `codex` | `gpt-5.6-sol` | high | — | Harder coding through Codex CLI |
 
 ## Preferred profiles
 
