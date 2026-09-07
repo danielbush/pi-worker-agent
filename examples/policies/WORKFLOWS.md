@@ -23,6 +23,7 @@ profile workflows use by default.
 | `quick/glm` | `rlm` | `openrouter-routed/z-ai/glm-5.3-flash` | low | — | Mechanical work and summarising |
 | `coder/codex-medium` | `codex` | `gpt-5.6-sol` | medium | — | Coding through Codex CLI |
 | `coder/codex-high` | `codex` | `gpt-5.6-sol` | high | — | Harder coding through Codex CLI |
+| `coder/claude-opus-5` | `claude-code` | `opus` | medium | — | Coding through Claude Code using the current Opus 5 selector |
 
 ## Preferred profiles
 
@@ -48,12 +49,14 @@ For an `rlm` profile, spawn a Prime Agent subagent:
 handle = await rlm(prompt, model=profile.model, thinking=profile.thinking, name=job)
 ```
 
-For a `cursor-agent` profile, launch the configured CLI non-interactively with
-`bash()`, persist its stream output in the run's manager-owned `logs/`
-directory, and create the internal monitoring heartbeat required by `AGENTS.md`.
-The model identifier already encodes Cursor's speed and effort variant. Read and
-follow `.agents/skills/run-external-worker/SKILL.md` before launch; do not
-pretend the process supports agent messaging or observation.
+For a `cursor-agent`, `codex`, or `claude-code` profile, launch the configured
+CLI non-interactively with `bash()`, persist its stream output in the run's
+manager-owned `logs/` directory, and create the internal monitoring heartbeat
+required by `AGENTS.md`. For Claude Code, the profile may use a documented
+model selector such as `opus`; capture the concrete model from the stream init
+event and record what actually ran. Read and follow
+`.agents/skills/run-external-worker/SKILL.md` before launch; do not pretend the
+process supports agent messaging or observation.
 
 ### Changing a profile
 
