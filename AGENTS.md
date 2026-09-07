@@ -185,18 +185,20 @@ Give each worker a minimal job brief, not the complete project configuration.
 
 ## Report and spec frontmatter
 
-Every `runs/<run-id>/NN-*.md` starts with YAML frontmatter naming the author and
-role, so attribution survives without reading run state:
+Every `runs/<run-id>/NN-*.md` starts with YAML frontmatter naming the author,
+role, and date, so attribution survives without reading run state:
 
 ```
 ---
 author: grok (cursor-agent, cursor-grok-4.6-medium-fast)
 role: implementer
+date: 2026-09-07
 ---
 ```
 
 Author is the resolved harness + model + thinking; role is the job type (or
-`design reviewer`, `user review`, etc.). The manager adds it when workers
+`design reviewer`, `user review`, etc.); date is the day the report was
+written (ISO `YYYY-MM-DD`). The manager adds the frontmatter when workers
 can't be relied on, and retrofits it if a report arrives without it.
 
 Every `runs/<run-id>/00-task.md` likewise starts with frontmatter carrying its
