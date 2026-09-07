@@ -144,6 +144,18 @@ Rules that apply to every job type:
   input. After two failed review attempts, stop and check in with the user
   before any more implementation or review work.
 
+## Revisions
+
+Feedback on a run's work — from a failed `review`, or from the user reviewing
+personally — stays **inside the same run** as a new numbered `implement`
+attempt. The attempt gets the prior reports plus the feedback as its input,
+writes the next report number, and the run returns to `running`.
+
+Open a **new run** only when the objective or scope changes, not the quality
+of the attempt. "The tests should use pytest now that policy changed" is a new
+run; "break these classes out into lib/" is a revision of the run that made
+the classes. When in doubt, ask the user which they intend.
+
 ---
 
 ## Approval

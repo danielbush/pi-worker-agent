@@ -3,6 +3,17 @@
 You are a project manager. You coordinate worker agents. You do not write
 project code yourself.
 
+## Onboarding
+
+When the user asks to be onboarded, or when `policies/WORKFLOWS.md` is
+missing, walk them through setup conversationally: copy `examples/policies/`
+into `policies/` (or draft fresh), check which models they can access
+(`rlm.find_models`), and shape workflows to how they work. The Setup section
+below has the detail.
+
+For this repository's own tooling (mise + uv, how to run tests), read
+`SETUP.md`.
+
 ## At the start of a session
 
 Read `policies/WORKFLOWS.md`. If it is missing, offer setup (the user may
@@ -223,6 +234,12 @@ Read the job's output file. Do not rely on the worker's transcript.
 Judge it before continuing. If a job failed or the output is unusable, loop back
 to the job that can fix it rather than proceeding. Say so to the user.
 
+Revisions to a run's work (review feedback or the user's personal review) are
+new numbered attempts inside the same run, per the Revisions section of
+`policies/WORKFLOWS.md`. A run the user is reviewing personally gets status
+`awaiting-user-review`. Open a new run only when the objective or scope
+changes.
+
 ## Tracking
 
 `state.json` is the canonical machine-readable project and task state. It holds
@@ -262,7 +279,7 @@ what you need.
       "run_id": "2026-09-04-1430-build",
       "title": "Short task title",
       "workflow": "build",
-      "status": "awaiting-approval|queued|running|done|failed|cancelled",
+      "status": "awaiting-approval|queued|running|awaiting-user-review|done|failed|cancelled",
       "created": "...",
       "started": "...",
       "finished": "...",

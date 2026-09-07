@@ -92,3 +92,15 @@ Specific to this project
 - Do not bury a simple answer in a long explanation.
 - State assumptions and mistakes plainly.
 - When reporting changes, summarize what changed and whether tests and type-checking passed.
+
+## Project-specific standards
+
+These override or narrow the global defaults above for the named language or
+project. `task.md` constraints still win over everything.
+
+### Python
+
+- Test with **pytest**, not stdlib `unittest`. Keep the arrange/act/assert
+  structure and the testing-and-safety rules above; express them with pytest
+  fixtures, plain `assert`, and `tmp_path` rather than `unittest.TestCase`
+  classes and `tempfile` boilerplate.

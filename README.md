@@ -222,16 +222,23 @@ Do this last. Freezing too early defeats step 4.
 
 ## Getting started
 
-Install Prime Agent, then run it in this directory:
+> ⚠️ **Warning: first-time use is untested.** The maintainer built this
+> alongside his own setup, so fresh-clone onboarding likely has rough edges.
+> Expect to bump into them; please report what broke.
+
+Install [Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent), clone
+this repository, and run the agent in it:
 
 ```bash
+git clone <this-repo> prime-worker-agent
 cd prime-worker-agent
 prime-agent
 ```
 
-Say "help me set this up". The manager checks which models you have access to,
-walks you through profiles and workflows, and drafts a project README by reading
-the project. It'll tell you what to `/login` to if a model you want isn't
+Then say **"onboard me"**. The manager walks you through setup: copying
+example policies into `policies/`, checking which models you have access to,
+shaping workflows to how you work, and reading your first project to draft its
+context. It'll tell you what to `/login` to if a model you want isn't
 configured.
 
 You can also just edit `policies/WORKFLOWS.md` and `projects/<name>/README.md` yourself —
