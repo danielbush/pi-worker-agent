@@ -1,0 +1,19 @@
+version: '3'
+
+tasks:
+  install:
+    desc: Install Prime Agent (official install script)
+    cmds:
+      - curl -fsSL https://app.primeintellect.ai/prime-agent/install.sh | sh
+
+  start:
+    desc: Run the Prime Agent manager harness from this repository
+    cmds:
+      - prime-agent
+
+  test:
+    desc: Run the tools/ test suite and static checks
+    cmds:
+      - uv run pytest
+      - uv run ty check
+      - uv run ruff check

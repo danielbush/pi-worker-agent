@@ -20,14 +20,24 @@ projects and it comes up as an ordinary coding agent.
 > alongside his own setup, so fresh-clone onboarding likely has rough edges.
 > Expect to bump into them; please report what broke.
 
-Install [Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent), clone
-this repository, and run the agent in it:
+Install [Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent) (`task install`
+runs the official install script), clone this repository, and run the agent
+in it:
 
 ```bash
 git clone <this-repo> prime-worker-agent
 cd prime-worker-agent
-prime-agent
+mise install    # uv and go-task — see mise.toml
+task install    # installs Prime Agent (official install script)
+task start      # runs the Prime Agent manager
 ```
+
+This repository uses [mise](https://mise.jdx.dev/) to pin its tools
+(`mise.toml`: uv for Python, and go-task). Install mise, then
+`mise install` in the repo. Common commands are wrapped as
+[go-task](https://taskfile.dev/) tasks: `task start` runs the manager, and
+`task test` runs the tools/ test suite and static checks (`uv run pytest`,
+`uv run ty check`, `uv run ruff check`).
 
 Then say **"onboard me"**. The manager checks whether `policies/` is set up,
 offers to copy `examples/policies/` into it, checks which models you have
