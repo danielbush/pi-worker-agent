@@ -17,7 +17,7 @@ flowchart TB
         subgraph CONFIG["Configuration and policy"]
             direction TB
             AG["AGENTS.md<br/>ownership and lifecycle rules"]
-            WF["WORKFLOWS.md<br/>job sequences, concrete profiles,<br/>preferred roles"]
+            WF["policies/WORKFLOWS.md<br/>job sequences, concrete profiles,<br/>preferred roles"]
             MC["models.json<br/>provider-specific routes and aliases"]
         end
 
@@ -139,7 +139,7 @@ harness, model selector, thinking level, and optional provider route. A one-off
 concrete-profile choice changes one job for one run; it does not create another
 workflow.
 
-Override-like YAML shown in `WORKFLOWS.md` is request notation only. The manager
+Override-like YAML shown in `policies/WORKFLOWS.md` is request notation only. The manager
 must never copy a `job_overrides` object or profile selector into `state.json`.
 Before creating a run, it resolves every job and stores only actual execution
 values:

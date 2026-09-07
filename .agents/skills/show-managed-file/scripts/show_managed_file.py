@@ -126,7 +126,7 @@ def resolve_target(root: Path, target: str, project_name: str | None, run_id: st
     if kind == "models":
         return require_file(Path.home() / ".prime/agent/models.json", "model configuration")
     if kind == "workflows":
-        return require_file(root / "WORKFLOWS.md", "workflow configuration")
+        return require_file(root / "policies" / "WORKFLOWS.md", "workflow configuration")
     if kind == "architecture":
         return require_file(root / "docs/ARCHITECTURE.md", "architecture document")
     if kind == "policy":

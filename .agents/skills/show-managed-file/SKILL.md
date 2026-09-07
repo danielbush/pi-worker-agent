@@ -15,7 +15,7 @@ copy or substitute a worker prompt/report for the original task.
 |---|---|
 | task, original task, original brief | Current or named run's `task.md` |
 | models, model configuration | `~/.prime/agent/models.json` |
-| workflows | Repository `WORKFLOWS.md` |
+| workflows | Repository `policies/WORKFLOWS.md` |
 | architecture | Repository `docs/ARCHITECTURE.md` |
 | policy, manager instructions | Repository `AGENTS.md` |
 | project context | `projects/<name>/README.md` |

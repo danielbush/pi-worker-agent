@@ -25,7 +25,8 @@ and ownership model.
 ```
 prime-worker-agent/
   AGENTS.md            # policy — auto-loaded into the manager's system prompt
-  WORKFLOWS.md         # profiles + workflows (you edit this, or ask the manager)
+  policies/            # your policies: WORKFLOWS.md + CODE.md (gitignored)
+  examples/policies/   # example policies you can copy into policies/
   docs/
     ARCHITECTURE.md    # data flow, storage, outputs, and ownership
     BACKLOG.md         # ideas not built yet
@@ -108,7 +109,7 @@ constraints, inputs, and output location needed for that job.
 Leave `state.json` alone; the manager creates it when the first task is
 recorded and generates `TASKS.md` from it.
 
-### 2. Write `WORKFLOWS.md`
+### 2. Write `policies/WORKFLOWS.md`
 
 This is the file you will actually maintain. It has three parts.
 
@@ -149,7 +150,7 @@ No code changes, no restart.
 The policy the manager always has in context. In this order:
 
 - You are a manager. You do not write project code yourself.
-- Read `WORKFLOWS.md` at the start of a session, and `projects/<name>/README.md`
+- Read `policies/WORKFLOWS.md` at the start of a session, and `projects/<name>/README.md`
   plus `state.json` when a project is named.
 - Resolve the request to a project and a workflow. Ask if either is ambiguous.
 - Resolve any per-run model choice and record only each job's actual execution
@@ -233,14 +234,14 @@ walks you through profiles and workflows, and drafts a project README by reading
 the project. It'll tell you what to `/login` to if a model you want isn't
 configured.
 
-You can also just edit `WORKFLOWS.md` and `projects/<name>/README.md` yourself —
+You can also just edit `policies/WORKFLOWS.md` and `projects/<name>/README.md` yourself —
 it's all markdown, and the manager reads it at runtime.
 
 Steps 1, 2, and 3 above are what setup is doing on your behalf.
 
 ## Sharing
 
-`AGENTS.md`, `WORKFLOWS.md`, and `.agents/skills/` are git-safe and portable.
+`AGENTS.md`, `.agents/skills/`, and `examples/policies/` are git-safe and portable. Your own `policies/` content is gitignored.
 
 `projects/` holds local absolute paths and run output. Gitignore it and ship a
 `projects/example/README.md` so people can see the shape.

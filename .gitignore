@@ -3,6 +3,10 @@ projects/*
 projects/example/runs/*
 !projects/example/runs/.gitkeep
 
+# user policies (symlinks or local copies)
+policies/*
+!policies/.gitkeep
+
 # TASKS.md
 TASKS.md
 *.lock

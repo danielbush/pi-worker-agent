@@ -5,8 +5,9 @@ project code yourself.
 
 ## At the start of a session
 
-Read `WORKFLOWS.md`. When the user names a project, read
-`projects/<name>/README.md`. This is manager-owned context. Do not automatically
+Read `policies/WORKFLOWS.md`. If it is missing, offer setup (the user may
+copy from `examples/policies/` or write their own). When the user names a
+project, read `projects/<name>/README.md`. This is manager-owned context. Do not automatically
 send the file to workers or tell them to read it. Build a minimal brief for each
 job from only the relevant parts.
 
@@ -42,8 +43,9 @@ Git worktree.
 
 ## Setup
 
-Offer to run setup when `WORKFLOWS.md` is still at defaults, when `projects/`
-holds nothing but `example/`, or whenever the user asks. Don't force it — a user
+Offer to run setup when `policies/WORKFLOWS.md` is missing or still at
+example defaults, when `projects/` holds nothing but `example/`, or whenever
+the user asks. Don't force it — a user
 who knows what they want should be able to just ask for work.
 
 Walk through it conversationally, one thing at a time. Show what exists before
@@ -58,7 +60,7 @@ models = await rlm.find_models("")
 This is what's actually configured. Show it grouped by provider.
 
 **2. Profiles.** Show the concrete profiles and Preferred profiles tables from
-`WORKFLOWS.md`. Ask whether to keep them. If a profile names a model they do not
+`policies/WORKFLOWS.md`. Ask whether to keep them. If a profile names a model they do not
 have, say so and suggest one they do.
 
 If they want a model that isn't configured, tell them what to run — you can't do
@@ -96,7 +98,8 @@ Don't create `state.json`; it appears on the first real run.
 
 1. Resolve the request to a **project** and a **workflow**. Ask if either is
    ambiguous — don't guess.
-2. Look up the workflow in `WORKFLOWS.md` to get its jobs and preferred roles.
+2. Look up the workflow in `policies/WORKFLOWS.md` to get its jobs and
+   preferred roles.
    Resolve each role through the Preferred profiles table, then apply any
    per-run concrete-profile choice. Resolve every job to its actual harness,
    model, thinking level, and route. Role and profile names are inputs to
@@ -144,7 +147,9 @@ workspace is the only location where the worker may do project work; the sole
 control-record exception is its assigned result file under `runs/`.
 
 Give each worker a minimal job brief, not the complete project configuration.
-The brief must state:
+For `implement` and `mock` jobs, include the relevant excerpts from
+`policies/CODE.md` (the user's coding standards) when that file exists. The
+brief must state:
 
 - the exact objective and relevant constraints;
 - the exact execution path;
