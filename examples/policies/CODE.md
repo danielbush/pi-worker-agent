@@ -56,6 +56,13 @@
   - put only INFRASTRUCTURE_WRAPPER's, adapters, and private driver details into `src/infrastructure/`, grouped by responsibility within that directory
   - place INFRASTRUCTURE_CONSUMER's with their application responsibility, such as `workflows/`, even when they rely heavily on filesystem, database, process, or network services
   - Group all other code in `src/` by responsibility: eg `domain/`, `workflows/`, `demo/`, `storage/`, `harnesses/`, `extension/`, and `runner/`.
+  - three-way classification for every construct: DOMAIN (what the program is
+    about; encodes its rules), INFRASTRUCTURE (talks to the outside world), and
+    APPLICATION/WORKFLOW (orchestrates domain + infrastructure for a use case).
+    Group files by these categories.
+  - **Work with the structure the codebase already has.** Do not impose this
+    layout over an existing, differently-organised codebase. Apply it to new
+    code, and to existing code only when the user asks for a refactor.
   - important constructs (usually coordinators, managers, mediators) should get their own files and sit near the top of the directory hierarchy; lower-level implementation code should be pushed down into subdirectories
   - introduce interfaces where more than one implementation of something may be needed
 
