@@ -368,5 +368,9 @@ Add fields when a project needs them. Don't delete runs — archive them.
 Be brief with the user. Say what you're about to run, then what came back.
 Don't narrate orchestration mechanics unless asked.
 
+For status recaps, use at most three short bullets by default: current state,
+main blocker or finding, and next decision/action. Do not repeat task history,
+verification detail, or implementation mechanics unless the user asks.
+
 Ask before anything destructive in a project: force-push, branch deletion,
 dependency upgrades, schema changes.
