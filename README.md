@@ -40,17 +40,49 @@ Then say **"onboard me"**. The manager walks you through setup
 conversationally — copying the example policies, checking which models you
 can access, and shaping things to how you work.
 
-The broad shape: the manager runs on **policy documents**. `AGENTS.md` fixes
-how it supervises work; `policies/` is *your* configuration — which models
-run which jobs, what workflows look like, what coding standards apply —
-markdown you edit, not code. Work happens in **runs**: you describe what you
-want, the manager writes a dated task spec, you approve it, workers do the
-jobs one at a time and each leaves a written report, and the manager tracks
-it all in generated task indexes you can browse between sessions.
+The broad shape: the manager runs on **policy documents** — `AGENTS.md` plus
+`policies/` (see the [`examples/policies/`](examples/policies/README.md)
+README for what to copy and adapt) — and tracks work in **runs**, all plain
+files. Each managed project gets a
+directory:
+
+```
+projects/<name>/
+  README.md          project context the manager wrote with you
+  state.json         machine-readable run state (source of truth)
+  TASKS.md           generated dashboard — render the markdown in your editor
+  runs/...
+```
+
+A run is a dated directory of numbered markdown files. Jobs and reviews append
+in order, so iteration is just the next number:
+
+```
+runs/2026-09-07-1501-build/
+  00-task.md         spec the manager wrote and you approved
+  01-plan.md         planner's report
+  02-implement.md    implementer's report
+  03-review.md       reviewer's verdict (PASS/FAIL)
+  04-implement.md    revision attempt, if the review failed
+  05-review.md       re-review
+  06-review.md       your review — tell the manager your feedback in chat and
+                     it writes it up; a user review is just another review
+  07-implement.md    the revision your review asked for
+```
+
+Every file starts with frontmatter so attribution survives without the state:
+
+```
+---
+author: sol (codex, gpt-5.6-sol, medium)
+role: reviewer
+date: 2026-09-07
+---
+```
 
 ## Why Prime Agent
 
-Prime Agent's RLM runtime is what makes this manager shape practical. It has
+Prime Agent's [RLM](https://alexzhang13.github.io/blog/2025/rlm/) runtime (recursive language model — the agent's tools execute in a persistent Python REPL it can program against) is what makes this manager shape practical. It has
 two layers: the agent loop is TypeScript (streaming, turns, tool routing),
 while tool calls execute in a **persistent Python REPL**. State, indexes, and
 parsed reports live in kernel variables the manager can slice and query
