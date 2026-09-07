@@ -170,10 +170,16 @@ Give each worker a minimal job brief, not the complete project configuration.
 
 ## Coding standards
 
-`policies/CODE.md` holds the user's global coding defaults. A project's own
-coding standards — recorded in `projects/<name>/README.md` as a path into the
-workspace or written inline — win over it. `task.md` constraints win over
-both.
+There are two layers, kept strictly separate:
+
+- `policies/CODE.md` — the user's **global** coding defaults. It is also the
+  shipped example (`examples/policies/`), so it must stay GENERIC: no
+  project-specific tools, layouts, or commands.
+- A project's own `CODE.md` at the **project workspace root** — project-specific
+  standards (language toolchain, verification commands, layout). It wins over
+  the global file. Record its location in `projects/<name>/README.md`.
+
+`task.md` constraints win over both.
 
 `implement` and `mock` briefs must name the applicable standards files and
 require the worker to read them before writing code. `review` briefs must

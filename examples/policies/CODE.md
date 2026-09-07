@@ -106,14 +106,18 @@ Specific to this project
 - State assumptions and mistakes plainly.
 - When reporting changes, summarize what changed and whether tests and type-checking passed.
 
-## Project-specific standards
+## Python
 
-These override or narrow the global defaults above for the named language or
-project. `task.md` constraints still win over everything.
-
-### Python
-
+- Manage Python and dependencies with **uv**: `uv add` / `uv add --dev` for
+  dependencies, `uv run` for anything executable. Never pip, never edit
+  `pyproject.toml` dependency lists by hand.
+- Lint and format with **ruff**: `uv run ruff check`, `uv run ruff format`.
+  Fix real diagnostics; suppress only with a per-case justification.
+- Type-check with **ty**: `uv run ty check`. Type new code; fix diagnostics
+  rather than broad-ignore them.
 - Test with **pytest**, not stdlib `unittest`. Keep the arrange/act/assert
-  structure and the testing-and-safety rules above; express them with pytest
+  structure and the testing-and-safety rules above; express tests with pytest
   fixtures, plain `assert`, and `tmp_path` rather than `unittest.TestCase`
   classes and `tempfile` boilerplate.
+- Modules use snake_case (kebab-case file rules from other languages do not
+  translate to Python imports).

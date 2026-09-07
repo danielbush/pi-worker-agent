@@ -4,7 +4,10 @@ These are the maintainer's real policy files, shipped as examples.
 
 - `WORKFLOWS.md` — model profiles, preferred roles, job types, workflows,
   approval rules.
-- `CODE.md` — coding standards the manager includes in worker briefs.
+- `CODE.md` — GLOBAL coding standards the manager includes in worker
+  briefs. Keep it generic: project-specific standards (toolchains,
+  verification commands, layout) belong in a `CODE.md` at each project's own
+  workspace root, which overrides this file.
 
 ## Use your own
 
