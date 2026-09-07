@@ -72,9 +72,17 @@ For Codex (`codex exec`):
   allowlist and protected paths still apply as policy;
 - the workspace must be trusted in `~/.codex/config.toml` (a first-run trust
   prompt otherwise blocks non-interactive use); check before launch and ask
-  the user to trust it rather than bypassing; and
-- capture the session id from the event stream; resume with
-  `codex exec resume <session-id>` for revisions instead of starting fresh.
+  the user to trust it rather than bypassing;
+- close stdin (`</dev/null`) or codex appends inherited stdin to the prompt;
+- choose the sandbox by deliverable: `--sandbox workspace-write` for any job
+  whose output is a file (a `--sandbox read-only` run cannot write its
+  assigned report, and approval escalation is disabled non-interactively);
+  use `read-only` only when the answer is expected in the event stream;
+- capture the thread/session id from the `thread.started` event; and
+- resume with `codex exec resume --json -m <model> -c '<config>' <session-id>
+  "<prompt>"` — note resume has a DIFFERENT flag set than `codex exec`:
+  no `-C` or `--sandbox` (the session's original settings carry over), flags
+  go before the session id.
 
 If output is piped through `tee`, enable shell `pipefail` so the captured exit
 status belongs to the harness rather than `tee`.
