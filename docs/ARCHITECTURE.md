@@ -131,6 +131,65 @@ light foreground colors, independent of the page theme.
 Arrow labels are limited to boundary operations where direction alone is not
 enough. Group outlines show ownership or placement, not additional processes.
 
+
+## Configuration entities
+
+Entity relationship diagram of the configuration and run entities. Profiles,
+workflow roles, job types, and workflows are defined in
+`policies/WORKFLOWS.md`; runs and jobs are defined in `AGENTS.md` and live in
+`projects/<name>/state.json`.
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "#080d18", "primaryColor": "#172554", "primaryTextColor": "#f8fafc", "primaryBorderColor": "#60a5fa", "secondaryColor": "#111827", "secondaryTextColor": "#f8fafc", "secondaryBorderColor": "#94a3b8", "tertiaryColor": "#0f172a", "tertiaryTextColor": "#f8fafc", "tertiaryBorderColor": "#475569", "lineColor": "#94a3b8", "textColor": "#f8fafc", "titleColor": "#f8fafc", "clusterBkg": "#0f172a", "clusterBorder": "#475569", "edgeLabelBackground": "#080d18"}}}%%
+erDiagram
+    PROFILE {
+        string name  "role/model[/route]"
+        string harness  "rlm | cursor-agent"
+        string model
+        string thinking  "low | medium | high"
+        string route  "nullable"
+    }
+    WORKFLOW_ROLE {
+        string name  "planning | coding | reviewing"
+    }
+    JOB_TYPE {
+        string name  "investigate | plan | implement | mock | review"
+        string purpose
+        string inputs
+        string output
+    }
+    WORKFLOW {
+        string name  "investigate | build | build-no-plan | quickfix | mockup | review-only"
+        string approval  "required"
+    }
+    RUN {
+        string run_id
+        string status
+        string approved  "timestamp, nullable"
+    }
+    JOB {
+        int nn  "execution order"
+        string status
+    }
+
+    WORKFLOW_ROLE ||--|| PROFILE : "preferred profile"
+    JOB_TYPE }o--|| WORKFLOW_ROLE : "selects role"
+    WORKFLOW ||--|{ JOB_TYPE : "jobs sequence"
+    WORKFLOW ||--o{ RUN : "instantiated as"
+    RUN ||--|{ JOB : "runs in order"
+    JOB }o--|| JOB_TYPE : "is a"
+    JOB }o--|| PROFILE : "resolved to (recorded as actual fields)"
+```
+
+Rules that the diagram does not show:
+
+- A run may pick a different concrete profile for one job (per-run execution
+  choice); state records the resolved `harness`, `model`, `thinking`, `route`,
+  never the selector.
+- Retries and revisions are new numbered `JOB` rows in the same `RUN`.
+- `approval: required` means a `RUN` cannot leave `awaiting-approval` until
+  the user approves its `task.md`.
+
 ## Request and job resolution
 
 A workflow defines job order using preferred roles. The Preferred profiles table
