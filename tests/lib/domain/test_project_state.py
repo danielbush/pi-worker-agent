@@ -58,3 +58,9 @@ def test_invalid_payload_yields_no_runs() -> None:
     assert state.runs == []
     assert state.archived == 0
     assert state.path is None
+
+
+def test_owns_top_level_state_field_names() -> None:
+    assert ProjectState.KNOWN_FIELDS == frozenset(
+        {"project", "path", "runs", "archived"}
+    )

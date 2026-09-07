@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 
 from tools.lib.application.render_tasks_markdown import render_tasks_markdown
-from tools.lib.domain.project_state import ProjectState, RunRecord
+from tools.lib.domain.project_state import ProjectState
+from tools.lib.domain.run_record import RunRecord
 from tools.lib.domain.task_index import TaskIndex
 from tools.lib.infrastructure.filesystem import Filesystem
 

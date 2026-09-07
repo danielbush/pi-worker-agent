@@ -66,8 +66,16 @@ class TasksIndexWriter:
     def tasks_path(self) -> Path:
         return self.repo_root / "TASKS.md"
 
-    def render(self, generated_at: str) -> str:
+    def render(
+        self, generated_at: str, project_state: ProjectState | None = None
+    ) -> str:
+        """Render with one validated candidate replacing its on-disk projection."""
         states = ProjectState.discover(self.repo_root / "projects", self.filesystem)
+        if project_state is not None:
+            states = [
+                state for state in states if state.project != project_state.project
+            ]
+            states.append(project_state)
         return render_tasks_markdown(
             TaskIndex.from_project_states(states), generated_at
         )

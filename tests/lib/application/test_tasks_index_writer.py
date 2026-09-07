@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fixtures import FIXED_STAMP, null_projects_fs, run
 from tools.lib.application.tasks_index_writer import TasksIndexWriter
+from tools.lib.domain.project_state import ProjectState
 
 
 def test_write_and_check_round_trip_with_null_filesystem() -> None:
@@ -45,3 +46,25 @@ def test_check_missing_file() -> None:
 
     # assert
     assert not current
+
+
+def test_candidate_override_is_byte_identical_to_same_on_disk_state() -> None:
+    # arrange
+    root = Path("/repo")
+    runs = [
+        run(
+            "2026-09-01-1000-build",
+            title="One",
+            status="done",
+            created="2026-09-01T10:00:00+10:00",
+        )
+    ]
+    writer = TasksIndexWriter(root, null_projects_fs(root, {"demo": runs}))
+    candidate = ProjectState.from_dict("demo", {"project": "demo", "runs": runs})
+
+    # act
+    discovered = writer.render(FIXED_STAMP)
+    overridden = writer.render(FIXED_STAMP, candidate)
+
+    # assert
+    assert overridden == discovered

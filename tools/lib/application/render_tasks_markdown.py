@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from tools.lib.domain.project_state import RunRecord
+from tools.lib.domain.run_record import RunRecord
 from tools.lib.domain.task_index import TaskIndex
 
 _STAMP_PREFIX = "Generated from project `state.json` files: "

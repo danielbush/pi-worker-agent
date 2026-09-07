@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from tools.lib.domain.project_state import ProjectState, RunRecord
+from tools.lib.domain.project_state import ProjectState
+from tools.lib.domain.run_record import RunRecord
 
 ACTIVE_STATUSES = frozenset(
     {"awaiting-approval", "queued", "running", "awaiting-user-review", "blocked"}
