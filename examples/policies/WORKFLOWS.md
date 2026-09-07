@@ -133,7 +133,7 @@ brief from the manager — this table is the shared vocabulary, not a prompt.
 | Job type | Role | Purpose | Inputs | Output |
 |---|---|---|---|---|
 | `investigate` | planning | Understand code or behaviour; change nothing | The question; read-only workspace | Written findings in its report |
-| `plan` | planning | Produce an approach another agent can execute without re-reading the codebase | The request; any `investigate` report | Written plan in its report |
+| `plan` | planning | Produce an approach another agent can execute without re-reading the codebase; must end with a Demo section (what the user will see: concrete commands and outputs) | The request; any `investigate` report | Written plan in its report |
 | `implement` | coding | Make the change in the workspace | `task.md`; any `plan`/prior reports | Code + verification; report |
 | `mock` | coding | Build a throwaway fake for user reaction | `task.md`; any `plan` report | Scratch code, never integrated; report |
 | `review` | reviewing | Independent verdict on work done | `task.md`, reports, workspace diff | PASS/FAIL verdict in its report |
@@ -141,7 +141,9 @@ brief from the manager — this table is the shared vocabulary, not a prompt.
 Rules that apply to every job type:
 
 - `implement` must leave the authorized verification commands passing.
-- `review` changes nothing; it reports PASS or FAIL with reasons.
+- `review` changes nothing; it reports PASS or FAIL with reasons. Where the
+  run has a Demo section, the review verifies the demo: follow its steps and
+  check the outputs match. A broken demo is a FAIL.
 - When `review` fails, loop back to `implement` with the review report as
   input. After two failed review attempts, stop and check in with the user
   before any more implementation or review work.
@@ -160,10 +162,20 @@ the classes. When in doubt, ask the user which they intend.
 
 ---
 
+## Grounding rule
+
+Significant implementation work must produce a **working vertical slice**:
+something the user can run and see, as early as possible. Prefer a thin
+end-to-end skeleton that does something real over a broad layer of
+half-built machinery. If a task's Demo cannot be written concretely, the task
+is not ready — narrow it until it can. Large asks should be split into runs
+whose demos each stand alone.
+
 ## Approval
 
 Every run requires your approval of its `task.md` before the first worker
-spawns. The manager creates the run, writes `task.md`, records the run as
+spawns. The Demo section is the first thing to check: if what-you-will-see
+is wrong or vague, the spec is wrong. The manager creates the run, writes `task.md`, records the run as
 `awaiting-approval`, and offers to open the spec in your editor so you can
 review and adjust it directly. On approval it records an `approved` timestamp
 on the run, marks it `running`, and starts work — re-reading `task.md` first

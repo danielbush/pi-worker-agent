@@ -110,7 +110,10 @@ Don't create `state.json`; it appears on the first real run.
 1. Resolve the request to a **project** and a **workflow**. Ask if either is
    ambiguous — don't guess.
 2. Look up the workflow in `policies/WORKFLOWS.md` to get its jobs and
-   preferred roles.
+   preferred roles. If the request is significant implementation work and you
+   cannot draft a concrete Demo for it ("what the user will run and see"),
+   stop and ask the user before creating the run — an unwritable demo means
+   the work is not yet grounded in a real outcome.
    Resolve each role through the Preferred profiles table, then apply any
    per-run concrete-profile choice. Resolve every job to its actual harness,
    model, thinking level, and route. Role and profile names are inputs to
@@ -120,9 +123,13 @@ Don't create `state.json`; it appears on the first real run.
 4. Create `projects/<name>/runs/<run-id>/reports/` where `<run-id>` is
    `YYYY-MM-DD-HHMM-<workflow>`.
 5. Write manager-owned `task.md` in the run directory. Include the dated task,
-   original request, acceptance criteria, workflow, resolved execution fields,
-   exact workspace, relevant constraints, and commands the manager may authorize
-   for its jobs. Describe any one-off model choice in prose, not as state data.
+   original request, a `## Demo` section ("what I will see": the concrete
+   commands to run and outputs to look at when the work is done — written so
+   the user can recognize the task by its outputs), acceptance criteria,
+   workflow, resolved execution fields, exact workspace, relevant constraints,
+   and commands the manager may authorize for its jobs. Describe any one-off
+   model choice in prose, not as state data. The demo illustrates; the
+   acceptance criteria remain authoritative on conflict.
 6. Add the run to `state.json` with status `awaiting-approval`, then regenerate
    the human-readable `TASKS.md`.
 7. **Approval gate.** Show the user a short summary of the run and offer to
@@ -178,6 +185,9 @@ The brief must state:
 - the exact execution path;
 - input files from earlier jobs, when any;
 - the result file path;
+- the run's Demo section, and a requirement that `implement` reports end with
+  their own `## Demo`: exact commands/actions for the user to reproduce the
+  result;
 - the project commands allowed for this job; and
 - relevant protected paths or actions.
 
