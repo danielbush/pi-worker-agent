@@ -47,10 +47,11 @@ files. Each managed project gets a
 directory:
 
 ```
+TASKS.md             global dashboard across all projects (generated)
 projects/<name>/
   README.md          project context the manager wrote with you
   state.json         machine-readable run state (source of truth)
-  TASKS.md           generated dashboard — render the markdown in your editor
+  TASKS.md           per-project dashboard — render the markdown in your editor
   runs/...
 ```
 
@@ -58,7 +59,7 @@ A run is a dated directory of numbered markdown files. Jobs and reviews append
 in order, so iteration is just the next number:
 
 ```
-runs/2026-09-07-1501-build/
+projects/<name>/runs/2026-09-07-1501-build/
   00-task.md         spec the manager wrote and you approved
   01-plan.md         planner's report
   02-implement.md    implementer's report
@@ -104,8 +105,10 @@ to what `rlm()` gives you for free.
 How the author happens to run this today — documentation of one working
 setup, not instructions:
 
-- **Manager**: Prime Agent running `moonshotai/kimi-k3` (Kimi K3) as the
-  default model, configured in `~/.prime/agent/settings.json`. Chosen because
+- **Manager**: Prime Agent running `moonshotai/kimi-k3` (Kimi K3) at medium
+  thinking as the default model, configured in
+  `~/.prime/agent/settings.json` (`defaultProvider`, `defaultModel`,
+  `defaultThinkingLevel`). Chosen because
   it's easy to talk to and has a large context window — both valuable in the
   manager seat, which spends its life in conversation and carries run state
   around.
