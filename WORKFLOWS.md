@@ -1,7 +1,8 @@
 # Workflows
 
-Two things live here: **profiles** (which model does what kind of work) and
-**workflows** (which jobs run in what order).
+Three things live here: **profiles** (which model does what kind of work),
+**job types** (what each job in a workflow is), and **workflows** (which jobs
+run in what order, and whether the run needs your approval first).
 
 Edit this file to add, remove, or reshape either. No code changes needed. Ask
 the manager to help — it can check which models you actually have access to.
@@ -120,14 +121,56 @@ a different execution choice; each attempt records the values it actually used.
 
 ---
 
+## Job types
+
+Each job in a workflow is one of these types. A job type fixes the job's
+purpose, inputs, and outputs; its workflow role selects the preferred profile
+via the Preferred profiles table. Workers receive their concrete
+brief from the manager — this table is the shared vocabulary, not a prompt.
+
+| Job type | Role | Purpose | Inputs | Output |
+|---|---|---|---|---|
+| `investigate` | planning | Understand code or behaviour; change nothing | The question; read-only workspace | Written findings in its report |
+| `plan` | planning | Produce an approach another agent can execute without re-reading the codebase | The request; any `investigate` report | Written plan in its report |
+| `implement` | coding | Make the change in the workspace | `task.md`; any `plan`/prior reports | Code + verification; report |
+| `mock` | coding | Build a throwaway fake for user reaction | `task.md`; any `plan` report | Scratch code, never integrated; report |
+| `review` | reviewing | Independent verdict on work done | `task.md`, reports, workspace diff | PASS/FAIL verdict in its report |
+
+Rules that apply to every job type:
+
+- `implement` must leave the authorized verification commands passing.
+- `review` changes nothing; it reports PASS or FAIL with reasons.
+- When `review` fails, loop back to `implement` with the review report as
+  input. After two failed review attempts, stop and check in with the user
+  before any more implementation or review work.
+
+---
+
+## Approval
+
+Every run requires your approval of its `task.md` before the first worker
+spawns. The manager creates the run, writes `task.md`, records the run as
+`awaiting-approval`, and shows you the spec. On approval it records an
+`approved` timestamp on the run, marks it `running`, and starts work.
+
+- Approval is per run, not per job: retries and review loops inside an
+  approved run do not re-ask.
+- A new run — including a re-attempt of a failed run — needs its own approval.
+- You may waive approval when requesting work ("just run it"); the manager
+  records the waiver in `task.md`.
+
+---
+
 ## Workflows
+
+All workflows below run with `approval: required`.
 
 ### investigate
 
 Understand something and produce a plan. No code is changed.
 
 ```
-investigate (planning)
+jobs: [investigate]
 ```
 
 The output is a written plan: what's going on, what to do about it, in what
@@ -142,18 +185,12 @@ wrong implementation.
 Full cycle for real work that needs thinking first.
 
 ```
-plan      (planning)
-implement (coding)
-review    (reviewing)
+jobs: [plan, implement, review]
 ```
 
-`plan` produces the approach. `implement` does the work and must leave the
-project's test command passing. `review` reads the diff and the plan and says
-whether they match.
-
-If review fails, loop back to `implement` with the review file as input. After
-two failed review attempts, stop and check in with the user before starting any
-more implementation or review work.
+`plan` produces the approach; `implement` does the work; `review` reads the
+diff and the plan and says whether they match (review-fail loop applies — see
+Job types).
 
 ### build-no-plan
 
@@ -161,24 +198,17 @@ Implement a well-specified change without a planning job, then use the regular
 reviewer for an independent quality check.
 
 ```
-implement (coding)
-review    (reviewing)
+jobs: [implement, review]
 ```
 
-Use this when acceptance criteria are already explicit. `implement` must leave
-the authorized verification commands passing. `review` reads `task.md`, the
-implementation report, and the workspace diff. If review fails, loop back to
-`implement` with the review file as input. After two failed review attempts,
-stop and check in with the user before starting any more implementation or
-review work.
+Use this when acceptance criteria are already explicit.
 
 ### quickfix
 
 For work where the approach is already obvious.
 
 ```
-implement (coding)
-review    (reviewing)
+jobs: [implement, review]
 ```
 
 Skip the plan job. If you find yourself wanting one mid-job, stop and run the
@@ -190,8 +220,7 @@ Stand something up so the user can see and react to it. Nothing behind it is
 real.
 
 ```
-plan (planning)
-mock (coding)
+jobs: [plan, mock]
 ```
 
 `plan` works out what the user needs to *see* — the screens or outputs, the
@@ -218,7 +247,7 @@ branch. Say where it is when you report back.
 ### review-only
 
 ```
-review (reviewing)
+jobs: [review]
 ```
 
 Read the current diff or a named commit range and report. Changes nothing.
@@ -228,6 +257,8 @@ Read the current diff or a named commit range and report. Changes nothing.
 ## Defaults
 
 - Workflow roles resolve through the Preferred profiles table
+- All runs require `task.md` approval before work starts, unless the user
+  waives it for that run
 - Unspecified standalone mechanical job profile: `quick/glm`
 - A run may select another concrete profile for one job
 - Prefer a concrete profile choice; use an explicit resolved mapping only when none fits
