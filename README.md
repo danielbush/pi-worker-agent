@@ -77,7 +77,8 @@ setup, not instructions:
 ### Provider routing via `~/.prime/agent/models.json`
 
 OpenRouter hosts the same model through multiple upstream providers, and any
-one route can be slow or down. So each route is configured as a *separate
+one route can be slow or down (will issue 429's or sometimes hang).
+You can represent each openrouter / provider combo as a *separate
 Prime Agent provider* pinned with `openRouterRouting.only` and
 `allow_fallbacks: false`:
 

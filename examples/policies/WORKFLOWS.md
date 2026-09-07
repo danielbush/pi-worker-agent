@@ -134,9 +134,9 @@ brief from the manager — this table is the shared vocabulary, not a prompt.
 |---|---|---|---|---|
 | `investigate` | planning | Understand code or behaviour; change nothing | The question; read-only workspace | Written findings in its report |
 | `plan` | planning | Produce an approach another agent can execute without re-reading the codebase; must end with a Demo section (what the user will see: concrete commands and outputs) | The request; any `investigate` report | Written plan in its report |
-| `implement` | coding | Make the change in the workspace | `task.md`; any `plan`/prior reports | Code + verification; report |
-| `mock` | coding | Build a throwaway fake for user reaction | `task.md`; any `plan` report | Scratch code, never integrated; report |
-| `review` | reviewing | Independent verdict on work done | `task.md`, reports, workspace diff | PASS/FAIL verdict in its report |
+| `implement` | coding | Make the change in the workspace | `00-task.md`; any `plan`/prior reports | Code + verification; report |
+| `mock` | coding | Build a throwaway fake for user reaction | `00-task.md`; any `plan` report | Scratch code, never integrated; report |
+| `review` | reviewing | Independent verdict on work done | `00-task.md`, reports, workspace diff | PASS/FAIL verdict in its report |
 
 Rules that apply to every job type:
 
@@ -173,19 +173,19 @@ whose demos each stand alone.
 
 ## Approval
 
-Every run requires your approval of its `task.md` before the first worker
+Every run requires your approval of its `00-task.md` before the first worker
 spawns. The Demo section is the first thing to check: if what-you-will-see
-is wrong or vague, the spec is wrong. The manager creates the run, writes `task.md`, records the run as
+is wrong or vague, the spec is wrong. The manager creates the run, writes `00-task.md`, records the run as
 `awaiting-approval`, and offers to open the spec in your editor so you can
 review and adjust it directly. On approval it records an `approved` timestamp
-on the run, marks it `running`, and starts work — re-reading `task.md` first
+on the run, marks it `running`, and starts work — re-reading `00-task.md` first
 if you edited it.
 
 - Approval is per run, not per job: retries and review loops inside an
   approved run do not re-ask.
 - A new run — including a re-attempt of a failed run — needs its own approval.
 - You may waive approval when requesting work ("just run it"); the manager
-  records the waiver in `task.md`.
+  records the waiver in `00-task.md`.
 
 ---
 
@@ -285,7 +285,7 @@ Read the current diff or a named commit range and report. Changes nothing.
 ## Defaults
 
 - Workflow roles resolve through the Preferred profiles table
-- All runs require `task.md` approval before work starts, unless the user
+- All runs require `00-task.md` approval before work starts, unless the user
   waives it for that run
 - Unspecified standalone mechanical job profile: `quick/glm`
 - A run may select another concrete profile for one job

@@ -40,8 +40,9 @@ create, edit, move, or delete its `README.md`, `state.json`, `history.jsonl`, or
 other control files.
 
 `projects/<name>/runs/` is the narrow exception. The manager creates each run
-directory and assigns each worker exactly one result file. A worker may write
-only its assigned `runs/<run-id>/reports/<NN>-<job>.md` file in the control
+directory and assigns each worker exactly one result file, numbered in
+execution order (`00-task.md` is the spec; `NN-*.md` are outputs). A worker may write
+only its assigned `runs/<run-id>/<NN>-<job>.md` file in the control
 record. It must not edit another report or any other file under
 `projects/<name>/`. Two-digit `NN` records actual execution order; retries get
 the next number rather than overwriting an earlier report.
@@ -120,9 +121,9 @@ Don't create `state.json`; it appears on the first real run.
    resolution only; never copy them into `state.json`. Do not create a new
    workflow merely to change execution fields.
 3. Select and verify the exact workspace.
-4. Create `projects/<name>/runs/<run-id>/reports/` where `<run-id>` is
+4. Create `projects/<name>/runs/<run-id>/` flat, numbered where `<run-id>` is
    `YYYY-MM-DD-HHMM-<workflow>`.
-5. Write manager-owned `task.md` in the run directory. Include the dated task,
+5. Write manager-owned `00-task.md` in the run directory. Include the dated task,
    original request, a `## Demo` section ("what I will see": the concrete
    commands to run and outputs to look at when the work is done — written so
    the user can recognize the task by its outputs), acceptance criteria,
@@ -133,12 +134,12 @@ Don't create `state.json`; it appears on the first real run.
 6. Add the run to `state.json` with status `awaiting-approval`, then regenerate
    the human-readable `TASKS.md`.
 7. **Approval gate.** Show the user a short summary of the run and offer to
-   open `task.md` in their editor (via the show-managed-file skill) so they can
+   open `00-task.md` in their editor (via the show-managed-file skill) so they can
    review and adjust it directly. Then stop. Do not spawn workers until the
    user approves. On approval, record an `approved` timestamp on the run; if
-   the user edited `task.md`, re-read it before briefing workers. Skip the gate
+   the user edited `00-task.md`, re-read it before briefing workers. Skip the gate
    only when the user waived approval in the request ("just run it") — record
-   the waiver in `task.md`.
+   the waiver in `00-task.md`.
 8. Mark the run `running` when work starts, then run jobs in order, one worker
    per job.
 9. Update state and `TASKS.md` at each status change. Report to the user in
@@ -168,6 +169,28 @@ control-record exception is its assigned result file under `runs/`.
 
 Give each worker a minimal job brief, not the complete project configuration.
 
+## Report and spec frontmatter
+
+Every `runs/<run-id>/NN-*.md` starts with YAML frontmatter naming the author and
+role, so attribution survives without reading run state:
+
+```
+---
+author: grok (cursor-agent, cursor-grok-4.6-medium-fast)
+role: implementer
+---
+```
+
+Author is the resolved harness + model + thinking; role is the job type (or
+`design reviewer`, `user review`, etc.). The manager adds it when workers
+can't be relied on, and retrofits it if a report arrives without it.
+
+Every `runs/<run-id>/00-task.md` likewise starts with frontmatter carrying its
+info fields (run id, created date, status, workflow, workspace), with the
+prose sections (Original request, Demo, Objective, Acceptance criteria,
+Constraints, Allowed commands, Coding standards, Resolved execution)
+following as markdown.
+
 ## Coding standards
 
 There are two layers, kept strictly separate:
@@ -179,7 +202,7 @@ There are two layers, kept strictly separate:
   standards (language toolchain, verification commands, layout). It wins over
   the global file. Record its location in `projects/<name>/README.md`.
 
-`task.md` constraints win over both.
+`00-task.md` constraints win over both.
 
 `implement` and `mock` briefs must name the applicable standards files and
 require the worker to read them before writing code. `review` briefs must
@@ -205,8 +228,8 @@ improvise an unapproved command in those categories; it must report the need to
 the manager instead.
 
 Every worker prompt must name the one control-record file it may write:
-`projects/<name>/runs/<run-id>/reports/<NN>-<job>.md`. The manager creates the
-run and `reports/` directories before spawning the worker. Allocate `NN` in
+`projects/<name>/runs/<run-id>/<NN>-job.md`. The manager creates the
+run directory before spawning the worker. Allocate `NN` in
 actual execution order. A retry writes a new numbered report and never
 overwrites an earlier attempt.
 
@@ -253,8 +276,11 @@ to the job that can fix it rather than proceeding. Say so to the user.
 Revisions to a run's work (review feedback or the user's personal review) are
 new numbered attempts inside the same run, per the Revisions section of
 `policies/WORKFLOWS.md`. A run the user is reviewing personally gets status
-`awaiting-user-review`. Open a new run only when the objective or scope
-changes.
+`awaiting-user-review`. When the user gives review feedback, the manager
+writes it up as the next numbered `NN-review.md` (frontmatter `author: user`,
+`role: reviewer`) before briefing the revision attempt — the review is the
+implementer's input, like any other. Open a new run only when the objective
+or scope changes.
 
 ## Tracking
 
@@ -264,11 +290,11 @@ created, starts, changes status, or finishes.
 
 `TASKS.md` is a generated human-readable index derived from `state.json`. It
 must include its last-generated date and a `Date` column for each task. Show
-active tasks first, then recent tasks, with links to their `task.md` files.
+active tasks first, then recent tasks, with links to their `00-task.md` files.
 Regenerate it after every state change. Never treat it as a second source of
 truth; the manager may rebuild it at any time.
 
-Each `runs/<run-id>/task.md` is the dated, detailed specification for that run.
+Each `runs/<run-id>/00-task.md` is the dated, detailed specification for that run.
 The manager writes it before spawning workers and is the only agent allowed to
 edit it. Workers receive its path for context and must not modify it.
 
@@ -300,12 +326,12 @@ what you need.
       "started": "...",
       "finished": "...",
       "request": "what the user asked for",
-      "task_file": "runs/2026-09-04-1430-build/task.md",
+      "task_file": "runs/2026-09-04-1430-build/00-task.md",
       "workspace": "/absolute/path/to/the/checkout-or-worktree-used",
       "jobs": [{"job": "plan", "harness": "rlm",
                 "model": "openai-codex/gpt-5.6-sol", "thinking": "medium",
                 "route": null, "status": "done",
-                "report_file": "runs/2026-09-04-1430-build/reports/01-plan.md"}],
+                "report_file": "runs/2026-09-04-1430-build/01-plan.md"}],
       "outcome": "one line, written when the run ends"
     }
   ],

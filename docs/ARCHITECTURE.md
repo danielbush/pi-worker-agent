@@ -44,8 +44,8 @@ flowchart TB
             CR(["Control-record I/O boundary"])
             PC["README.md<br/>workspace options, commands, constraints"]
             ST["state.json<br/>canonical latest 20 runs"]
-            T["runs/run-id/task.md<br/>dated task specification"]
-            RP["runs/run-id/reports/NN-job.md<br/>reserved worker result"]
+            T["runs/run-id/00-task.md<br/>dated task specification"]
+            RP["runs/run-id/NN-job.md<br/>reserved worker result"]
             LG["runs/run-id/logs/...jsonl<br/>external harness event stream"]
             TL["TASKS.md<br/>generated project index"]
             HI["history.jsonl<br/>append-only older runs"]
@@ -188,7 +188,73 @@ Rules that the diagram does not show:
   never the selector.
 - Retries and revisions are new numbered `JOB` rows in the same `RUN`.
 - `approval: required` means a `RUN` cannot leave `awaiting-approval` until
-  the user approves its `task.md`.
+  the user approves its `00-task.md`.
+
+### Example: one run on disk
+
+A run is a directory; everything it produces hangs off it by path. Using a
+mock project and run id:
+
+```
+projects/my-project/runs/2026-01-15-0930-quickfix/
+  00-task.md                     # the approved spec (manager-owned;
+                                 #   frontmatter: run_id, title, created,
+                                 #   status, workflow, workspace)
+  01-implement.md                # first attempt (frontmatter: author, role)
+  02-review.md                   # FAIL — issues found
+  03-implement.md                # fixes from the review feedback
+  04-review.md                   # PASS
+  05-review.md                   # your review (author: user), written up by
+                                 #   the manager: one more tweak
+  06-implement.md                # the tweak
+  logs/
+    01-implement.cursor-agent.jsonl
+    03-implement.cursor-agent.jsonl
+    06-implement.cursor-agent.jsonl
+```
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "#080d18", "primaryColor": "#172554", "primaryTextColor": "#f8fafc", "primaryBorderColor": "#60a5fa", "secondaryColor": "#111827", "secondaryTextColor": "#f8fafc", "secondaryBorderColor": "#94a3b8", "tertiaryColor": "#0f172a", "tertiaryTextColor": "#f8fafc", "tertiaryBorderColor": "#475569", "lineColor": "#94a3b8", "textColor": "#f8fafc", "titleColor": "#f8fafc", "clusterBkg": "#0f172a", "clusterBorder": "#475569", "edgeLabelBackground": "#080d18"}}}%%
+erDiagram
+    PROJECT_DIR {
+        path dir "projects/my-project/"
+    }
+    RUN_DIR {
+        path dir "runs/2026-01-15-0930-quickfix/"
+    }
+    TASK_MD {
+        path file "00-task.md"
+    }
+    JOB_MD {
+        path file "NN-job.md"
+        string nn "execution order; retries get the next number"
+    }
+    LOG_JSONL {
+        path file "logs/NN-job.harness.jsonl"
+    }
+
+    PROJECT_DIR ||--o{ RUN_DIR : "has zero or more"
+    RUN_DIR ||--|| TASK_MD : "has exactly one"
+    RUN_DIR ||--|{ JOB_MD : "has one or more"
+    RUN_DIR ||--o{ LOG_JSONL : "has zero or more (external harnesses)"
+```
+
+The cardinality that matters: **one run directory, many numbered output
+files** — and the numbering is the conversation. The example above shows both
+loops: implement↔review (01–04) and user↔implement (05–06), all inside one
+run.
+Revisions and retries never overwrite — attempt N's feedback produces report
+N+1 in the same run, so the directory is a complete, ordered record of how
+the work converged.
+
+The numbered `NN-*.md` files hold **outputs** from anyone who contributes
+to the run — implementers and reviewers. A personal review by the user is
+just another review: `NN-review.md` with frontmatter `author: user`, written
+up by the manager from the user's feedback, and — like any review — fed back
+to the implementer as the next attempt's input. **Inputs** — the spec, open
+design questions — stay outside: `00-task.md` is manager-owned.
+
+---
 
 ## Request and job resolution
 
@@ -211,7 +277,7 @@ values:
   "thinking": "medium",
   "route": "morph/fp4",
   "status": "pending",
-  "report_file": "runs/2026-09-06-0140-build-no-plan/reports/01-implement.md"
+  "report_file": "runs/2026-09-06-0140-build-no-plan/01-implement.md"
 }
 ```
 
@@ -231,7 +297,7 @@ the selector is used.
 2. Select and verify the exact workspace. When Git is present, verify both the
    worktree root and common Git directory; never silently substitute another
    checkout.
-3. Create `runs/<run-id>/reports/` and manager-owned `task.md` before launching
+3. Create the run directory and manager-owned `00-task.md` before launching
    a worker.
 4. Add the run and resolved jobs to `state.json`, then regenerate project and
    root indexes.
@@ -271,9 +337,9 @@ not copied file objects. The fields mean:
   constraints;
 - **Workspace:** the exact absolute execution path and an instruction to change
   into it first;
-- **Inputs:** the manager-owned `task.md` path and paths to required earlier job
+- **Inputs:** the manager-owned `00-task.md` path and paths to required earlier job
   reports, never in-memory objects or unrelated run context;
-- **Output:** exactly one reserved `reports/<NN>-<job>.md` path;
+- **Output:** exactly one reserved `runs/<run-id>/<NN>-<job>.md` path;
 - **Authorization:** the exact install, dependency, generation, build, test,
   typecheck, migration, deployment, service, and Git-mutating commands allowed
   for that job; read-only discovery is allowed unless project policy says
@@ -326,8 +392,8 @@ written report.
 | project `TASKS.md` | Generated view of one project state | Manager |
 | root `TASKS.md` | Generated cross-project view | Manager |
 | `history.jsonl` | Append-only complete runs older than the latest 20 | Manager |
-| `runs/<run-id>/task.md` | Dated request and acceptance specification | Manager |
-| `runs/<run-id>/reports/<NN>-<job>.md` | Authoritative result for one execution | Assigned worker |
+| `runs/<run-id>/00-task.md` | Dated request and acceptance specification | Manager |
+| `runs/<run-id>/<NN>-<job>.md` | Authoritative result for one execution | Assigned worker |
 | `runs/<run-id>/logs/*.jsonl` | Durable external harness event stream | External harness via manager launcher |
 | external workspace | Project implementation and tests | Authorized worker |
 

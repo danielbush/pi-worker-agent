@@ -13,7 +13,7 @@ copy or substitute a worker prompt/report for the original task.
 
 | User asks for | Target |
 |---|---|
-| task, original task, original brief | Current or named run's `task.md` |
+| task, original task, original brief | Current or named run's `00-task.md` |
 | models, model configuration | `~/.prime/agent/models.json` |
 | workflows | Repository `policies/WORKFLOWS.md` |
 | architecture | Repository `docs/ARCHITECTURE.md` |

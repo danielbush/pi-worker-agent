@@ -21,10 +21,10 @@ Before launch:
 1. Verify the exact absolute workspace. If it is Git-backed, verify both
    `git rev-parse --show-toplevel` and `git rev-parse --git-common-dir`; never
    replace a selected worktree with its main checkout or common directory.
-2. Create manager-owned `runs/<run-id>/reports/` and `logs/` directories.
-3. Reserve exactly one `reports/<NN>-<job>.md`. The sequence number is global
+2. Create the manager-owned `runs/<run-id>/` and its `logs/` directory.
+3. Reserve exactly one `runs/<run-id>/<NN>-<job>.md`. The sequence number is global
    within the run and reflects execution order; retries get a new number.
-4. Choose `logs/<NN>-<job>.<harness>.jsonl` for the raw event stream.
+4. Choose `runs/<run-id>/logs/<NN>-<job>.<harness>.jsonl` for the raw event stream.
 5. Record the job's actual harness, exact model, route when applicable,
    `harness_log`, assigned report, start time, and `running` status in
    `state.json`; regenerate task indexes.
@@ -42,7 +42,7 @@ The prompt must contain only job-relevant data:
 - protected paths and prohibited actions.
 
 Never include credentials. The workspace is the only project-write location;
-the assigned report is the sole control-record exception.
+the assigned `NN-<job>.md` in the run directory is the sole control-record exception.
 
 ## 3. Launch without blocking
 
