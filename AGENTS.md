@@ -147,9 +147,19 @@ workspace is the only location where the worker may do project work; the sole
 control-record exception is its assigned result file under `runs/`.
 
 Give each worker a minimal job brief, not the complete project configuration.
-For `implement` and `mock` jobs, include the relevant excerpts from
-`policies/CODE.md` (the user's coding standards) when that file exists. The
-brief must state:
+
+## Coding standards
+
+`policies/CODE.md` holds the user's global coding defaults. A project's own
+coding standards — recorded in `projects/<name>/README.md` as a path into the
+workspace or written inline — win over it. `task.md` constraints win over
+both.
+
+`implement` and `mock` briefs must name the applicable standards files and
+require the worker to read them before writing code. `review` briefs must
+include the same list as a rubric.
+
+The brief must state:
 
 - the exact objective and relevant constraints;
 - the exact execution path;
