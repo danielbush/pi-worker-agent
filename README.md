@@ -6,219 +6,13 @@ delegates the actual work to worker agents operating on projects that live
 elsewhere on disk.
 
 You describe what you want in plain language. The manager picks a workflow,
-spawns one worker per job, checks each result before moving on, and reports back
-between jobs. Adding a new workflow means editing markdown, not code.
+spawns one worker per job, checks each result before moving on, and reports
+back between jobs. Adding a new workflow means editing markdown, not code.
 
-## Why a separate directory
-
-Prime Agent loads `AGENTS.md` from the working directory into the system prompt
-automatically, and loads skills from `.agents/skills/` there too. So a directory
-*is* a configuration unit. Run the agent here and it comes up as a manager. Run
-it inside a project and it comes up as an ordinary coding agent.
-
-Nothing here is a codebase. It is policy, workflow definitions, and per-project
-tracking. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data flow
-and ownership model.
-
-## Layout
-
-```
-prime-worker-agent/
-  AGENTS.md            # policy — auto-loaded into the manager's system prompt
-  policies/            # your policies: WORKFLOWS.md + CODE.md (gitignored)
-  examples/policies/   # example policies you can copy into policies/
-  docs/
-    ARCHITECTURE.md    # data flow, storage, outputs, and ownership
-    BACKLOG.md         # ideas not built yet
-  projects/
-    api/
-      README.md        # manager context: workspace, commands, constraints
-      state.json       # canonical header + last 20 runs
-      TASKS.md         # dated human-readable view generated from state.json
-      history.jsonl    # append-only archive of older runs
-      runs/
-        <run-id>/
-          task.md      # dated manager-owned task specification
-          reports/
-            01-plan.md       # first worker report
-            02-implement.md  # second worker report
-            03-review.md     # third worker report
-    website/
-      ...
-  .agents/skills/      # optional, later: frozen orchestration code
-```
-
-One folder per managed project. Everything about a project stays together —
-delete the folder and the project is gone.
-
-The split inside it matters:
-
-- `README.md` is manager-owned project context: what the project is, its
-  workspace options, approved commands, constraints, and goals. The manager
-  extracts a minimal brief for each worker rather than sending this whole file.
-- `state.json` is canonical recent state; `history.jsonl` is the older archive.
-  Each run records its date and exact workspace.
-- `TASKS.md` is a dated human-readable index generated from `state.json`.
-- `runs/<run-id>/task.md` is the manager-owned detailed task. Worker results
-  live in execution order under `reports/<NN>-<job>.md`. A worker may write only
-  its assigned report; the manager owns everything else under
-  `projects/<name>/`.
-
-JSON rather than markdown for state is deliberate. The manager reads and writes
-it in a line of Python and it never drifts. Markdown state gets reformatted a
-little more each session until it stops parsing cleanly.
-
-The split by age matters once a project has a hundred runs behind it. `state.json`
-stays small enough to hold the recent picture; `history.jsonl` is append-only, so
-old runs cost nothing to keep and nothing to write past.
-
-The real cost of state is context, not disk. Loading a large file into a Python
-variable is free — only what gets *printed* enters the manager's context. So the
-rule in `AGENTS.md` is: load, slice, then display.
-
-## Key constraint
-
-`rlm.run` accepts exactly three kwargs: `name`, `model`, `thinking`. There is no
-`cwd`. A worker inherits the manager's working directory — this control
-directory, not the external project workspace.
-
-The manager selects or creates an explicit workspace for each run and records
-its absolute path. Every worker prompt carries that path and instructs the
-worker to `os.chdir` there before doing anything. The workspace may be a Git
-worktree; the manager must not replace it with the main checkout or Git common
-directory. The prompt also carries only the constraints and approved commands
-needed for that job. Apart from its assigned
-`runs/<run-id>/reports/<NN>-<job>.md`, a worker never edits the manager's
-`projects/<name>/` control record.
-
-Workers also do not share the manager's Python kernel. Pass paths between them,
-never objects.
-
-## The six steps
-
-### 1. Add a project
-
-Create `projects/<name>/README.md`. Record the exact execution path, whether it
-is a directory, checkout, or worktree, what it is, approved project commands,
-branch rules, and things not to break.
-
-The manager reads this to resolve "work on the API" into `/Users/you/code/api`.
-It keeps the complete context and gives each worker only the path, commands,
-constraints, inputs, and output location needed for that job.
-
-Leave `state.json` alone; the manager creates it when the first task is
-recorded and generates `TASKS.md` from it.
-
-### 2. Write `policies/WORKFLOWS.md`
-
-This is the file you will actually maintain. It has three parts.
-
-**Concrete profiles** use names such as `planner/sol`, `coder/grok`, and
-`coder/kimi/morph`; each bundles a harness, model, thinking level, and optional
-route. **Preferred roles** map `planning`, `coding`, and `reviewing` to concrete
-profiles. **Workflows** define ordered jobs using those roles. Change a preferred
-role once and every workflow using it follows.
-
-For a one-off model comparison or alternate harness, keep the same workflow and
-request a concrete profile for that job, such as
-`implement: coder/kimi/morph`. Do not duplicate the workflow merely to swap its
-model. That notation is input to the manager, not state structure. Before
-execution, the manager resolves each job and stores only its actual harness,
-model, thinking level, and route in `state.json`; those values remain historical
-truth if preferences change.
-
-Suggested shape, but nothing here is hard-coded — invent your own:
-
-```markdown
-## build
-plan (planning) -> implement (coding) -> review (reviewing)
-
-## quickfix
-implement (coding) -> review (quick/glm)
-
-## mockup
-plan (planning) -> mock (coding)
-```
-
-Add prose under each where a job name isn't self-explanatory.
-
-Because this is markdown read at runtime, adding a workflow is editing a file.
-No code changes, no restart.
-
-### 3. Write `AGENTS.md`
-
-The policy the manager always has in context. In this order:
-
-- You are a manager. You do not write project code yourself.
-- Read `policies/WORKFLOWS.md` at the start of a session, and `projects/<name>/README.md`
-  plus `state.json` when a project is named.
-- Resolve the request to a project and a workflow. Ask if either is ambiguous.
-- Resolve any per-run model choice and record only each job's actual execution
-  fields in state; never copy override notation into state.
-- Run the workflow's jobs in order, one worker per job.
-- Every worker prompt must state the exact checkout or worktree path and
-  instruct `os.chdir` to it first.
-- Give workers minimal job briefs with only relevant constraints and explicitly
-  approved project commands; do not hand them the whole manager configuration.
-- Check each job's result before starting the next. A failed job loops back
-  rather than proceeding.
-- Workers write only their assigned
-  `projects/<name>/runs/<run-id>/reports/<NN>-<job>.md`. Read that, not the
-  transcript. Retries get a new sequence number.
-- Update `state.json` when a run starts, changes status, or finishes.
-- Report to the user in plain language between jobs.
-
-Keep it short. It's a standing instruction, not a manual.
-
-### 4. Let the manager write the orchestration
-
-Don't pre-write the Python. The manager reads the workflow, then writes the loop
-in a cell. Roughly:
-
-```python
-handle = await rlm(
-    f"os.chdir to {project_path} first. {job_instructions}. "
-    f"Allowed project commands: {allowed_commands}. "
-    f"Write your result to {run_dir}/{job}.md",
-    model=resolved_job.model,
-    thinking=resolved_job.thinking,
-    name=f"{workflow}-{job}",
-)
-```
-
-Fan out with a list comprehension where jobs are independent. Sequence with a
-plain `for` loop where they aren't.
-
-This is the part worth leaving flexible. The manager adapting its own
-orchestration to a workflow you invented last week is the whole point.
-
-### 5. Collect results through files
-
-Spawning returns a handle immediately, not an answer. The worker runs detached.
-
-Use `agent_observe` to watch progress, `agent_message.send(...,
-receiver_role="child")` to send a follow-up, and `rlm-heartbeat` for long runs.
-Keep a child alive until you've read its output.
-
-The manager creates `runs/<run-id>/reports/` before spawning jobs. Each worker
-owns only its assigned `<NN>-<job>.md` report. Sequence numbers record actual
-execution order. Review and retry workers may read earlier reports but must
-write a new numbered report. The manager alone updates the project README,
-state, history, and run metadata.
-
-Treat these job result files as the real interface. They survive context
-compaction and kernel death; handles don't.
-
-### 6. Freeze what stabilises
-
-Once a workflow has run enough times to be boring, ask the manager to turn its
-orchestration into a Python skill under `.agents/skills/`. It becomes a callable
-function instead of improvised code, and stops being re-derived every session.
-
-Use `/refine` along the way — when a run goes wrong, it updates the notes and
-specs from what actually happened.
-
-Do this last. Freezing too early defeats step 4.
+Prime Agent auto-loads `AGENTS.md` and `.agents/skills/` from the directory
+you launch it in — so this repository *is* the manager's configuration. Run
+the agent here and it comes up as a manager; run it inside one of your
+projects and it comes up as an ordinary coding agent.
 
 ## Getting started
 
@@ -235,33 +29,93 @@ cd prime-worker-agent
 prime-agent
 ```
 
-Then say **"onboard me"**. The manager walks you through setup: copying
-example policies into `policies/`, checking which models you have access to,
-shaping workflows to how you work, and reading your first project to draft its
-context. It'll tell you what to `/login` to if a model you want isn't
-configured.
+Then say **"onboard me"**. The manager checks whether `policies/` is set up,
+offers to copy `examples/policies/` into it, checks which models you have
+access to, shapes workflows to how you work, and reads your first project to
+draft its context. It'll tell you what to `/login` to if a model you want
+isn't configured.
 
-You can also just edit `policies/WORKFLOWS.md` and `projects/<name>/README.md` yourself —
-it's all markdown, and the manager reads it at runtime.
+## Why Prime Agent
 
-Steps 1, 2, and 3 above are what setup is doing on your behalf.
+Prime Agent's RLM runtime is what makes this manager shape practical. It has
+two layers: the agent loop is TypeScript (streaming, turns, tool routing),
+while tool calls execute in a **persistent Python REPL**. State, indexes, and
+parsed reports live in kernel variables the manager can slice and query
+instead of re-reading them into a context window; process handles survive
+across turns. The manager spawns workers as native subagents (`rlm()`),
+watches them with `agent_observe`, talks to them with `agent_message`, and
+compacts its own context when it fills — so long orchestration sessions don't
+degrade.
 
-## Sharing
+External harnesses (cursor-agent, codex) trade some of that away. They are
+ordinary processes: no agent messaging, no observation — the manager keeps a
+process handle, captures the harness's JSONL event stream to a durable log,
+and runs a heartbeat that polls the log and reports stalls or completion.
+That is enough to supervise them reliably, but it is manual plumbing compared
+to what `rlm()` gives you for free.
 
-`AGENTS.md`, `.agents/skills/`, and `examples/policies/` are git-safe and portable. Your own `policies/` content is gitignored.
+## The maintainer's setup (non-authoritative)
 
-`projects/` holds local absolute paths and run output. Gitignore it and ship a
-`projects/example/README.md` so people can see the shape.
+How the author happens to run this today — documentation of one working
+setup, not instructions:
 
-```gitignore
-projects/*
-!projects/example/
-projects/example/runs/*
-!projects/example/runs/.gitkeep
+- **Manager**: Prime Agent running `moonshotai/kimi-k3` (Kimi K3) as the
+  default model, configured in `~/.prime/agent/settings.json`.
+- **Workers**: a mix of RLM-native (GLM, Kimi via OpenRouter routes) and
+  external harnesses — `cursor-agent` (Grok) and `codex` (GPT-5.6 Sol). No
+  settled doctrine here; the open question is whether to spend on
+  expensive planners with cheaper/faster builders, or the reverse. External
+  harnesses are attractive partly for economics — ChatGPT/Cursor
+  subscriptions are heavily subsidised relative to API pricing — and partly
+  for whatever the harness itself adds (tooling, caching, its own agent
+  loop). RLM-native buys tighter supervision (messaging, observation) as
+  described above.
+
+### Provider routing via `~/.prime/agent/models.json`
+
+OpenRouter hosts the same model through multiple upstream providers, and any
+one route can be slow or down. So each route is configured as a *separate
+Prime Agent provider* pinned with `openRouterRouting.only` and
+`allow_fallbacks: false`:
+
+```json
+"providers": {
+  "openrouter-modal": { "baseUrl": "https://openrouter.ai/api/v1", ...,
+    "models": [{ "id": "moonshotai/kimi-k3",
+      "compat": { "openRouterRouting": { "only": ["modal/mxfp4"],
+        "allow_fallbacks": false } } }] },
+  "openrouter-morph": { ... "only": ["morph/fp4"] ... }
+}
 ```
 
-Don't make the example a nested git repo. The outer repo records it as a gitlink
-with no `.gitmodules`, so people cloning get an empty directory.
+Profiles in `policies/WORKFLOWS.md` then name the route explicitly, e.g.
+`openrouter-modal/moonshotai/kimi-k3` with route `modal/mxfp4`. Changing route
+= changing profile, which is a one-line per-run choice.
 
-Note that `harness.create_subagent(...)` state lives in `~/.prime/agent` and does
-*not* travel with the repo. Anything you want to share belongs in markdown here.
+**Operational note:** OpenRouter routes do drop out mid-session. When a
+worker stalls or errors on a dead route, stop it (left-arrow in the TUI to
+interrupt), and re-run the session — sometimes switching to the sibling
+provider (modal ↔ morph). It happens often enough to be expected, not
+alarming. Use a new or reloaded Prime Agent session after editing
+`models.json`.
+
+## Learn more
+
+Two kinds of files, two levels of permission:
+
+- **The kernel — not yours to change.** `AGENTS.md` is the manager's operating
+  policy, auto-loaded into its prompt. It's intended to be stable across
+  users: the ownership rules, run lifecycle, and worker supervision protocol
+  that make the whole thing hold together. Treat changes to it as changes to
+  the project itself (a pull request, not a preference).
+- **The policies — completely yours.** Everything under `policies/`
+  (WORKFLOWS.md: models, job types, workflows; CODE.md: coding standards) is
+  user configuration. Copy the examples and reshape them freely; the manager
+  reads them at runtime and never edits them itself.
+
+More detail:
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — data flow, storage, outputs,
+  ownership, and the configuration entity diagram.
+- `SETUP.md` — this repository's own tooling (mise + uv) for working on
+  `tools/`.
