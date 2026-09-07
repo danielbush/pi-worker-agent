@@ -136,7 +136,7 @@ brief from the manager — this table is the shared vocabulary, not a prompt.
 | `plan` | planning | Produce an approach another agent can execute without re-reading the codebase; must end with a Demo section (what the user will see: concrete commands and outputs) | The request; any `investigate` report | Written plan in its report |
 | `implement` | coding | Make the change in the workspace | `00-task.md`; any `plan`/prior reports | Code + verification; report |
 | `mock` | coding | Build a throwaway fake for user reaction | `00-task.md`; any `plan` report | Scratch code, never integrated; report |
-| `review` | reviewing | Independent verdict on work done | `00-task.md`, reports, workspace diff | PASS/FAIL verdict in its report |
+| `review` | reviewing | Independent verdict on work done — judge against the coding-standards stack, applying their priority (`00-task.md` constraints, then project `CODE.md`, then global `policies/CODE.md`) | `00-task.md`, reports, workspace diff, standards files | PASS/FAIL verdict in its report |
 
 Rules that apply to every job type:
 
