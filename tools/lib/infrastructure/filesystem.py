@@ -31,7 +31,7 @@ class EmbeddedPathStub:
     def read_text(self, path: Path) -> str:
         key = str(Path(path))
         if key not in self.files:
-            raise OSError(key)
+            raise FileNotFoundError(key)
         return self.files[key]
 
     def write_text(self, path: Path, text: str) -> None:

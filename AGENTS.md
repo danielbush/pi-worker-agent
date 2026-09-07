@@ -102,7 +102,7 @@ checkout, or worktree; look for the test command, package manager, allowed
 project commands, and branch convention. Draft `projects/<name>/README.md` as
 manager context. Show it to them and ask what you got wrong.
 
-Don't create `state.json`; it appears on the first real run.
+Do not seed `state.json` during setup; the first real run creates it through `StateStore.load(...).update(...)`.
 
 **5. Confirm.** Summarise what changed and offer to run something small.
 

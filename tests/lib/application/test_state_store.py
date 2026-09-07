@@ -176,6 +176,72 @@ def test_failed_state_replacement_leaves_old_state_untorn() -> None:
     assert "Candidate" in filesystem.read_text(root / "TASKS.md")
 
 
+def test_load_missing_state_uses_empty_document_and_first_update_round_trips(
+    tmp_path: Path,
+) -> None:
+    # arrange
+    project_dir = tmp_path / "repo" / "projects" / "fresh-proj"
+    project_dir.mkdir(parents=True)
+    expected = {
+        "project": "fresh-proj",
+        "path": "",
+        "runs": [],
+        "archived": 0,
+    }
+
+    # act
+    store = StateStore.load(project_dir)
+    initial = store.snapshot()
+    committed = store.update(lambda state: state)
+    reloaded = StateStore.load(project_dir).snapshot()
+
+    # assert
+    assert initial == expected
+    assert committed == expected
+    assert reloaded == expected
+    assert json.loads((project_dir / "state.json").read_text()) == expected
+    assert (project_dir / "TASKS.md").is_file()
+    assert (tmp_path / "repo" / "TASKS.md").is_file()
+
+
+def test_create_null_missing_state_uses_same_empty_document() -> None:
+    # arrange
+    project_dir = Path("/repo/projects/fresh-proj")
+    filesystem = Filesystem.create_null(directories=[str(project_dir)])
+    expected = {
+        "project": "fresh-proj",
+        "path": "",
+        "runs": [],
+        "archived": 0,
+    }
+
+    # act
+    store = StateStore.create_null(project_dir, filesystem=filesystem)
+    initial = store.snapshot()
+    committed = store.update(lambda state: state)
+
+    # assert
+    assert initial == expected
+    assert committed == expected
+    assert json.loads(filesystem.read_text(project_dir / "state.json")) == expected
+
+
+def test_load_reports_non_missing_read_oserror_with_state_path(tmp_path: Path) -> None:
+    # arrange
+    project_dir = tmp_path / "repo" / "projects" / "fresh-proj"
+    project_dir.mkdir(parents=True)
+    state_path = project_dir / "state.json"
+    state_path.mkdir()
+
+    # act
+    with pytest.raises(StateStoreLoadError, match="read state failed") as caught:
+        StateStore.load(project_dir)
+
+    # assert
+    assert str(state_path) in str(caught.value)
+    assert isinstance(caught.value.__cause__, IsADirectoryError)
+
+
 def test_load_reports_malformed_json_with_the_state_path() -> None:
     # arrange
     project_dir = Path("/repo/projects/demo")

@@ -151,23 +151,35 @@ class StateStore:
         return project_dir.parent.parent
 
     @staticmethod
+    def _empty_document(project_name: str) -> dict[str, Any]:
+        return {
+            "project": project_name,
+            "path": "",
+            "runs": [],
+            "archived": 0,
+        }
+
+    @staticmethod
     def _load_document(project_dir: Path, filesystem: Filesystem) -> dict[str, Any]:
         state_path = project_dir / "state.json"
         try:
             text = filesystem.read_text(state_path)
+        except FileNotFoundError:
+            parsed: object = StateStore._empty_document(project_dir.name)
         except OSError as error:
             raise StateStoreLoadError(
                 f"read state failed for {state_path}: {error}"
             ) from error
-        try:
-            parsed = json.loads(text, parse_constant=_reject_json_constant)
-        except (json.JSONDecodeError, ValueError) as error:
-            message = (
-                error.msg if isinstance(error, json.JSONDecodeError) else str(error)
-            )
-            raise StateStoreLoadError(
-                f"parse state failed for {state_path}: {message}"
-            ) from error
+        else:
+            try:
+                parsed = json.loads(text, parse_constant=_reject_json_constant)
+            except (json.JSONDecodeError, ValueError) as error:
+                message = (
+                    error.msg if isinstance(error, json.JSONDecodeError) else str(error)
+                )
+                raise StateStoreLoadError(
+                    f"parse state failed for {state_path}: {message}"
+                ) from error
         if not isinstance(parsed, dict):
             raise StateStoreLoadError(
                 f"parse state failed for {state_path}: expected top-level object"
