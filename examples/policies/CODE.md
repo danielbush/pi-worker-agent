@@ -22,6 +22,12 @@
   - Do not create value objects for unrelated values or simple scalars that have no shared rules or behavior.
 - Use classes for lifecycle, persistence, orchestration, and other stateful services.
 - Pure algorithmic, formatting and conversion logic can be functions that are used by classes.
+- The class-vs-function test: a class must earn its name with state, an injected
+  dependency, a lifecycle, or a credible second implementation. If a construct
+  has none of these, it is a function — even at a boundary. Keep the boundary
+  as a module (public functions, private helpers), not as a wrapper class
+  around what is really one operation. Do not invent a value object for a
+  result that carries no validation, normalization, or behaviour.
 - Prefer polymorphism and composition over branching on implementation identities. Consumers of a shared abstraction should not reconstruct provider-specific behavior with `if` or `switch` statements on names such as a harness, backend, or vendor. Put variation behind the owning interface or adapter, and persist or pass shared data in an implementation-neutral shape. Discriminant checks remain appropriate at composition, validation, serialization, and protocol-routing boundaries when the identity itself is the data being handled.
 - Use a system similar to James Shore's nullable architecture
   - Classes that directly interact with the outside world (DOM, fs, network) are INFRASTRUCTURE_WRAPPER's
