@@ -115,11 +115,13 @@ setup, not instructions:
 - **Workers**: a mix of RLM-native (GLM, Kimi via OpenRouter routes) and
   external harnesses — `cursor-agent` (Grok) and `codex` (GPT-5.6 Sol). No
   settled doctrine here; the open question is whether to spend on
-  expensive planners with cheaper/faster builders, or the reverse. External
-  harnesses are attractive partly for economics — ChatGPT/Cursor
-  subscriptions are heavily subsidised relative to API pricing — and partly
-  for whatever the harness itself adds (tooling, caching, its own agent
-  loop). RLM-native buys tighter supervision (messaging, observation) as
+  expensive planners with cheaper/faster builders, or the reverse. The
+  economics favour subscriptions where a provider offers one — a ChatGPT
+  Plus/Pro plan serves both `codex` (the CLI) and RLM-native
+  `openai-codex/*` models, since Prime Agent can use the same login — and
+  are heavily subsidised relative to API pricing. What an external harness
+  still buys on top is the harness itself: tooling, caching, its own agent
+  loop. RLM-native buys tighter supervision (messaging, observation) as
   described above.
 
 ### Provider routing via `~/.prime/agent/models.json`
