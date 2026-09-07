@@ -54,7 +54,7 @@
   - Do not define operational callbacks, filesystem traversal, network calls, credential handling, control flow, data transformation, or lifecycle behavior inside `create()` or `createNull()`. If a factory needs more than straightforward constructor wiring, extract the behavior into a named driver, adapter, instance method, or function and inject that name.
   - Production and null driver implementations should be named so factory wiring reads as composition rather than implementation. Keep DRIVER_CODE invocation and coordination out of factories and in the owning driver, adapter, instance method, or constructor.
   - NULL_VARIANT's use EMBEDDED_STUB's implementing the same driver interfaces.
-- Give each major class or value object its own source file named after that construct using kebab case, such as `ProjectCollectionPaths` in `project-collection-paths.ts`. Name files after the primary domain construct rather than a broad topic, and avoid generic names such as `types.ts` or `utils.ts`.
+- Give each major class or value object its own source file named after that construct, such as `ProjectCollectionPaths` in `project-collection-paths.ts` (TS/JS) or `project_collection_paths.py` (Python). Name files after the primary domain construct rather than a broad topic, and avoid generic names such as `types.ts`/`utils.py`.
 - Add concise docstrings that map classes to the constructs and ownership boundaries in `ARCHITECTURE.md`.
 - file system layout
   - the filesystem should group subsystems and hide detail in subdirs
@@ -121,3 +121,16 @@ Specific to this project
   classes and `tempfile` boilerplate.
 - Modules use snake_case (kebab-case file rules from other languages do not
   translate to Python imports).
+
+## Language mappings
+
+The rules above are language-neutral in intent. Apply them per language with
+these mappings; add a row when a new language actually shows up, not before.
+
+| Concept | TS/JS | Python |
+|---|---|---|
+| Source files | kebab-case, `src/` tree | snake_case modules; the project's library root plays the `src/` role (or `src/` if present) |
+| Tests | `__tests__/` collocated with the module | `tests/` mirroring the source layout, pytest |
+| Null-variant factory | `.createNull(...)` | `.create_null(...)` |
+| Driver to inject for randomness | `Math.random` | `random` |
+| Dependency/toolchain runner | npm scripts | `uv run` |
