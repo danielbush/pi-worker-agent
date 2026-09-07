@@ -114,11 +114,13 @@ Don't create `state.json`; it appears on the first real run.
    for its jobs. Describe any one-off model choice in prose, not as state data.
 6. Add the run to `state.json` with status `awaiting-approval`, then regenerate
    the human-readable `TASKS.md`.
-7. **Approval gate.** Show the user a short summary and the `task.md` path, then
-   stop. Do not spawn workers until the user approves. On approval, record an
-   `approved` timestamp on the run; if the user asked for changes, edit
-   `task.md` first and re-present. Skip the gate only when the user waived
-   approval in the request ("just run it") — record the waiver in `task.md`.
+7. **Approval gate.** Show the user a short summary of the run and offer to
+   open `task.md` in their editor (via the show-managed-file skill) so they can
+   review and adjust it directly. Then stop. Do not spawn workers until the
+   user approves. On approval, record an `approved` timestamp on the run; if
+   the user edited `task.md`, re-read it before briefing workers. Skip the gate
+   only when the user waived approval in the request ("just run it") — record
+   the waiver in `task.md`.
 8. Mark the run `running` when work starts, then run jobs in order, one worker
    per job.
 9. Update state and `TASKS.md` at each status change. Report to the user in

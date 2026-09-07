@@ -150,8 +150,10 @@ Rules that apply to every job type:
 
 Every run requires your approval of its `task.md` before the first worker
 spawns. The manager creates the run, writes `task.md`, records the run as
-`awaiting-approval`, and shows you the spec. On approval it records an
-`approved` timestamp on the run, marks it `running`, and starts work.
+`awaiting-approval`, and offers to open the spec in your editor so you can
+review and adjust it directly. On approval it records an `approved` timestamp
+on the run, marks it `running`, and starts work — re-reading `task.md` first
+if you edited it.
 
 - Approval is per run, not per job: retries and review loops inside an
   approved run do not re-ask.
