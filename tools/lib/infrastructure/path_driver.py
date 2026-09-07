@@ -1,0 +1,16 @@
+"""Driver interface for path reads, writes, and directory listing."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Protocol
+
+
+class PathDriver(Protocol):
+    """Driver contract for path I/O; production and stub implementations share this surface."""
+
+    def read_text(self, path: Path) -> str: ...
+    def write_text(self, path: Path, text: str) -> None: ...
+    def is_file(self, path: Path) -> bool: ...
+    def is_dir(self, path: Path) -> bool: ...
+    def child_names(self, path: Path) -> list[str]: ...

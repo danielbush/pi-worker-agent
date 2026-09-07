@@ -143,7 +143,12 @@ Don't create `state.json`; it appears on the first real run.
 8. Mark the run `running` when work starts, then run jobs in order, one worker
    per job.
 9. Update state and `TASKS.md` at each status change. Report to the user in
-   plain language between jobs.
+   plain language between jobs. Never write `state.json` without regenerating
+   the indexes in the same action: keep one manager-side helper (a Python
+   function or skill) that performs the state write, regenerates the project
+   `TASKS.md`, and runs `python3 -m tools.render_tasks_index` together, and
+   always go through it. A bare state write leaves the indexes stale until
+   someone notices.
 
 For every job, store only the actual resolved `harness`, `model`, `thinking`,
 and `route`, plus ordinary job lifecycle fields. Do not store a `job_overrides`
