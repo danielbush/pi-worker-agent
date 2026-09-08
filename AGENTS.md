@@ -145,11 +145,15 @@ Do not seed `state.json` during setup; the first real run creates it through `St
    single deliverable is to **append** the rest of `00-task.md` — `## Demo`
    ("what I will see": the concrete commands to run and outputs to look at when
    the work is done — written so the user can recognize the task by its
-   outputs), objective, acceptance criteria, constraints, and the commands the
-   manager may authorize for its jobs. The manager may also draft the spec
-   itself instead of spawning a worker; prefer a worker for significant work to
-   preserve manager context. The demo illustrates; the acceptance criteria
-   remain authoritative on conflict.
+   outputs), plus a `## Plan` (a step-by-step, in-order account of what will
+   happen — the first step to the last, concrete, no fluff), a few hard
+   constraints and allowed commands. Keep the spec SHORT — ruthlessly cut
+   anything not needed; ambiguity is acceptable, perfection is not. No
+   acceptance criteria section; the Demo and the Plan are the contract.
+   Criteria come from the user only: never invent or embellish acceptance
+   criteria; if the raw request is vague, ask the user for clarity before
+   drafting. The manager may also draft the spec itself instead of spawning a
+   worker; prefer a worker for significant work to preserve manager context.
 6. Add the run to `state.json` with status `awaiting-approval`, then regenerate
    the human-readable `TASKS.md`.
 7. **Approval gate.** Show the user a short summary of the run and offer to
@@ -253,9 +257,9 @@ field.
 
 Every `tasks/<date>--<slug>/00-task.md` likewise starts with frontmatter carrying its
 info fields (run id, created date, status, workflow, workspace), with the
-prose sections (Original request, Demo, Objective, Acceptance criteria,
-Constraints, Allowed commands, Coding standards, Resolved execution)
-following as markdown.
+prose sections (Original request, Demo, Plan, Constraints, Allowed commands,
+Resolved execution) following as markdown. Keep it short; no acceptance
+criteria.
 
 ## Coding standards
 

@@ -9,7 +9,6 @@ from tools.lib.core.application.project_state_rebuilder import (
     FileKind,
     ProjectStateRebuilder,
     classify_file,
-    is_user_authored_review,
     parse_frontmatter,
 )
 from tools.lib.core.application.state_store import StateStore
@@ -125,16 +124,6 @@ def test_classify_spec_like_and_report_like() -> None:
     assert classify_file("01-x", mixed) is FileKind.REPORT
 
 
-def test_user_authored_review_detection() -> None:
-    # arrange / act / assert
-    assert is_user_authored_review({"author": "user", "role": "reviewer"})
-    assert not is_user_authored_review(
-        {"author": "codex (rlm, m, medium)", "role": "investigator"}
-    )
-    assert not is_user_authored_review({"author": "user"})
-    assert not is_user_authored_review(None)
-
-
 # --------------------------------------------------------------------------
 # Scanner behaviour
 # --------------------------------------------------------------------------
@@ -176,12 +165,14 @@ def test_scan_recognizes_root_and_track_files_and_ignores_others() -> None:
     outcome = rebuilder.rebuild(json.loads(state))
 
     # assert: scanner inventory is not directly exposed, so exercise via the
-    # rebuilt candidate (task file is the root spec; track spec is additional)
+    # rebuilt candidate (task file is the root spec; the track's own
+    # 00-task.md spec is an additional numbered file, so it becomes a job)
     rebuilt = next(
         r for r in outcome.candidate["runs"] if r["run_id"] == "2026-09-08-1000-x"
     )
     assert rebuilt["task_file"] == f"tasks/{dir_name}/00-task.md"
-    assert [job["job"] for job in rebuilt["jobs"]] == ["a", "b"]
+    assert [job["job"] for job in rebuilt["jobs"]] == ["a", "task", "b"]
+    assert rebuilt["jobs"][1]["report_file"] == f"tasks/{dir_name}/00-track/00-task.md"
     assert any(
         "ignored directory (not NN-<description>): logs" in line
         for line in outcome.lines
@@ -333,29 +324,55 @@ def test_rebuild_matches_demo_drift_with_nested_track_paths() -> None:
         rebuilt["task_file"]
         == f"tasks/{dir_name}/00-investigate-structures/00-task.md"
     )
+    # Every numbered file on disk is now a job: the user review (02), the
+    # extra spec files (04, 06), and the characterization plan (05) join the
+    # recorded jobs in file order; only 00-task.md stays the task file.
     assert [job["job"] for job in rebuilt["jobs"]] == [
         "investigate",
+        "review",
         "investigate-revision",
+        "characterization-task",
         "characterization-plan",
+        "implement-task",
         "implement-characterization-tests",
         "review-characterization-tests",
     ]
-    plan = rebuilt["jobs"][2]
-    assert plan == {
+    assert rebuilt["jobs"][1] == {
+        "job": "review",
+        "status": "done",
+        "report_file": (
+            f"tasks/{dir_name}/00-investigate-structures/02-review.md"
+        ),
+    }
+    assert rebuilt["jobs"][3] == {
+        "job": "characterization-task",
+        "status": "done",
+        "report_file": (
+            f"tasks/{dir_name}/01-characterization-tests/04-characterization-task.md"
+        ),
+    }
+    assert rebuilt["jobs"][4] == {
         "job": "characterization-plan",
         "status": "done",
         "report_file": (
             f"tasks/{dir_name}/01-characterization-tests/05-characterization-plan.md"
         ),
     }
-    assert rebuilt["jobs"][3]["status"] == "queued"
-    assert rebuilt["jobs"][4]["status"] == "queued"
+    assert rebuilt["jobs"][5] == {
+        "job": "implement-task",
+        "status": "done",
+        "report_file": (
+            f"tasks/{dir_name}/01-characterization-tests/06-implement-task.md"
+        ),
+    }
+    assert rebuilt["jobs"][6]["status"] == "queued"
+    assert rebuilt["jobs"][7]["status"] == "queued"
     # the recorded queued jobs stay verbatim
     original = next(
         r for r in state["runs"] if r["run_id"] == "2026-09-08-0035-investigate"
     )
-    assert rebuilt["jobs"][3] == original["jobs"][2]
-    assert rebuilt["jobs"][4] == original["jobs"][3]
+    assert rebuilt["jobs"][6] == original["jobs"][2]
+    assert rebuilt["jobs"][7] == original["jobs"][3]
     # the healthy run is byte-identical in content
     healthy = next(
         r for r in outcome.candidate["runs"] if r["run_id"] == "2026-09-08-0900-build"
@@ -364,16 +381,89 @@ def test_rebuild_matches_demo_drift_with_nested_track_paths() -> None:
         r for r in state["runs"] if r["run_id"] == "2026-09-08-0900-build"
     )
     text = "\n".join(outcome.lines)
+    assert "+ record job review (done) -> 00-investigate-structures/02-review.md" in text
+    assert "+ record job characterization-task (done) -> 01-characterization-tests/04-characterization-task.md" in text
     assert "+ record job characterization-plan (done) ->" in text
+    assert "+ record job implement-task (done) -> 01-characterization-tests/06-implement-task.md" in text
     assert "~ preserve planned job implement-characterization-tests (07-implement.md not on disk yet)" in text
     assert "~ preserve planned job review-characterization-tests (08-review.md not on disk yet)" in text
     assert (
         "~ user-authored review not recorded as a job: "
-        "00-investigate-structures/02-review.md" in text
+        "00-investigate-structures/02-review.md" not in text
     )
-    assert "~ additional spec file not recorded: 01-characterization-tests/04-characterization-task.md" in text
-    assert "~ additional spec file not recorded: 01-characterization-tests/06-implement-task.md" in text
+    assert (
+        "~ additional spec file not recorded: "
+        "01-characterization-tests/04-characterization-task.md" not in text
+    )
+    assert (
+        "~ additional spec file not recorded: "
+        "01-characterization-tests/06-implement-task.md" not in text
+    )
     assert "2026-09-08-0900-build" in text and ": unchanged" in text
+
+
+def test_every_numbered_file_becomes_a_job_and_task_file_stays_spec() -> None:
+    # arrange: a task directory holding a spec, a report, a user-authored
+    # review, and an additional spec-like file; the run records no jobs yet
+    dir_name = "2026-09-08--every-file"
+    state = state_json(
+        "demo",
+        [
+            run(
+                "2026-09-08-1000-x",
+                task_file=f"tasks/{dir_name}/00-task.md",
+                jobs=[],
+            )
+        ],
+    )
+    files = {
+        f"tasks/{dir_name}/00-task.md": spec_file("2026-09-08-1000-x"),
+        f"tasks/{dir_name}/01-implement.md": report_file(
+            "implement", role="implementer"
+        ),
+        f"tasks/{dir_name}/02-review.md": USER_REVIEW,
+        f"tasks/{dir_name}/03-plan-task.md": spec_file(
+            "2026-09-08-1000-x", title="Plan task"
+        ),
+    }
+    fs = make_fs("demo", json.loads(state), files)
+    rebuilder = ProjectStateRebuilder(ROOT / "projects/demo", fs)
+
+    # act
+    outcome = rebuilder.rebuild(json.loads(state))
+
+    # assert: 00-task.md stays the task file, and every other numbered file
+    # is recorded as a `done` job named from its file token
+    rebuilt = outcome.candidate["runs"][0]
+    assert rebuilt["task_file"] == f"tasks/{dir_name}/00-task.md"
+    assert [job["job"] for job in rebuilt["jobs"]] == [
+        "implement",
+        "review",
+        "plan-task",
+    ]
+    assert rebuilt["jobs"] == [
+        {
+            "job": "implement",
+            "status": "done",
+            "report_file": f"tasks/{dir_name}/01-implement.md",
+        },
+        {
+            "job": "review",
+            "status": "done",
+            "report_file": f"tasks/{dir_name}/02-review.md",
+        },
+        {
+            "job": "plan-task",
+            "status": "done",
+            "report_file": f"tasks/{dir_name}/03-plan-task.md",
+        },
+    ]
+    text = "\n".join(outcome.lines)
+    assert "+ record job implement (done)" in text
+    assert "+ record job review (done) -> 02-review.md" in text
+    assert "+ record job plan-task (done) -> 03-plan-task.md" in text
+    assert "user-authored review not recorded" not in text
+    assert "additional spec file not recorded" not in text
 
 
 def test_rebuild_is_idempotent() -> None:
@@ -645,12 +735,24 @@ def test_task_file_recomputed_to_lowest_ordered_spec_on_disk() -> None:
     # act
     outcome = rebuilder.rebuild(json.loads(state))
 
-    # assert: root first, then tracks by directory name -> 00-a/00-task.md
+    # assert: root first, then tracks by directory name -> 00-a/00-task.md;
+    # every other numbered file (including the other spec files) is a job
     rebuilt = outcome.candidate["runs"][0]
     assert rebuilt["task_file"] == "tasks/2026-09-08--dir/00-a/00-task.md"
+    assert [job["job"] for job in rebuilt["jobs"]] == [
+        "investigate",
+        "extra-task",
+        "task",
+    ]
+    assert rebuilt["jobs"][1]["report_file"] == (
+        "tasks/2026-09-08--dir/00-a/04-extra-task.md"
+    )
+    assert rebuilt["jobs"][2]["report_file"] == "tasks/2026-09-08--dir/01-z/00-task.md"
     text_lines = "\n".join(outcome.lines)
     assert "task file changed:" in text_lines
-    assert "additional spec file not recorded: 01-z/00-task.md" in text_lines
+    assert "+ record job extra-task (done) -> 00-a/04-extra-task.md" in text_lines
+    assert "+ record job task (done) -> 01-z/00-task.md" in text_lines
+    assert "additional spec file not recorded: 01-z/00-task.md" not in text_lines
 
 
 def test_run_kept_when_its_directory_belongs_to_another_run() -> None:
@@ -862,3 +964,42 @@ def test_rebuild_preserves_unknown_extension_fields() -> None:
     rebuilt = outcome.candidate["runs"][0]
     assert rebuilt["run_extension"] == {"kept": True}
     assert rebuilt["jobs"][0]["job_extension"] == [1, 2]
+
+def test_archived_run_directory_left_untouched_not_reconstructed() -> None:
+    # arrange: a task dir whose spec run_id is archived in history.jsonl
+    state = state_json("demo", [])
+    dir_name = "2026-09-05--archived-task"
+    files = {
+        f"tasks/{dir_name}/00-task.md": spec_file(
+            "2026-09-05-1000-x",
+            status="done",
+            workflow="build",
+            title="Archived work",
+        ),
+        f"tasks/{dir_name}/01-implement.md": report_file(
+            "implement", role="implementer"
+        ),
+        "history.jsonl": json.dumps(
+            {
+                "run_id": "2026-09-05-1000-x",
+                "title": "Archived work",
+                "status": "cancelled",
+                "workflow": "build",
+                "created": "2026-09-05T10:00:00",
+                "task_file": f"tasks/{dir_name}/00-task.md",
+                "workspace": "/work",
+                "jobs": [],
+            }
+        )
+        + chr(10),
+    }
+    fs = make_fs("demo", json.loads(state), files)
+    rebuilder = ProjectStateRebuilder(ROOT / "projects/demo", fs)
+
+    # act
+    outcome = rebuilder.rebuild(json.loads(state))
+
+    # assert: no new run is reconstructed; the dir is left untouched
+    assert outcome.run_count == 0
+    assert outcome.changed_count == 0
+    assert outcome.candidate["runs"] == []

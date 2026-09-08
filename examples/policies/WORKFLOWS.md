@@ -136,7 +136,7 @@ brief from the manager — this table is the shared vocabulary, not a prompt.
 | Job type | Role | Purpose | Inputs | Output |
 |---|---|---|---|---|
 | `investigate` | planning | Understand code or behaviour; change nothing | The question; read-only workspace | Written findings in its report |
-| `draft` | planning | Produce the task spec that becomes `00-task.md`; append Demo (what the user will run and see), objective, acceptance criteria, constraints, and allowed commands to a manager-started frontmatter+request file | The original request; project README/context; optional `investigate` report | Drafted `00-task.md` content in its report |
+| `draft` | planning | Produce the task spec that becomes `00-task.md`: append a concrete `## Demo` (what the user will run and see) and a `## Plan` (step-by-step what will happen, in order), plus a few hard constraints and allowed commands. Keep it SHORT; no acceptance criteria — the Demo is the contract. Criteria come from the user only; never invent them; ask for clarity when the request is vague. | The original request; project README/context; optional `investigate` report | Drafted `00-task.md` content in its report |
 | `implement` | coding | Make the change in the workspace | `00-task.md` (the approved plan); prior reports | Code + verification; report |
 | `mock` | coding | Build a throwaway fake for user reaction | `00-task.md`; prior reports | Scratch code, never integrated; report |
 | `review` | reviewing | Independent verdict on work done — judge against the coding-standards stack, applying their priority (`00-task.md` constraints, then project `CODE.md`, then global `policies/CODE.md`) | `00-task.md`, reports, workspace diff, standards files | PASS/FAIL verdict in its report |

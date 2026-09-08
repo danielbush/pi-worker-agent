@@ -1,10 +1,12 @@
 """APPLICATION: rebuild one project's `state.json` from its on-disk tasks tree.
 
 The rebuild scans `projects/<project>/tasks/` and reconstructs the recorded
-run inventory from what is actually on disk. Task directories map to runs;
-numbered `NN-<token>.md` files map to job outputs, directly at the task root
-or one level deep inside `NN-<description>` track directories. Recorded
-control paths are rewritten only when they no longer resolve; lifecycle data
+run inventory from what is actually on disk. Task directories map to runs.
+Every numbered `NN-<token>.md` file -- reports, user-authored reviews, and
+additional spec files alike -- maps to a job, directly at the task root or
+one level deep inside `NN-<description>` track directories; only the run's
+`00-task.md` task file maps to `task_file`, never a job. Recorded control
+paths are rewritten only when they no longer resolve; lifecycle data
 the rebuild cannot infer from disk -- run status, outcome, timestamps,
 request, workspace, job statuses, execution fields, notes, and unknown
 extensions -- is preserved verbatim on every matched record.
@@ -19,6 +21,7 @@ archives to `history.jsonl`, and never invents a `run_id`.
 from __future__ import annotations
 
 import copy
+import json
 import re
 from collections import Counter
 from collections.abc import Iterable, Mapping
@@ -60,7 +63,6 @@ class ScanFile:
     frontmatter: dict[str, str]
     text: str
     kind: FileKind
-    user_review: bool
 
 
 @dataclass(frozen=True)
@@ -88,7 +90,6 @@ class JobReconstruction:
     jobs: list[dict[str, Any]]
     change_findings: list[str]  # printed when the run's state would change
     stale_findings: list[str]  # printed whenever stale jobs are preserved
-    matched_files: frozenset[str]  # on-disk files consumed by recorded jobs
 
 
 @dataclass(frozen=True)
@@ -151,15 +152,6 @@ def classify_file(stem: str, frontmatter: Mapping[str, str] | None) -> FileKind:
     if stem.endswith("-task"):
         return FileKind.SPEC
     return FileKind.REPORT
-
-
-def is_user_authored_review(frontmatter: Mapping[str, str] | None) -> bool:
-    """True for report frontmatter `author: user` with `role: reviewer`."""
-    if not frontmatter:
-        return False
-    author = frontmatter.get("author", "").strip().lower()
-    role = frontmatter.get("role", "").strip().lower()
-    return author == "user" and role == "reviewer"
 
 
 def _file_position(file: ScanFile) -> tuple[int, str, int, str]:
@@ -340,8 +332,6 @@ def _read_scan_file(
         frontmatter=frontmatter or {},
         text=text,
         kind=kind,
-        user_review=is_user_authored_review(frontmatter)
-        and kind is FileKind.REPORT,
     )
 
 
@@ -382,7 +372,10 @@ class ProjectStateRebuilder:
         recorded_runs = original.get("runs")
         if not isinstance(recorded_runs, list):
             recorded_runs = []
-        decisions, untouched = self._decide_dirs(scans, recorded_runs)
+        archived_ids = self._archived_run_ids()
+        decisions, untouched = self._decide_dirs(
+            scans, recorded_runs, archived_ids
+        )
         scan_by_name = {scan.name: scan for scan in scans}
         dir_for_run = {
             decision.run_id: scan_by_name[name]
@@ -479,10 +472,28 @@ class ProjectStateRebuilder:
                 )
         return scans, global_lines
 
+
+    def _archived_run_ids(self) -> set[str]:
+        """Run ids already archived to history.jsonl (append-only archive)."""
+        history = self.project_dir / "history.jsonl"
+        if not self.filesystem.is_file(history):
+            return set()
+        ids: set[str] = set()
+        for line in self.filesystem.read_text(history).splitlines():
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict) and isinstance(payload.get("run_id"), str):
+                ids.add(payload["run_id"])
+        return ids
+
+
     def _decide_dirs(
         self,
         scans: list[TaskDirScan],
         recorded_runs: list[dict[str, Any]],
+        archived_ids: set[str] | None = None,
     ) -> tuple[dict[str, DirDecision], list[str]]:
         """Map each task directory to an existing run, a new run, or nothing."""
         run_by_id = {
@@ -534,6 +545,12 @@ class ProjectStateRebuilder:
                         kind="existing", run_id=spec_run_id
                     )
                     dir_by_run[spec_run_id] = scan
+                continue
+            if spec_run_id is not None and archived_ids and spec_run_id in archived_ids:
+                untouched.append(
+                    f"{scan.rel}: left untouched (spec run_id {spec_run_id} is "
+                    "already archived in history.jsonl)"
+                )
                 continue
             if spec_run_id is not None:
                 duplicate = next(
@@ -589,12 +606,12 @@ class ProjectStateRebuilder:
     ) -> tuple[dict[str, Any], list[str] | None]:
         """Rebuild one recorded run from its task directory's on-disk files."""
         rebuilt = copy.deepcopy(dict(run))
+        task_file = self._task_file_for_run(run, scan)
         jobs = rebuilt.get("jobs")
         recorded_jobs = jobs if isinstance(jobs, list) else []
-        reconstruction = self._rebuild_jobs(recorded_jobs, scan)
+        reconstruction = self._rebuild_jobs(recorded_jobs, scan, task_file)
         rebuilt["jobs"] = reconstruction.jobs
 
-        task_file = self._task_file_for_run(run, scan)
         if task_file is not None:
             rebuilt["task_file"] = task_file
         elif "task_file" in rebuilt:
@@ -611,9 +628,7 @@ class ProjectStateRebuilder:
             if task_file != run.get("task_file"):
                 old = run.get("task_file") or "(none)"
                 block.append(f"  ~ task file changed: {old} -> {task_file or '(none)'}")
-            block.extend(
-                self._run_file_findings(scan, reconstruction, task_file)
-            )
+            block.extend(self._ignored_findings(scan))
         else:
             block.append("  state unchanged; stale job(s) preserved as recorded")
             block.extend(f"  {line}" for line in reconstruction.stale_findings)
@@ -643,7 +658,7 @@ class ProjectStateRebuilder:
         request = _original_request(spec.text)
         if request is not None:
             run["request"] = request
-        reconstruction = self._rebuild_jobs([], scan)
+        reconstruction = self._rebuild_jobs([], scan, spec.path)
         run["jobs"] = reconstruction.jobs
 
         block = [f"{run_id} ({scan.rel})"]
@@ -666,41 +681,19 @@ class ProjectStateRebuilder:
             block.append("  + request from spec ## Original request section")
         block.extend(f"  {line}" for line in reconstruction.change_findings)
         block.extend(f"  {line}" for line in reconstruction.stale_findings)
-        block.extend(self._run_file_findings(scan, reconstruction, spec.path))
+        block.extend(self._ignored_findings(scan))
         return run, block
 
-    def _run_file_findings(
-        self,
-        scan: TaskDirScan,
-        reconstruction: JobReconstruction,
-        task_file: str | None,
-    ) -> list[str]:
-        """Unrecorded on-disk findings: reviews, extra specs, ignored items.
+    def _ignored_findings(self, scan: TaskDirScan) -> list[str]:
+        """Unrecognized on-disk items under the task directory.
 
-        The run's own task file is not an *additional* spec, and files already
-        matched to a recorded job are not findings at all.
+        Every recognized numbered file is now a job or the run's task file,
+        so the only per-file findings left are items the scanner ignored.
         """
-        user_reviews: list[str] = []
-        extra_specs: list[str] = []
-        for file in scan.files:
-            if file.kind is FileKind.SPEC:
-                if file.path in reconstruction.matched_files:
-                    continue
-                if file.path == task_file:
-                    continue
-                extra_specs.append(_relative_to_dir(scan, file.path))
-            elif file.user_review and file.path not in reconstruction.matched_files:
-                user_reviews.append(_relative_to_dir(scan, file.path))
-        findings = [
-            f"  ~ user-authored review not recorded as a job: {path}"
-            for path in user_reviews
+        return [
+            f"  ~ ignored {kind}: {_relative_to_dir(scan, path)}"
+            for kind, path in scan.ignored
         ]
-        findings.extend(
-            f"  ~ additional spec file not recorded: {path}" for path in extra_specs
-        )
-        for kind, path in scan.ignored:
-            findings.append(f"  ~ ignored {kind}: {_relative_to_dir(scan, path)}")
-        return findings
 
     def _task_file_for_run(
         self, run: dict[str, Any], scan: TaskDirScan
@@ -720,20 +713,28 @@ class ProjectStateRebuilder:
         return specs[0].path if specs else None
 
     def _rebuild_jobs(
-        self, recorded_jobs: list[dict[str, Any]], scan: TaskDirScan
+        self,
+        recorded_jobs: list[dict[str, Any]],
+        scan: TaskDirScan,
+        task_file: str | None,
     ) -> JobReconstruction:
-        """Match on-disk report files to recorded jobs and synthesize the rest.
+        """Match on-disk job files to recorded jobs and synthesize the rest.
 
-        The rebuilt list walks the files in canonical order: every file
+        The run's task file is not a job. Every other numbered file maps to a
+        job: the rebuilt list walks the files in canonical order, a file
         matched to a recorded job keeps that job verbatim at the file's
-        position, unmatched report files get a synthesized `done` job, and
-        recorded jobs whose report file is missing are preserved verbatim at
-        the file number their report would occupy. Recorded jobs without a
-        report path keep their recorded slots. Nothing is ever deleted.
+        position, and an unmatched file -- report, user-authored review, or
+        additional spec -- gets a synthesized `done` job named from its file
+        token. Recorded jobs whose report file is missing are preserved
+        verbatim at the file number their report would occupy; recorded jobs
+        without a report path keep their recorded slots. Nothing is ever
+        deleted.
         """
         claimed: set[int] = set()
         matched_job: dict[str, int] = {}
         for file in scan.files:
+            if file.path == task_file:
+                continue
             for index, job in enumerate(recorded_jobs):
                 if index in claimed:
                     continue
@@ -756,11 +757,11 @@ class ProjectStateRebuilder:
         stale_findings: list[str] = []
         sequenced: list[tuple[tuple[int, str, int, str], dict[str, Any], int | None]] = []
         for file in scan.files:
+            if file.path == task_file:
+                continue
             if file.path in matched_job:
                 index = matched_job[file.path]
                 sequenced.append((_file_position(file), recorded_jobs[index], index))
-                continue
-            if file.kind is not FileKind.REPORT or file.user_review:
                 continue
             name = name_for(file.token)
             job: dict[str, Any] = {
@@ -846,5 +847,4 @@ class ProjectStateRebuilder:
             jobs=jobs,
             change_findings=change_findings,
             stale_findings=stale_findings,
-            matched_files=frozenset(matched_job),
         )
