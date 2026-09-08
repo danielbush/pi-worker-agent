@@ -170,6 +170,8 @@ erDiagram
     JOB {
         int nn  "execution order"
         string status
+        string session_id  "canonical harness-native id for new writes"
+        string harness_session  "legacy alias; still present in real state"
     }
 
     WORKFLOW_ROLE ||--|| PROFILE : "preferred profile"
@@ -200,7 +202,8 @@ projects/my-project/runs/2026-01-15-0930-quickfix/
   00-task.md                     # the approved spec (manager-owned;
                                  #   frontmatter: run_id, title, created,
                                  #   status, workflow, workspace)
-  01-implement.md                # first attempt (frontmatter: author, role)
+  01-implement.md                # first attempt (frontmatter: author, role,
+                                 #   date, session_id)
   02-review.md                   # FAIL — issues found
   03-implement.md                # fixes from the review feedback
   04-review.md                   # PASS
@@ -251,8 +254,12 @@ The numbered `NN-*.md` files hold **outputs** from anyone who contributes
 to the run — implementers and reviewers. A personal review by the user is
 just another review: `NN-review.md` with frontmatter `author: user`, written
 up by the manager from the user's feedback, and — like any review — fed back
-to the implementer as the next attempt's input. **Inputs** — the spec, open
-design questions — stay outside: `00-task.md` is manager-owned.
+to the implementer as the next attempt's input. New worker reports also carry
+`session_id` matching that job's canonical `session_id` in `state.json`.
+Existing jobs may already store the same kind of identifier as
+`harness_session`; leave those values in place. User reviews omit it.
+**Inputs** — the spec, open design questions — stay outside: `00-task.md` is
+manager-owned.
 
 ---
 
@@ -277,6 +284,7 @@ values:
   "thinking": "medium",
   "route": "morph/fp4",
   "status": "pending",
+  "session_id": "<harness-native identifier>",
   "report_file": "runs/2026-09-06-0140-build-no-plan/01-implement.md"
 }
 ```
@@ -359,10 +367,19 @@ reports.
 
 ### RLM workers
 
-An RLM spawn returns a child handle immediately. Completion arrives through
+An RLM spawn returns a child handle immediately. That handle name/id (for
+example `sub-2dd9cc39`) is not the worker session identifier. Record the
+Prime Agent session id surfaced by agent messaging or the subagent roster
+(for example `01a07f55-0ac2-7108-875c-ac27a2f0a791` on the
+`2026-09-08-1436-manual` implement job) as `session_id` as soon as it is
+available, and put the same value on that attempt's report frontmatter.
+Retries and later jobs record their own identifiers. Completion arrives through
 agent messaging; bounded observation can inspect progress. Short RLM jobs do
 not need a heartbeat. Add one only for work expected to be long, silent, or in
-need of stall detection.
+need of stall detection. `session_id` is the canonical field for new writes;
+`harness_session` is a coexisting legacy alias already present in real state.
+Keep both readable. Jobs and reports with neither field remain valid; do not
+backfill.
 
 ### External workers
 
@@ -372,7 +389,11 @@ manager conditionally loads `.agents/skills/run-external-worker/SKILL.md` and:
 
 - starts it nonblockingly and retains its process handle;
 - writes its `stream-json` output to a durable run log;
-- records the harness, exact model, log path, process metadata, and session ID;
+- records the harness, exact model, log path, process metadata, and
+  harness-native `session_id` (Cursor/Claude stream-json `session_id`, Codex
+  `thread.started` id) as soon as it appears, matching the report frontmatter.
+  Current records may already carry the same kind of identifier as
+  `harness_session`; leave those values. New writes use `session_id` only;
 - creates a two-minute internal follow-up heartbeat immediately;
 - polls without blocking and reads only the durable log tail;
 - reports only meaningful progress, blockers, or completion; and

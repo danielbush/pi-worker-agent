@@ -27,7 +27,11 @@ Before launch:
 4. Choose `runs/<run-id>/logs/<NN>-<job>.<harness>.jsonl` for the raw event stream.
 5. Record the job's actual harness, exact model, route when applicable,
    `harness_log`, assigned report, start time, and `running` status in
-   `state.json`; regenerate task indexes.
+   `state.json`; regenerate task indexes. Leave `session_id` off until the
+   harness emits its real identifier; then write that value immediately as
+   `session_id` (canonical for new writes). Existing jobs may already store
+   the same kind of identifier as `harness_session`; leave those values in
+   place and do not backfill.
 
 ## 2. Build the worker brief
 
@@ -56,7 +60,9 @@ For Cursor Agent:
 - run from the exact workspace;
 - use `--print --output-format stream-json`;
 - direct the stream to the durable JSONL log;
-- use sandboxing when supported; and
+- use sandboxing when supported;
+- capture `session_id` from the stream-json init/result events and store it on
+  the job as `session_id` as soon as it appears; and
 - use `--force` only when the brief contains an explicit command allowlist and
   protected paths.
 
@@ -78,7 +84,8 @@ For Codex (`codex exec`):
   whose output is a file (a `--sandbox read-only` run cannot write its
   assigned report, and approval escalation is disabled non-interactively);
   use `read-only` only when the answer is expected in the event stream;
-- capture the thread/session id from the `thread.started` event; and
+- capture the thread/session id from the `thread.started` event and store it
+  on the job as `session_id` as soon as it appears; and
 - resume with `codex exec resume --json -m <model> -c '<config>' <session-id>
   "<prompt>"` — note resume has a DIFFERENT flag set than `codex exec`:
   no `-C` or `--sandbox` (the session's original settings carry over), flags
@@ -111,7 +118,8 @@ For Claude Code (`claude`; verified with Claude Code 2.1.263):
   Bash command patterns explicitly authorized by the job brief;
 - use `--permission-mode plan` only for jobs whose deliverable stays in the
   event stream. It cannot write the assigned report;
-- capture `session_id` from the stream-json init/result events; and
+- capture `session_id` from the stream-json init/result events and store it on
+  the job as `session_id` as soon as it appears; and
 - resume non-interactively with `claude --print --output-format stream-json
   --verbose --resume <session-id> --model <model> --effort <effort>
   [permission flags] < <follow-up-brief-file>`. Resume from the original
@@ -155,8 +163,11 @@ A heartbeat is an ephemeral scheduler, not durable recovery state.
 - Use `handle.running` and `handle.poll()` without blocking.
 - Read only a bounded tail of the durable JSONL log; never print the entire raw
   stream into model context.
-- Extract and record the harness session or chat ID when it appears so a later
-  manager can resume safely.
+- Extract the harness-native session identifier when it appears and write it
+  to the job record as `session_id` immediately (Cursor Agent and Claude Code:
+  stream-json init/result `session_id`; Codex: `thread.started` thread/session
+  id). Do not invent a manager-local id. A later manager uses this same value
+  to resume safely. Retries get a new numbered job and their own identifier.
 - Keep the user informed at meaningful milestones.
 - Do not launch a duplicate merely because the external process is quiet.
 
@@ -165,7 +176,10 @@ A heartbeat is an ephemeral scheduler, not durable recovery state.
 A zero process exit is not sufficient. Completion requires:
 
 1. terminal process status and recorded exit code;
-2. a usable assigned report;
+2. a usable assigned report whose YAML frontmatter includes `author`, `role`,
+   `date`, and the same `session_id` stored on that job (add `session_id` if
+   the worker omitted it; do not invent a value if the harness never emitted
+   one);
 3. manager inspection of the workspace and changed paths;
 4. authorized verification commands passing; and
 5. updated state and regenerated indexes.

@@ -166,6 +166,28 @@ history even if defaults later change. A retry inherits them unless the user
 explicitly requests another execution choice; each attempt records what it
 actually used.
 
+Record the harness-native worker session identifier on that job as `session_id`
+as soon as it is available. Use the real identifier from the harness — never a
+manager-invented stand-in. Retries and later jobs each store their own
+identifier. Real state already stores that identifier under two known names
+introduced together: `session_id` (canonical for new writes) and
+`harness_session` (legacy alias; in use since 2026-09-06 and still present on
+current records). Keep both readable; do not backfill or rename existing
+values. Jobs and reports with neither field stay valid. The canonical
+`session_id` on a new job in `state.json` must match that attempt's report
+frontmatter.
+
+Sources:
+
+- **RLM** — the Prime Agent worker session identifier surfaced by agent
+  messaging and the subagent roster, not the manager-assigned `rlm()` handle
+  name/id. Example from this project's `2026-09-08-1436-manual` implement job:
+  `01a07f55-0ac2-7108-875c-ac27a2f0a791`. Do not record a handle such as
+  `sub-2dd9cc39`.
+- **Cursor Agent** — `session_id` from stream-json init/result events.
+- **Codex** — the thread/session id from the `thread.started` event.
+- **Claude Code** — `session_id` from stream-json init/result events.
+
 ## Spawning workers
 
 Treat the selected workspace path as the exact execution root. It may be a
@@ -186,20 +208,28 @@ Give each worker a minimal job brief, not the complete project configuration.
 ## Report and spec frontmatter
 
 Every `runs/<run-id>/NN-*.md` starts with YAML frontmatter naming the author,
-role, and date, so attribution survives without reading run state:
+role, date, and — for newly launched workers — the same harness-native
+`session_id` stored on that job in state, so attribution and session
+traceability survive without reading run state:
 
 ```
 ---
 author: grok (cursor-agent, cursor-grok-4.6-medium-fast)
 role: implementer
 date: 2026-09-07
+session_id: <harness-native identifier>
 ---
 ```
 
 Author is the resolved harness + model + thinking; role is the job type (or
 `design reviewer`, `user review`, etc.); date is the day the report was
-written (ISO `YYYY-MM-DD`). The manager adds the frontmatter when workers
-can't be relied on, and retrofits it if a report arrives without it.
+written (ISO `YYYY-MM-DD`). `session_id` is the real identifier from the
+sources above. Workers must not invent one. The manager adds or completes
+frontmatter when workers can't be relied on, including writing `session_id`
+once the harness emits it, and retrofits `author`/`role`/`date` if a report
+arrives without them. Older reports without `session_id` remain readable.
+User-authored reviews (`author: user`) have no harness session and omit the
+field.
 
 Every `runs/<run-id>/00-task.md` likewise starts with frontmatter carrying its
 info fields (run id, created date, status, workflow, workspace), with the
@@ -271,8 +301,11 @@ zero process exit alone, and never launch a duplicate when liveness is unknown.
 The kernel is single-threaded. A blocking `await` freezes you for the whole job
 — you can't report progress, run a parallel job, or answer the user.
 
-An `rlm()` spawn returns immediately. Use `agent_observe` to watch that kind of
-worker and `agent_message.send(..., receiver_role="child")` for a follow-up.
+An `rlm()` spawn returns immediately. Record the worker's real Prime Agent
+session identifier — from agent messaging or the subagent roster, not the
+`rlm()` handle name — on the job as `session_id` as soon as it is available.
+Use `agent_observe` to watch that kind of worker and
+`agent_message.send(..., receiver_role="child")` for a follow-up.
 RLM workers normally send their own completion message, so do not create a
 heartbeat for every short RLM job. Use one when a job is expected to run longer
 than five minutes, is silent, or needs stall detection. For an external harness, retain the `bash()` handle and follow the conditionally
@@ -350,6 +383,7 @@ what you need.
       "jobs": [{"job": "plan", "harness": "rlm",
                 "model": "openai-codex/gpt-5.6-sol", "thinking": "medium",
                 "route": null, "status": "done",
+                "session_id": "<harness-native identifier>",
                 "report_file": "runs/2026-09-04-1430-build/01-plan.md"}],
       "outcome": "one line, written when the run ends"
     }

@@ -78,6 +78,7 @@ Every file starts with frontmatter so attribution survives without the state:
 author: sol (codex, gpt-5.6-sol, medium)
 role: reviewer
 date: 2026-09-07
+session_id: <harness-native identifier>
 ---
 ```
 

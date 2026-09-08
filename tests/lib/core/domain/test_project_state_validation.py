@@ -84,3 +84,28 @@ def test_existing_unknown_values_are_immutable_and_new_unknowns_are_rejected() -
         "runs[0].run_extension: pre-existing unknown field must be preserved",
         "runs[0].jobs[0].new_job_typo: newly introduced unknown field",
     )
+
+
+def test_session_id_is_optional_and_must_be_a_string_when_present() -> None:
+    # arrange
+    without_session = _valid_document()
+    with_session = _valid_document()
+    with_session["runs"][0]["jobs"][0]["session_id"] = "sess-harness-1"
+    with_session["runs"][0]["jobs"].append(
+        {
+            "job": "review",
+            "status": "queued",
+            "harness_session": "alias-still-in-real-state",
+        }
+    )
+    invalid = _valid_document()
+    invalid["runs"][0]["jobs"][0]["session_id"] = 12
+
+    # act / assert
+    validate_project_state(without_session, "demo")
+    validate_project_state(with_session, "demo")
+    with pytest.raises(ProjectStateValidationError) as caught:
+        validate_project_state(invalid, "demo")
+    assert caught.value.issues == (
+        "runs[0].jobs[0].session_id: expected string",
+    )

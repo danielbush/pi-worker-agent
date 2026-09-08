@@ -34,7 +34,7 @@ class JobRecord:
             "attempt",
             "code_attempt",
             "harness_log",
-            "harness_session",
+            "harness_session",  # legacy alias already in real state; new writes use session_id
             "session_id",
             "heartbeat_id",
             "process_pid",
