@@ -22,6 +22,21 @@ copy or substitute a worker prompt/report for the original task.
 | state | `projects/<name>/state.json` |
 | project tasks/index | `projects/<name>/TASKS.md` |
 | root tasks/index | Repository `TASKS.md` |
+| explicit file path (user names the path directly) | That exact file via `--file` (sensitive files refused) |
+
+## Extending the target table
+
+If the user asks to show something the table does not cover, do not improvise
+a one-off open. If the request recurs (or the user asks to make it permanent),
+add a row to the table above and add the target's name, aliases, scope, and
+fixed path to `tools/lib/show_managed_file/domain/managed_target.py`. If
+resolution needs logic — project or run selection, containment, or file policy
+— extend `tools/lib/show_managed_file/application/managed_file_resolver.py`.
+Keep
+`scripts/show_managed_file.py` as the public entry point and composition root;
+do not put target metadata or resolution policy there. Until then, an explicit
+path from the user is acceptable as a fallback; a vague request for an
+unsupported target is not.
 
 Never open `auth.json`, credentials, raw harness logs, or another sensitive file
 through a vague “show me” request. Require a separate explicit request and apply
@@ -51,6 +66,10 @@ python3 .agents/skills/show-managed-file/scripts/show_managed_file.py \
   --run-id RUN_ID \
   --editor code
 ```
+
+For an explicit path the user names, use `--file PATH` instead of
+`--target`. It refuses sensitive files (`auth.json`, `.env`, credential and
+private-key files) and is mutually exclusive with `--target`.
 
 Only task targets use `--run-id`. Project-specific targets use `--project`.
 Omit `--run-id` to select the project's latest active run. If project or editor

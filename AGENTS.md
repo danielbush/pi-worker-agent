@@ -144,11 +144,11 @@ Do not seed `state.json` during setup; the first real run creates it through `St
    per job.
 9. Update state and `TASKS.md` at each status change. Report to the user in
    plain language between jobs. All `state.json` writes go through `StateStore`
-   (`tools/lib/application/state_store.py`) — it validates the candidate,
+   (`tools/lib/core/application/state_store.py`) — it validates the candidate,
    writes atomically, and regenerates both task indexes in one call:
 
    ```python
-   from tools.lib.application.state_store import StateStore
+   from tools.lib.core.application.state_store import StateStore
    store = StateStore.load(Path("projects/<name>"))
    store.update(lambda st: ...)  # mutate and return the full document
    ```

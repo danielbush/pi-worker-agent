@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tools.lib.application.render_tasks_markdown import render_tasks_markdown
-from tools.lib.domain.project_state import ProjectState
-from tools.lib.domain.run_record import RunRecord
-from tools.lib.domain.task_index import TaskIndex
-from tools.lib.infrastructure.filesystem import Filesystem
+from tools.lib.core.application.render_tasks_markdown import render_tasks_markdown
+from tools.lib.core.domain.project_state import ProjectState
+from tools.lib.core.domain.run_record import RunRecord
+from tools.lib.core.domain.task_index import TaskIndex
+from tools.lib.core.infrastructure.filesystem import Filesystem
 
 FIXED_STAMP = "2026-09-07T12:00:00+10:00"
 

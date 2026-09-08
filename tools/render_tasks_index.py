@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from tools.lib.application.tasks_index_writer import TasksIndexWriter
+from tools.lib.core.application.tasks_index_writer import TasksIndexWriter
 
 
 def _build_parser() -> argparse.ArgumentParser:

@@ -14,14 +14,18 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-pythonpath = [".", "tests"]
+pythonpath = [".", "tests", ".agents/skills/show-managed-file/scripts"]
 testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py313"
-src = [".", "tests"]
-include = ["tools/**/*.py", "tests/**/*.py"]
+src = [".", "tests", ".agents/skills/show-managed-file/scripts"]
+include = [
+    "tools/**/*.py",
+    "tests/**/*.py",
+    ".agents/skills/show-managed-file/**/*.py",
+]
 
 [tool.ty.environment]
 python-version = "3.13"
-extra-paths = [".", "tests"]
+extra-paths = [".", "tests", ".agents/skills/show-managed-file/scripts"]
