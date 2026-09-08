@@ -216,6 +216,33 @@ by editing the README, not just the run.
 
 All workflows below run with `approval: required`.
 
+### manual (default)
+
+Run exactly one job type chosen by the user, then stop and ask what to do next.
+
+```
+jobs: [user-selected]
+```
+
+The available choices are `investigate`, `plan`, `implement`, `mock`, and
+`review`. If the user has not named the next job type, ask them to choose one;
+do not infer it from the request. Each choice adds only that one job to the
+current task.
+
+After the selected job finishes, set the task to `awaiting-user-review` and ask
+the user to choose the next job type or finish the task. Do not automatically
+plan, implement, review, fix, retry, or start any other follow-up job. In this
+workflow, the review-fail loop does not apply: a failed review also stops for
+the user's decision.
+
+Selecting another job is explicit authorization for that job, but it does not
+waive any required approval of a new or changed brief. Keep later jobs and
+revisions in the same task unless the objective or scope materially changes.
+
+Use `manual` whenever the user does not explicitly name another workflow.
+Do not interpret a broad request as permission to substitute `build`,
+`build-no-plan`, `quickfix`, or any other multi-job workflow.
+
 ### investigate
 
 Understand something and produce a plan. No code is changed.
@@ -307,6 +334,7 @@ Read the current diff or a named commit range and report. Changes nothing.
 
 ## Defaults
 
+- Default workflow: `manual`; the user selects one job at a time
 - Workflow roles resolve through the Preferred profiles table
 - All runs require `00-task.md` approval before work starts, unless the user
   waives it for that run
