@@ -15,7 +15,8 @@ profile workflows use by default.
 
 | Profile | Harness | Model | Thinking | Route | For |
 |---|---|---|---|---|---|
-| `planner/sol` | `rlm` | `openai-codex/gpt-5.6-sol` | high | — | Planning and approach design |
+| `planner/sol` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | — | Default planning and approach design |
+| `planner/sol-high` | `rlm` | `openai-codex/gpt-5.6-sol` | high | — | Opt-in planning for unusually complex work |
 | `review/sol` | `rlm` | `openai-codex/gpt-5.6-sol` | medium | — | Independent review |
 | `coder/grok` | `cursor-agent` | `cursor-grok-4.6-medium-fast` | medium | Cursor-managed | Coding through Cursor Agent |
 | `coder/glm` | `rlm` | `openrouter-routed/z-ai/glm-5.3-flash` | high | — | Coding with GLM; medium is unsupported |
