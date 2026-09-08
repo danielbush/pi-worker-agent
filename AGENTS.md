@@ -363,6 +363,13 @@ without opening it.
 
 Add fields when a project needs them. Don't delete runs — archive them.
 
+## Showing files
+
+Whenever the user asks to "show" or "open" a managed file, use the
+`show-managed-file` skill to open it in their GUI editor. Do not paste the
+file's contents into chat unless the skill fails or the user explicitly asks
+for pasted text.
+
 ## Style
 
 Be brief with the user. Say what you're about to run, then what came back.
