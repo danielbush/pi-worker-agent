@@ -47,6 +47,13 @@ class OperatingSystemPaths:
         finally:
             os.close(descriptor)
 
+    def append_text(self, path: Path, text: str) -> None:
+        """Append text to a file, creating it when missing (durable append)."""
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+
     def is_file(self, path: Path) -> bool:
         return path.is_file()
 

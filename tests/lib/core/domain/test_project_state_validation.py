@@ -138,3 +138,18 @@ def test_nested_report_path_is_a_plain_string_like_any_report_path() -> None:
     assert caught.value.issues == (
         "runs[0].jobs[0].report_file: expected string",
     )
+
+
+def test_more_than_twenty_runs_validate() -> None:
+    # arrange: the retained-run cap was removed; state may hold any count
+    document = _valid_document()
+    document["runs"] = []
+    for index in range(25):
+        run = _valid_document()["runs"][0]
+        run = dict(run)
+        run["run_id"] = f"run-{index}"
+        run["created"] = f"2026-09-0{index % 9 + 1}T12:00:00+10:00"
+        document["runs"].append(run)
+
+    # act / assert: no "at most 20 retained runs" error is raised
+    validate_project_state(document, "demo", baseline=document)

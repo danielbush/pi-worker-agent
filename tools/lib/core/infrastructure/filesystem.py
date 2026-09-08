@@ -45,6 +45,11 @@ class EmbeddedPathStub:
             raise OSError(f"injected atomic write failure: {key}")
         self.write_text(path, text)
 
+    def append_text(self, path: Path, text: str) -> None:
+        key = str(Path(path))
+        self.files[key] = self.files.get(key, "") + text
+        self.add_ancestors(Path(key))
+
     def is_file(self, path: Path) -> bool:
         return str(Path(path)) in self.files
 
@@ -104,6 +109,9 @@ class Filesystem:
 
     def atomic_write_text(self, path: Path, text: str) -> None:
         self.driver.atomic_write_text(path, text)
+
+    def append_text(self, path: Path, text: str) -> None:
+        self.driver.append_text(path, text)
 
     def is_file(self, path: Path) -> bool:
         return self.driver.is_file(path)

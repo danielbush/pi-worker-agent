@@ -94,8 +94,6 @@ def validate_project_state(
         issues.append("runs: expected list")
         _raise_if_issues(issues)
         return
-    if len(runs) > 20:
-        issues.append("runs: expected at most 20 retained runs")
 
     baseline_runs = _runs_by_id(baseline_document.get("runs"))
     seen_run_ids: set[str] = set()
