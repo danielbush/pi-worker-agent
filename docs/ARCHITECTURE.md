@@ -250,6 +250,17 @@ Revisions and retries never overwrite — attempt N's feedback produces report
 N+1 in the same task directory, so the directory is a complete, ordered
 record of how the work converged.
 
+Output files may instead be organized into one-level **tracks**: immediate
+subdirectories `NN-<description>/` (two digits from 00, lowercase hyphenated
+description) that hold job files in the same `MM-<jobtype>.md` format as direct
+job files, each track numbering its own files from `MM` 00. A task spec
+(`00-task.md`) may sit at the task root or inside a track. Track membership is
+never stored separately: the manager records nested `task_file` / `report_file`
+paths — `tasks/<date>--<slug>/<NN>-<description>/<MM>-<jobtype>.md` — and the
+project index derives the run's tracks from those recorded paths, so grouping is
+a file move plus a `StateStore` path update and a worker's one reserved report
+may be assigned inside a track.
+
 The numbered `NN-*.md` files hold **outputs** from anyone who contributes
 to the task — implementers and reviewers. A personal review by the user is
 just another review: `NN-review.md` with frontmatter `author: user`, written

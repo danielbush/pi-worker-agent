@@ -255,3 +255,44 @@ def test_load_reports_malformed_json_with_the_state_path() -> None:
 
     # assert
     assert str(project_dir / "state.json") in str(caught.value)
+
+
+def test_nested_task_and_report_paths_validate_and_round_trip() -> None:
+    # arrange
+    root = Path("/repo")
+    document = _document()
+    run = document["runs"][0]
+    run["task_file"] = (
+        "tasks/2026-09-07-1000-build/00-investigate/00-task.md"
+    )
+    run["jobs"][0]["report_file"] = (
+        "tasks/2026-09-07-1000-build/00-investigate/01-investigate.md"
+    )
+    filesystem = _filesystem(root, document)
+    store = StateStore.create_null(
+        root / "projects/demo", filesystem=filesystem, clock=_fixed_now
+    )
+
+    # act
+    committed = store.update(lambda state: state)
+
+    # assert
+    state_text = filesystem.read_text(root / "projects/demo/state.json")
+    assert (
+        "tasks/2026-09-07-1000-build/00-investigate/00-task.md" in state_text
+    )
+    assert committed["runs"][0]["task_file"] == (
+        "tasks/2026-09-07-1000-build/00-investigate/00-task.md"
+    )
+    assert committed["runs"][0]["jobs"][0]["report_file"] == (
+        "tasks/2026-09-07-1000-build/00-investigate/01-investigate.md"
+    )
+    project_index = filesystem.read_text(root / "projects/demo/TASKS.md")
+    assert (
+        "[task](tasks/2026-09-07-1000-build/00-investigate/00-task.md) — "
+        "tracks: 00-investigate"
+    ) in project_index
+    root_index = filesystem.read_text(root / "TASKS.md")
+    assert (
+        "tasks/2026-09-07-1000-build/00-investigate/00-task.md" in root_index
+    )

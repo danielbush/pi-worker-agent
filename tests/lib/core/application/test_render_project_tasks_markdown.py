@@ -188,3 +188,158 @@ def test_missing_optional_run_fields_render_as_em_dashes() -> None:
     assert "| — | — | done | — | — |" in markdown
     assert "None" not in markdown
     assert "[task](—)" not in markdown
+
+
+def test_tracked_runs_list_their_tracks_in_directory_name_order() -> None:
+    # arrange: a tracked run whose recorded paths name 01-... before 00-...
+    state = ProjectState.from_dict(
+        "demo",
+        {
+            "project": "demo",
+            "runs": [
+                {
+                    "run_id": "2026-09-08-0035-investigate",
+                    "title": "Investigate with tracks",
+                    "workflow": "investigate",
+                    "workspace": "/work/@2br",
+                    "status": "awaiting-approval",
+                    "created": "2026-09-08T00:35:00+10:00",
+                    "task_file": (
+                        "tasks/2026-09-08--investigate/01-characterization-tests/"
+                        "00-task.md"
+                    ),
+                    "jobs": [
+                        {
+                            "job": "characterize",
+                            "status": "queued",
+                            "report_file": (
+                                "tasks/2026-09-08--investigate/01-characterization-tests/"
+                                "00-implement.md"
+                            ),
+                        },
+                        {
+                            "job": "investigate",
+                            "status": "done",
+                            "report_file": (
+                                "tasks/2026-09-08--investigate/00-investigate/"
+                                "01-investigate.md"
+                            ),
+                        },
+                    ],
+                },
+                {
+                    "run_id": "flat-done",
+                    "title": "Flat finished run",
+                    "status": "done",
+                    "created": "2026-09-05T15:00:00+10:00",
+                    "task_file": "tasks/flat-done/00-task.md",
+                    "outcome": "Fine",
+                    "jobs": [
+                        {
+                            "job": "implement",
+                            "status": "done",
+                            "report_file": "tasks/flat-done/01-implement.md",
+                        }
+                    ],
+                },
+            ],
+        },
+    )
+
+    # act
+    markdown = render_project_tasks_markdown(state, FIXED_STAMP)
+
+    # assert
+    tracked_row = (
+        "| 2026-09-08 00:35 +1000 | Investigate with tracks | awaiting-approval | "
+        "`investigate` | `/work/@2br` | [task]("
+        "tasks/2026-09-08--investigate/01-characterization-tests/00-task.md) — "
+        "tracks: 00-investigate, 01-characterization-tests |"
+    )
+    assert tracked_row in markdown
+    flat_row = (
+        "| 2026-09-05 15:00 +1000 | Flat finished run | done | Fine | "
+        "[task](tasks/flat-done/00-task.md) |"
+    )
+    assert flat_row in markdown
+    assert "— tracks:" not in flat_row
+
+
+def test_recent_tracked_run_keeps_task_link_and_lists_tracks() -> None:
+    # arrange
+    state = ProjectState.from_dict(
+        "demo",
+        {
+            "project": "demo",
+            "runs": [
+                {
+                    "run_id": "done-tracked",
+                    "title": "Done tracked run",
+                    "workflow": "build",
+                    "status": "done",
+                    "created": "2026-09-07T10:00:00+10:00",
+                    "outcome": "Shipped",
+                    "task_file": "tasks/done-tracked/00-track-a/00-task.md",
+                    "jobs": [
+                        {
+                            "job": "implement",
+                            "status": "done",
+                            "report_file": (
+                                "tasks/done-tracked/00-track-a/00-implement.md"
+                            ),
+                        },
+                        {
+                            "job": "review",
+                            "status": "done",
+                            "report_file": (
+                                "tasks/done-tracked/00-track-a/01-review.md"
+                            ),
+                        },
+                        {
+                            "job": "implement",
+                            "status": "done",
+                            "report_file": (
+                                "tasks/done-tracked/01-track-b/00-implement.md"
+                            ),
+                        },
+                    ],
+                }
+            ],
+        },
+    )
+
+    # act
+    markdown = render_project_tasks_markdown(state, FIXED_STAMP)
+
+    # assert
+    assert (
+        "| 2026-09-07 10:00 +1000 | Done tracked run | done | Shipped | "
+        "[task](tasks/done-tracked/00-track-a/00-task.md) — "
+        "tracks: 00-track-a, 01-track-b |"
+    ) in markdown
+
+
+def test_legacy_non_tasks_paths_never_render_as_tracks() -> None:
+    # arrange
+    state = ProjectState.from_dict(
+        "demo",
+        {
+            "project": "demo",
+            "runs": [
+                {
+                    "run_id": "legacy",
+                    "title": "Legacy cancelled",
+                    "status": "cancelled",
+                    "created": "2026-09-06T10:00:00+10:00",
+                    "task_file": "runs/legacy/00-task.md",
+                }
+            ],
+        },
+    )
+
+    # act
+    markdown = render_project_tasks_markdown(state, FIXED_STAMP)
+
+    # assert
+    assert "| 2026-09-06 10:00 +1000 | Legacy cancelled | cancelled | — | [task](runs/legacy/00-task.md) |" in markdown
+    assert "tracks:" not in markdown

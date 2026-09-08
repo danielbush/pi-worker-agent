@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import PurePosixPath
 from typing import Any
 
 from tools.lib.core.domain.project_state import ProjectState
@@ -29,8 +30,34 @@ def _code_cell(value: str | None) -> str:
     return "—" if not value else f"`{value}`"
 
 
-def _details_link(task_file: str | None) -> str:
-    return "—" if not task_file else f"[task]({task_file})"
+def _track_directory_names(run: RunRecord) -> list[str]:
+    """Sorted track names derived from the run's recorded control paths.
+
+    A recorded `task_file` or `report_file` is either a direct job file at the
+    task root, `tasks/<taskdir>/<file>`, or one level deeper inside a track,
+    `tasks/<taskdir>/<NN>-<description>/<file>`. The immediate parent directory
+    of a nested file is the track name; membership never needs its own state.
+    """
+    names: set[str] = set()
+    recorded = (run.task_file, *(job.report_file for job in run.jobs))
+    for value in recorded:
+        if not value:
+            continue
+        parts = PurePosixPath(value).parts
+        if len(parts) == 4 and parts[0] == "tasks":
+            names.add(parts[2])
+    return sorted(names)
+
+
+def _details_link(run: RunRecord) -> str:
+    """Details cell: the task link, plus any tracks the recorded files use."""
+    tracks = _track_directory_names(run)
+    if not run.task_file:
+        return "—"
+    link = f"[task]({run.task_file})"
+    if not tracks:
+        return link
+    return f"{link} — tracks: {', '.join(tracks)}"
 
 
 def _row(values: list[Any]) -> str:
@@ -72,7 +99,7 @@ def render_project_tasks_markdown(state: ProjectState, generated_at: str) -> str
                     _job_summary(run),
                     _code_cell(run.workflow),
                     _code_cell(run.workspace),
-                    _details_link(run.task_file),
+                    _details_link(run),
                 ]
             )
         )
@@ -94,7 +121,7 @@ def render_project_tasks_markdown(state: ProjectState, generated_at: str) -> str
                     run.title,
                     run.status,
                     run.outcome,
-                    _details_link(run.task_file),
+                    _details_link(run),
                 ]
             )
         )

@@ -486,3 +486,54 @@ def test_root_is_canonicalized_before_target_resolution() -> None:
 
     # assert
     assert path == Path("/repo/AGENTS.md")
+
+
+def test_explicit_job_file_inside_a_track_is_allowed() -> None:
+    # arrange
+    files = repository_files()
+    nested = (
+        "/repo/projects/alpha/tasks/current/00-investigate/01-investigate.md"
+    )
+    files[nested] = "report\n"
+    subject = resolver(files)
+
+    # act
+    path = subject.resolve(ManagedFileRequest.for_file(ROOT, nested))
+
+    # assert
+    assert path == Path(nested)
+
+
+def test_task_target_resolves_a_task_file_recorded_inside_a_track() -> None:
+    # arrange
+    files = repository_files()
+    files["/repo/projects/alpha/state.json"] = state(
+        run("tracked", task_file="tasks/current/00-investigate/00-task.md")
+    )
+    files["/repo/projects/alpha/tasks/current/00-investigate/00-task.md"] = (
+        "task\n"
+    )
+    subject = resolver(files)
+
+    # act
+    path = resolve_target(subject, "task", project="alpha", run_id="tracked")
+
+    # assert
+    assert path == Path(
+        "/repo/projects/alpha/tasks/current/00-investigate/00-task.md"
+    )
+
+
+def test_sensitive_file_inside_a_track_is_still_refused() -> None:
+    # arrange
+    files = repository_files()
+    nested = "/repo/projects/alpha/tasks/current/00-investigate/auth.json"
+    files[nested] = "secret\n"
+    subject = resolver(files)
+
+    # act
+    with pytest.raises(ManagedFileError) as error:
+        subject.resolve(ManagedFileRequest.for_file(ROOT, nested))
+
+    # assert
+    assert str(error.value) == "refusing to open sensitive file: auth.json"

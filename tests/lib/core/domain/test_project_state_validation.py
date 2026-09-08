@@ -109,3 +109,32 @@ def test_session_id_is_optional_and_must_be_a_string_when_present() -> None:
     assert caught.value.issues == (
         "runs[0].jobs[0].session_id: expected string",
     )
+
+
+def test_nested_task_and_report_paths_validate() -> None:
+    # arrange: task_file and report_file recorded one level inside a track
+    document = _valid_document()
+    document["runs"][0]["task_file"] = (
+        "tasks/2026-09-07-1000-build/00-investigate/00-task.md"
+    )
+    document["runs"][0]["jobs"][0]["report_file"] = (
+        "tasks/2026-09-07-1000-build/00-investigate/01-investigate.md"
+    )
+
+    # act / assert
+    validate_project_state(document, "demo", baseline=document)
+
+
+def test_nested_report_path_is_a_plain_string_like_any_report_path() -> None:
+    # arrange
+    document = _valid_document()
+    document["runs"][0]["jobs"][0]["report_file"] = 12
+
+    # act
+    with pytest.raises(ProjectStateValidationError) as caught:
+        validate_project_state(document, "demo")
+
+    # assert
+    assert caught.value.issues == (
+        "runs[0].jobs[0].report_file: expected string",
+    )

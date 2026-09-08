@@ -46,7 +46,16 @@ execution order (`00-task.md` is the spec; `NN-*.md` are outputs). A worker may 
 only its assigned `tasks/<YYYY-MM-DD>--<slug>/<NN>-<job>.md` file in the control
 record. It must not edit another report or any other file under
 `projects/<name>/`. Two-digit `NN` records actual execution order; retries get
-the next number rather than overwriting an earlier report.
+the next number rather than overwriting an earlier report. Job files may instead
+be organized into one-level **track** subdirectories, `NN-<description>` (two
+digits from 00, lowercase hyphenated description), each holding job files in the
+same `MM-<jobtype>.md` format as direct jobs and numbering its own files from
+`MM` 00; a task spec (`00-task.md`) may stay at the task root or move inside a
+track. Tracks carry no separate state: the manager groups existing direct files
+by moving them into an `NN-<description>/` directory (a pure move — no
+renumbering) and recording the nested `task_file` / `report_file` paths through
+`StateStore`, and a worker's one assigned report may be recorded inside a
+track.
 
 Workers do project work in an explicit **workspace**, normally outside this
 control repository. The manager selects or creates the workspace, records its

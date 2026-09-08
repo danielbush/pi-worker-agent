@@ -48,6 +48,7 @@ class JobRecord:
 
     job: str | None = None
     status: str | None = None
+    report_file: str | None = None
 
     @classmethod
     def from_dict(cls, payload: Any) -> JobRecord | None:
@@ -57,4 +58,5 @@ class JobRecord:
         return cls(
             job=_optional_str(payload.get("job")),
             status=_optional_str(payload.get("status")),
+            report_file=_optional_str(payload.get("report_file")),
         )
