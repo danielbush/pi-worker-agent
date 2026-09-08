@@ -22,7 +22,7 @@ def _valid_document() -> dict:
                 "workflow": "build",
                 "status": "running",
                 "created": "2026-09-07T12:00:00+10:00",
-                "task_file": "runs/run-1/00-task.md",
+                "task_file": "tasks/run-1/00-task.md",
                 "workspace": "/work/demo",
                 "jobs": [{"job": "implement", "status": "queued"}],
             }

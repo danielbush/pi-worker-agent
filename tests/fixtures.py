@@ -27,7 +27,7 @@ def run(
         "title": title,
         "status": status,
         "created": created,
-        "task_file": task_file or f"runs/{run_id}/task.md",
+        "task_file": task_file or f"tasks/{run_id}/task.md",
     }
 
 

@@ -21,10 +21,14 @@ Before launch:
 1. Verify the exact absolute workspace. If it is Git-backed, verify both
    `git rev-parse --show-toplevel` and `git rev-parse --git-common-dir`; never
    replace a selected worktree with its main checkout or common directory.
-2. Create the manager-owned `runs/<run-id>/` and its `logs/` directory.
-3. Reserve exactly one `runs/<run-id>/<NN>-<job>.md`. The sequence number is global
-   within the run and reflects execution order; retries get a new number.
-4. Choose `runs/<run-id>/logs/<NN>-<job>.<harness>.jsonl` for the raw event stream.
+2. Create the manager-owned `tasks/<date>--<slug>/` and its `logs/`
+   directory. `<date>` is the task's `YYYY-MM-DD`; `<slug>` is a short
+   hyphenated description of the task (see `AGENTS.md`).
+3. Reserve exactly one `tasks/<date>--<slug>/<NN>-<job>.md`. The sequence
+   number is global within the run and reflects execution order; retries get
+   a new number.
+4. Choose `tasks/<date>--<slug>/logs/<NN>-<job>.<harness>.jsonl` for the raw
+   event stream.
 5. Record the job's actual harness, exact model, route when applicable,
    `harness_log`, assigned report, start time, and `running` status in
    `state.json`; regenerate task indexes. Leave `session_id` off until the
@@ -46,7 +50,7 @@ The prompt must contain only job-relevant data:
 - protected paths and prohibited actions.
 
 Never include credentials. The workspace is the only project-write location;
-the assigned `NN-<job>.md` in the run directory is the sole control-record exception.
+the assigned `NN-<job>.md` in the task directory is the sole control-record exception.
 
 ## 3. Launch without blocking
 
@@ -109,7 +113,7 @@ For Claude Code (`claude`; verified with Claude Code 2.1.263):
 - do not use Claude Code's `--background`/`--bg` mode for managed jobs. Keep
   the Python `bash()` handle alive as the process authority and stream directly
   to the manager-owned JSONL log;
-- use `--add-dir <run-dir>` when the assigned report is outside the workspace;
+- use `--add-dir <absolute-task-dir>` when the assigned report is outside the workspace;
   the brief must still name the single allowed report file and protect every
   other control-record path;
 - avoid `--dangerously-skip-permissions`. Prefer `--permission-mode dontAsk`
@@ -132,7 +136,7 @@ A typical launch shape is:
 claude --print --output-format stream-json --verbose \
   --model <model> --effort <effort> --permission-mode dontAsk \
   --allowedTools "Read,Glob,Grep,Edit,Write,Bash(<authorized-pattern>)" \
-  --add-dir <absolute-run-dir> < <brief-file>
+  --add-dir <absolute-task-dir> < <brief-file>
 ```
 
 If output is piped through `tee`, enable shell `pipefail` so the captured exit

@@ -14,7 +14,7 @@
           "job": "investigate",
           "model": "anthropic/claude-opus-5",
           "status": "done",
-          "output": "runs/2026-08-30-1100-investigate/investigate.md"
+          "output": "tasks/2026-08-30-1100-investigate/investigate.md"
         }
       ],
       "outcome": "Plan written: split into four modules, invoicing first since it has the fewest callers."
@@ -31,20 +31,20 @@
           "job": "plan",
           "model": "anthropic/claude-opus-5",
           "status": "done",
-          "output": "runs/2026-09-02-0930-build/plan.md"
+          "output": "tasks/2026-09-02-0930-build/plan.md"
         },
         {
           "job": "implement",
           "model": "openai/gpt-5.1-codex",
           "status": "done",
-          "output": "runs/2026-09-02-0930-build/implement.md"
+          "output": "tasks/2026-09-02-0930-build/implement.md"
         },
         {
           "job": "review",
           "model": "anthropic/claude-opus-5",
           "status": "done",
           "attempts": 2,
-          "output": "runs/2026-09-02-0930-build/review.md",
+          "output": "tasks/2026-09-02-0930-build/review.md",
           "note": "First review found the old export left in place; looped back to implement."
         }
       ],

@@ -1,7 +1,7 @@
 projects/*
 !projects/example/
-projects/example/runs/*
-!projects/example/runs/.gitkeep
+projects/example/tasks/*
+!projects/example/tasks/.gitkeep
 
 # user policies (symlinks or local copies)
 policies/*

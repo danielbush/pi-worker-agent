@@ -25,7 +25,7 @@ def test_matches_golden_active_recent_and_empty_value_format() -> None:
                     "workspace": "/work/demo",
                     "status": "running",
                     "created": "2026-09-01T08:00:00+10:00",
-                    "task_file": "runs/one/00-task.md",
+                    "task_file": "tasks/one/00-task.md",
                     "jobs": [
                         {"job": "plan", "status": "done"},
                         {"job": "implement", "status": "queued"},
@@ -38,7 +38,7 @@ def test_matches_golden_active_recent_and_empty_value_format() -> None:
                     "workspace": "/work/demo",
                     "status": "blocked",
                     "created": "2026-09-02T09:30:00+10:00",
-                    "task_file": "runs/two/00-task.md",
+                    "task_file": "tasks/two/00-task.md",
                     "jobs": [{"job": "review", "status": "failed"}],
                 },
                 {
@@ -48,7 +48,7 @@ def test_matches_golden_active_recent_and_empty_value_format() -> None:
                     "workspace": "/work/demo",
                     "status": "done",
                     "created": "2026-09-03T10:00:00+10:00",
-                    "task_file": "runs/three/00-task.md",
+                    "task_file": "tasks/three/00-task.md",
                     "outcome": "",
                     "jobs": [],
                 },
@@ -69,14 +69,14 @@ def test_matches_golden_active_recent_and_empty_value_format() -> None:
         "| Date | Task | Status | Workflow | Workspace | Details |\n"
         "|---|---|---|---|---|---|\n"
         "| 2026-09-01 08:00 +1000 | Running \\| title | running — implement queued | "
-        "`build` | `/work/demo` | [task](runs/one/00-task.md) |\n"
+        "`build` | `/work/demo` | [task](tasks/one/00-task.md) |\n"
         "| 2026-09-02 09:30 +1000 | Blocked | blocked — review failed | "
-        "`build` | `/work/demo` | [task](runs/two/00-task.md) |\n\n"
+        "`build` | `/work/demo` | [task](tasks/two/00-task.md) |\n\n"
         "## Recent\n\n"
         "| Date | Task | Status | Outcome | Details |\n"
         "|---|---|---|---|---|\n"
         "| 2026-09-03 10:00 +1000 | Finished | done | — | "
-        "[task](runs/three/00-task.md) |\n"
+        "[task](tasks/three/00-task.md) |\n"
     )
 
 

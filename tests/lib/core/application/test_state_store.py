@@ -35,7 +35,7 @@ def _document(title: str = "Original") -> dict:
                 "status": "running",
                 "created": "2026-09-07T10:00:00+10:00",
                 "request": "Build it",
-                "task_file": "runs/2026-09-07-1000-build/00-task.md",
+                "task_file": "tasks/2026-09-07-1000-build/00-task.md",
                 "workspace": "/work/demo",
                 "run_extension": [1, 2],
                 "jobs": [

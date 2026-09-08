@@ -39,10 +39,11 @@ the tail, or grep it for a run id.
 create, edit, move, or delete its `README.md`, `state.json`, `history.jsonl`, or
 other control files.
 
-`projects/<name>/runs/` is the narrow exception. The manager creates each run
-directory and assigns each worker exactly one result file, numbered in
+`projects/<name>/tasks/` is the narrow exception. The manager creates each task
+directory, named `<YYYY-MM-DD>--<slug>` (slug: a short hyphenated description
+of the task title), and assigns each worker exactly one result file, numbered in
 execution order (`00-task.md` is the spec; `NN-*.md` are outputs). A worker may write
-only its assigned `runs/<run-id>/<NN>-<job>.md` file in the control
+only its assigned `tasks/<YYYY-MM-DD>--<slug>/<NN>-<job>.md` file in the control
 record. It must not edit another report or any other file under
 `projects/<name>/`. Two-digit `NN` records actual execution order; retries get
 the next number rather than overwriting an earlier report.
@@ -121,25 +122,35 @@ Do not seed `state.json` during setup; the first real run creates it through `St
    resolution only; never copy them into `state.json`. Do not create a new
    workflow merely to change execution fields.
 3. Select and verify the exact workspace.
-4. Create `projects/<name>/runs/<run-id>/` flat, numbered where `<run-id>` is
-   `YYYY-MM-DD-HHMM-<workflow>`.
-5. Write manager-owned `00-task.md` in the run directory. Include the dated task,
-   original request, a `## Demo` section ("what I will see": the concrete
-   commands to run and outputs to look at when the work is done — written so
-   the user can recognize the task by its outputs), acceptance criteria,
-   workflow, resolved execution fields, exact workspace, relevant constraints,
-   and commands the manager may authorize for its jobs. Describe any one-off
-   model choice in prose, not as state data. The demo illustrates; the
-   acceptance criteria remain authoritative on conflict.
+4. Create `projects/<name>/tasks/<YYYY-MM-DD>--<slug>/` flat: `<slug>` is a
+   short hyphenated description of the task (lowercase, punctuation and
+   stopwords dropped) derived from the title written in `00-task.md`. The
+   machine `run_id` stored in `state.json` (`YYYY-MM-DD-HHMM-<workflow>`) is
+   independent of the directory name.
+5. Create manager-owned `00-task.md` in the task directory as the **spec** (and
+   the plan). The manager starts it with YAML frontmatter (run id, created,
+   status `awaiting-approval`, workflow, workspace) and the dated task title
+   plus `## Original request`. The full spec is then drafted by a worker: spawn
+   a drafting job resolved through the **planner** preferred profile (default
+   `planner/sol`; use a cheaper planner profile when the user picks one), whose
+   single deliverable is to **append** the rest of `00-task.md` — `## Demo`
+   ("what I will see": the concrete commands to run and outputs to look at when
+   the work is done — written so the user can recognize the task by its
+   outputs), objective, acceptance criteria, constraints, and the commands the
+   manager may authorize for its jobs. The manager may also draft the spec
+   itself instead of spawning a worker; prefer a worker for significant work to
+   preserve manager context. The demo illustrates; the acceptance criteria
+   remain authoritative on conflict.
 6. Add the run to `state.json` with status `awaiting-approval`, then regenerate
    the human-readable `TASKS.md`.
 7. **Approval gate.** Show the user a short summary of the run and offer to
    open `00-task.md` in their editor (via the show-managed-file skill) so they can
-   review and adjust it directly. Then stop. Do not spawn workers until the
-   user approves. On approval, record an `approved` timestamp on the run; if
-   the user edited `00-task.md`, re-read it before briefing workers. Skip the gate
-   only when the user waived approval in the request ("just run it") — record
-   the waiver in `00-task.md`.
+   review and adjust it directly. Then stop. Do not spawn implementation
+   workers until the user approves. On approval, record an `approved`
+   timestamp on the run; if the user edited `00-task.md`, re-read it before
+   briefing workers. Skip the gate only when the user waived approval in the
+   request ("just run it") — record the waiver in `00-task.md`. The approved
+   `00-task.md` is the plan: no separate planning job runs afterwards.
 8. Mark the run `running` when work starts, then run jobs in order, one worker
    per job.
 9. Update state and `TASKS.md` at each status change. Report to the user in
@@ -201,13 +212,13 @@ Every worker prompt must contain the **absolute workspace path** and tell the
 worker to `os.chdir` there first. Workers inherit this control directory, not
 the workspace. Getting this wrong means workers edit the wrong files. The
 workspace is the only location where the worker may do project work; the sole
-control-record exception is its assigned result file under `runs/`.
+control-record exception is its assigned result file under `tasks/`.
 
 Give each worker a minimal job brief, not the complete project configuration.
 
 ## Report and spec frontmatter
 
-Every `runs/<run-id>/NN-*.md` starts with YAML frontmatter naming the author,
+Every `tasks/<date>--<slug>/NN-*.md` starts with YAML frontmatter naming the author,
 role, date, and — for newly launched workers — the same harness-native
 `session_id` stored on that job in state, so attribution and session
 traceability survive without reading run state:
@@ -231,7 +242,7 @@ arrives without them. Older reports without `session_id` remain readable.
 User-authored reviews (`author: user`) have no harness session and omit the
 field.
 
-Every `runs/<run-id>/00-task.md` likewise starts with frontmatter carrying its
+Every `tasks/<date>--<slug>/00-task.md` likewise starts with frontmatter carrying its
 info fields (run id, created date, status, workflow, workspace), with the
 prose sections (Original request, Demo, Objective, Acceptance criteria,
 Constraints, Allowed commands, Coding standards, Resolved execution)
@@ -274,8 +285,8 @@ improvise an unapproved command in those categories; it must report the need to
 the manager instead.
 
 Every worker prompt must name the one control-record file it may write:
-`projects/<name>/runs/<run-id>/<NN>-job.md`. The manager creates the
-run directory before spawning the worker. Allocate `NN` in
+`projects/<name>/tasks/<date>--<slug>/<NN>-job.md`. The manager creates the
+task directory before spawning the worker. Allocate `NN` in
 actual execution order. A retry writes a new numbered report and never
 overwrites an earlier attempt.
 
@@ -346,7 +357,7 @@ Both regenerations happen inside the `StateStore.update` write path, which is
 the only place state changes. Never treat an index as a second source of
 truth; the manager may rebuild it at any time.
 
-Each `runs/<run-id>/00-task.md` is the dated, detailed specification for that run.
+Each `tasks/<date>--<slug>/00-task.md` is the dated, detailed specification for that run.
 The manager writes it before spawning workers and is the only agent allowed to
 edit it. Workers receive its path for context and must not modify it.
 
@@ -362,7 +373,7 @@ with open(hist, "a") as f:
 Never rewrite `history.jsonl`. Never load all of it — take the tail, or grep for
 what you need.
 
-`state.json` shape:
+`state.json` shape — the on-disk task directory is `tasks/<YYYY-MM-DD>--<slug>/`, distinct from the machine `run_id`; recorded `task_file` and `report_file` paths point inside it:
 
 ```json
 {
@@ -378,13 +389,13 @@ what you need.
       "started": "...",
       "finished": "...",
       "request": "what the user asked for",
-      "task_file": "runs/2026-09-04-1430-build/00-task.md",
+      "task_file": "tasks/2026-09-04--short-task-title/00-task.md",
       "workspace": "/absolute/path/to/the/checkout-or-worktree-used",
-      "jobs": [{"job": "plan", "harness": "rlm",
+      "jobs": [{"job": "implement", "harness": "rlm",
                 "model": "openai-codex/gpt-5.6-sol", "thinking": "medium",
                 "route": null, "status": "done",
                 "session_id": "<harness-native identifier>",
-                "report_file": "runs/2026-09-04-1430-build/01-plan.md"}],
+                "report_file": "tasks/2026-09-04--short-task-title/01-implement.md"}],
       "outcome": "one line, written when the run ends"
     }
   ],

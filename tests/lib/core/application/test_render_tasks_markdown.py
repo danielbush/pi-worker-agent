@@ -77,7 +77,7 @@ def test_active_and_recent_sort_and_links() -> None:
     assert newest_active < recent_pos
     assert newest_done < older_done
     assert "[demo](projects/demo/TASKS.md)" in markdown
-    assert "[task](projects/demo/runs/2026-09-01-0800-build/task.md)" in markdown
+    assert "[task](projects/demo/tasks/2026-09-01-0800-build/task.md)" in markdown
     assert "| queued |" in markdown
     assert "Generated from project `state.json` files: " + FIXED_STAMP in markdown
     assert "Do not edit manually." in markdown

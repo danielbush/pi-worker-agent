@@ -21,8 +21,8 @@ a worker from a selected worktree to the main checkout.
 
 Only the manager edits `README.md`, `state.json`, generated `TASKS.md`,
 `history.jsonl`, each run's dated `task.md`, and run metadata under
-`projects/<name>/`. The manager creates each run and `reports/` directory. A worker may write only
-its assigned `runs/<run-id>/reports/<NN>-<job>.md` report. Sequence numbers
+`projects/<name>/`. The manager creates each task directory. A worker may write only
+its assigned `tasks/<date>--<slug>/<NN>-<job>.md` report. Sequence numbers
 record execution order, and retries use new numbers instead of overwriting
 reports.
 
@@ -63,7 +63,7 @@ and Git-mutating commands require explicit approval.
 ## Current focus
 
 Splitting the monolithic `src/services/billing.ts` into per-concern modules.
-There's a plan at `runs/2026-08-30-1100-investigate/investigate.md`.
+There's a plan at `tasks/2026-08-30-1100-investigate/investigate.md`.
 
 ## Manager-only notes
 

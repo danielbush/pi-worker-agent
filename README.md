@@ -42,7 +42,7 @@ can access, and shaping things to how you work.
 
 The broad shape: the manager runs on **policy documents** — `AGENTS.md` plus
 `policies/` (see the [`examples/policies/`](examples/policies/README.md)
-README for what to copy and adapt) — and tracks work in **runs**, all plain
+README for what to copy and adapt) — and tracks work in **tasks**, all plain
 files. Each managed project gets a
 directory:
 
@@ -52,14 +52,14 @@ projects/<name>/
   README.md          project context the manager wrote with you
   state.json         machine-readable run state (source of truth)
   TASKS.md           per-project dashboard — render the markdown in your editor
-  runs/...
+  tasks/...          dated task directories, each named YYYY-MM-DD--<slug>
 ```
 
-A run is a dated directory of numbered markdown files. Jobs and reviews append
+A task is a dated directory of numbered markdown files. Jobs and reviews append
 in order, so iteration is just the next number:
 
 ```
-projects/<name>/runs/2026-09-07-1501-build/
+projects/<name>/tasks/2026-09-07--statestore-mediated-project-state-writes/
   00-task.md         spec the manager wrote and you approved
   01-plan.md         planner's report
   02-implement.md    implementer's report

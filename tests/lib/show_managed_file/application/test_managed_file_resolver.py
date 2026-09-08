@@ -28,7 +28,7 @@ def run(
     *,
     status: str = "running",
     created: str = "2026-09-08T09:12:00+10:00",
-    task_file: str | None = "runs/current/00-task.md",
+    task_file: str | None = "tasks/current/00-task.md",
 ) -> dict[str, Any]:
     record: dict[str, Any] = {"run_id": run_id, "status": status, "created": created}
     if task_file is not None:
@@ -46,7 +46,7 @@ def repository_files(**extra: str) -> dict[str, str]:
         "/repo/projects/alpha/README.md": "context\n",
         "/repo/projects/alpha/TASKS.md": "project index\n",
         "/repo/projects/alpha/state.json": state(run("2026-09-08-0912-build")),
-        "/repo/projects/alpha/runs/current/00-task.md": "task\n",
+        "/repo/projects/alpha/tasks/current/00-task.md": "task\n",
     }
     files.update(extra)
     return files
@@ -90,7 +90,7 @@ def resolve_target(
         ("project", "/repo/projects/alpha/README.md"),
         ("state", "/repo/projects/alpha/state.json"),
         ("project-tasks", "/repo/projects/alpha/TASKS.md"),
-        ("task", "/repo/projects/alpha/runs/current/00-task.md"),
+        ("task", "/repo/projects/alpha/tasks/current/00-task.md"),
     ],
 )
 def test_each_target_resolves_to_its_authoritative_path(
@@ -187,16 +187,16 @@ def test_named_run_wins_over_the_newest_active_run() -> None:
     # arrange
     files = repository_files()
     files["/repo/projects/alpha/state.json"] = state(
-        run("older", created="2026-09-01T09:00:00+10:00", task_file="runs/old/00.md"),
+        run("older", created="2026-09-01T09:00:00+10:00", task_file="tasks/old/00.md"),
         run("newer", created="2026-09-08T09:00:00+10:00"),
     )
-    files["/repo/projects/alpha/runs/old/00.md"] = "old task\n"
+    files["/repo/projects/alpha/tasks/old/00.md"] = "old task\n"
 
     # act
     path = resolve_target(resolver(files), "task", run_id="older")
 
     # assert
-    assert path == Path("/repo/projects/alpha/runs/old/00.md")
+    assert path == Path("/repo/projects/alpha/tasks/old/00.md")
 
 
 def test_unknown_run_id_is_reported() -> None:
@@ -215,41 +215,41 @@ def test_newest_active_run_is_selected_by_creation_time() -> None:
     # arrange
     files = repository_files()
     files["/repo/projects/alpha/state.json"] = state(
-        run("a", created="2026-09-08T09:00:00+10:00", task_file="runs/a/00.md"),
-        run("b", created="2026-09-08T11:00:00+10:00", task_file="runs/b/00.md"),
+        run("a", created="2026-09-08T09:00:00+10:00", task_file="tasks/a/00.md"),
+        run("b", created="2026-09-08T11:00:00+10:00", task_file="tasks/b/00.md"),
         run(
             "c",
             status="done",
             created="2026-09-09T09:00:00+10:00",
-            task_file="runs/c/00.md",
+            task_file="tasks/c/00.md",
         ),
     )
-    files["/repo/projects/alpha/runs/a/00.md"] = "a\n"
-    files["/repo/projects/alpha/runs/b/00.md"] = "b\n"
-    files["/repo/projects/alpha/runs/c/00.md"] = "c\n"
+    files["/repo/projects/alpha/tasks/a/00.md"] = "a\n"
+    files["/repo/projects/alpha/tasks/b/00.md"] = "b\n"
+    files["/repo/projects/alpha/tasks/c/00.md"] = "c\n"
 
     # act
     path = resolve_target(resolver(files), "task")
 
     # assert
-    assert path == Path("/repo/projects/alpha/runs/b/00.md")
+    assert path == Path("/repo/projects/alpha/tasks/b/00.md")
 
 
 def test_equal_creation_times_break_the_tie_on_run_id() -> None:
     # arrange
     files = repository_files()
     files["/repo/projects/alpha/state.json"] = state(
-        run("run-b", created="2026-09-08T09:00:00+10:00", task_file="runs/b/00.md"),
-        run("run-a", created="2026-09-08T09:00:00+10:00", task_file="runs/a/00.md"),
+        run("run-b", created="2026-09-08T09:00:00+10:00", task_file="tasks/b/00.md"),
+        run("run-a", created="2026-09-08T09:00:00+10:00", task_file="tasks/a/00.md"),
     )
-    files["/repo/projects/alpha/runs/a/00.md"] = "a\n"
-    files["/repo/projects/alpha/runs/b/00.md"] = "b\n"
+    files["/repo/projects/alpha/tasks/a/00.md"] = "a\n"
+    files["/repo/projects/alpha/tasks/b/00.md"] = "b\n"
 
     # act
     path = resolve_target(resolver(files), "task")
 
     # assert
-    assert path == Path("/repo/projects/alpha/runs/b/00.md")
+    assert path == Path("/repo/projects/alpha/tasks/b/00.md")
 
 
 def test_without_an_active_run_the_newest_run_is_used() -> None:
@@ -260,23 +260,23 @@ def test_without_an_active_run_the_newest_run_is_used() -> None:
             "old",
             status="done",
             created="2026-09-01T09:00:00+10:00",
-            task_file="runs/old/00.md",
+            task_file="tasks/old/00.md",
         ),
         run(
             "new",
             status="failed",
             created="2026-09-08T09:00:00+10:00",
-            task_file="runs/new/00.md",
+            task_file="tasks/new/00.md",
         ),
     )
-    files["/repo/projects/alpha/runs/old/00.md"] = "old\n"
-    files["/repo/projects/alpha/runs/new/00.md"] = "new\n"
+    files["/repo/projects/alpha/tasks/old/00.md"] = "old\n"
+    files["/repo/projects/alpha/tasks/new/00.md"] = "new\n"
 
     # act
     path = resolve_target(resolver(files), "task")
 
     # assert
-    assert path == Path("/repo/projects/alpha/runs/new/00.md")
+    assert path == Path("/repo/projects/alpha/tasks/new/00.md")
 
 
 def test_project_without_runs_is_reported() -> None:
@@ -346,7 +346,7 @@ def test_missing_task_file_on_disk_is_reported() -> None:
     # arrange
     files = repository_files()
     files["/repo/projects/alpha/state.json"] = state(
-        run("solo", task_file="runs/gone/00-task.md")
+        run("solo", task_file="tasks/gone/00-task.md")
     )
 
     # act
@@ -355,7 +355,7 @@ def test_missing_task_file_on_disk_is_reported() -> None:
 
     # assert
     assert str(error.value) == (
-        "task file does not exist: /repo/projects/alpha/runs/gone/00-task.md"
+        "task file does not exist: /repo/projects/alpha/tasks/gone/00-task.md"
     )
 
 

@@ -30,7 +30,7 @@ profile workflows use by default.
 
 | Workflow role | Preferred profile | Used for |
 |---|---|---|
-| `planning` | `planner/sol` | Planning jobs |
+| `planning` | `planner/sol` | Drafting the `00-task.md` spec before a run is approved |
 | `coding` | `coder/grok` | Implementation and mock jobs |
 | `reviewing` | `review/sol` | Independent review jobs |
 
@@ -136,9 +136,9 @@ brief from the manager — this table is the shared vocabulary, not a prompt.
 | Job type | Role | Purpose | Inputs | Output |
 |---|---|---|---|---|
 | `investigate` | planning | Understand code or behaviour; change nothing | The question; read-only workspace | Written findings in its report |
-| `plan` | planning | Produce an approach another agent can execute without re-reading the codebase; must end with a Demo section (what the user will see: concrete commands and outputs) | The request; any `investigate` report | Written plan in its report |
-| `implement` | coding | Make the change in the workspace | `00-task.md`; any `plan`/prior reports | Code + verification; report |
-| `mock` | coding | Build a throwaway fake for user reaction | `00-task.md`; any `plan` report | Scratch code, never integrated; report |
+| `draft` | planning | Produce the task spec that becomes `00-task.md`; append Demo (what the user will run and see), objective, acceptance criteria, constraints, and allowed commands to a manager-started frontmatter+request file | The original request; project README/context; optional `investigate` report | Drafted `00-task.md` content in its report |
+| `implement` | coding | Make the change in the workspace | `00-task.md` (the approved plan); prior reports | Code + verification; report |
+| `mock` | coding | Build a throwaway fake for user reaction | `00-task.md`; prior reports | Scratch code, never integrated; report |
 | `review` | reviewing | Independent verdict on work done — judge against the coding-standards stack, applying their priority (`00-task.md` constraints, then project `CODE.md`, then global `policies/CODE.md`) | `00-task.md`, reports, workspace diff, standards files | PASS/FAIL verdict in its report |
 
 Rules that apply to every job type:
@@ -224,14 +224,14 @@ Run exactly one job type chosen by the user, then stop and ask what to do next.
 jobs: [user-selected]
 ```
 
-The available choices are `investigate`, `plan`, `implement`, `mock`, and
+The available choices are `investigate`, `draft`, `implement`, `mock`, and
 `review`. If the user has not named the next job type, ask them to choose one;
 do not infer it from the request. Each choice adds only that one job to the
 current task.
 
 After the selected job finishes, set the task to `awaiting-user-review` and ask
 the user to choose the next job type or finish the task. Do not automatically
-plan, implement, review, fix, retry, or start any other follow-up job. In this
+draft, implement, review, fix, retry, or start any other follow-up job. In this
 workflow, the review-fail loop does not apply: a failed review also stops for
 the user's decision.
 
@@ -245,35 +245,39 @@ Do not interpret a broad request as permission to substitute `build`,
 
 ### investigate
 
-Understand something and produce a plan. No code is changed.
+Understand something and write up findings/approach. No code is changed.
 
 ```
 jobs: [investigate]
 ```
 
 The output is a written plan: what's going on, what to do about it, in what
-order, and what could go wrong. This is the input to the `build` workflow later
-— write it so another agent can act on it without re-reading the codebase.
+order, and what could go wrong. Use it to understand a codebase before a spec
+is drafted, or as findings a `draft` job can turn into a `00-task.md`. Write it
+so it survives without re-reading the codebase.
 
 Use this whenever the shape of the work isn't obvious. It's cheap relative to a
 wrong implementation.
 
 ### build
 
-Full cycle for real work that needs thinking first.
+Full cycle for real work. The plan lives in the approved `00-task.md` (drafted
+before the run starts, per Handling a request), so the run itself needs no
+planning job.
 
 ```
-jobs: [plan, implement, review]
+jobs: [implement, review]
 ```
 
-`plan` produces the approach; `implement` does the work; `review` reads the
-diff and the plan and says whether they match (review-fail loop applies — see
+`implement` does the work against the approved spec; `review` reads the diff
+and the spec and says whether they match (review-fail loop applies — see
 Job types).
 
 ### build-no-plan
 
-Implement a well-specified change without a planning job, then use the regular
-reviewer for an independent quality check.
+Implement a well-specified change, then use the regular reviewer for an
+independent quality check. Same job sequence as `build`; kept as an alias for
+runs whose spec was already explicit without a draft round.
 
 ```
 jobs: [implement, review]
@@ -289,8 +293,8 @@ For work where the approach is already obvious.
 jobs: [implement, review]
 ```
 
-Skip the plan job. If you find yourself wanting one mid-job, stop and run the
-`investigate` workflow instead.
+The spec is already clear, so no `draft` round is needed. If you find yourself
+wanting to understand the code first, stop and run the `investigate` workflow.
 
 ### mockup
 
@@ -298,13 +302,13 @@ Stand something up so the user can see and react to it. Nothing behind it is
 real.
 
 ```
-jobs: [plan, mock]
+jobs: [mock]
 ```
 
-`plan` works out what the user needs to *see* — the screens or outputs, the
-states worth showing, the happy path being demonstrated. Not architecture.
-
-`mock` builds exactly that, faking everything below the surface:
+The spec drafted into `00-task.md` before the run works out what the user needs
+to *see* — the screens or outputs, the states worth showing, the happy path
+being demonstrated. `mock` then builds exactly that, faking everything below
+the surface:
 
 - Hardcoded data inline. No database, no fixtures, no seed scripts.
 - No network calls. Stub every API with a literal response.

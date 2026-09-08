@@ -44,9 +44,9 @@ flowchart TB
             CR(["Control-record I/O boundary"])
             PC["README.md<br/>workspace options, commands, constraints"]
             ST["state.json<br/>canonical latest 20 runs"]
-            T["runs/run-id/00-task.md<br/>dated task specification"]
-            RP["runs/run-id/NN-job.md<br/>reserved worker result"]
-            LG["runs/run-id/logs/...jsonl<br/>external harness event stream"]
+            T["tasks/<date>--<slug>/00-task.md<br/>dated task specification"]
+            RP["tasks/<date>--<slug>/NN-job.md<br/>reserved worker result"]
+            LG["tasks/<date>--<slug>/logs/...jsonl<br/>external harness event stream"]
             TL["TASKS.md<br/>generated project index"]
             HI["history.jsonl<br/>append-only older runs"]
 
@@ -192,13 +192,13 @@ Rules that the diagram does not show:
 - `approval: required` means a `RUN` cannot leave `awaiting-approval` until
   the user approves its `00-task.md`.
 
-### Example: one run on disk
+### Example: one task on disk
 
-A run is a directory; everything it produces hangs off it by path. Using a
-mock project and run id:
+A task is a directory; everything it produces hangs off it by path. Using a
+mock project and a title-derived slug:
 
 ```
-projects/my-project/runs/2026-01-15-0930-quickfix/
+projects/my-project/tasks/2026-01-15--fix-dashboard-sorting/
   00-task.md                     # the approved spec (manager-owned;
                                  #   frontmatter: run_id, title, created,
                                  #   status, workflow, workspace)
@@ -222,8 +222,8 @@ erDiagram
     PROJECT_DIR {
         path dir "projects/my-project/"
     }
-    RUN_DIR {
-        path dir "runs/2026-01-15-0930-quickfix/"
+    TASK_DIR {
+        path dir "tasks/2026-01-15--fix-dashboard-sorting/"
     }
     TASK_MD {
         path file "00-task.md"
@@ -236,22 +236,22 @@ erDiagram
         path file "logs/NN-job.harness.jsonl"
     }
 
-    PROJECT_DIR ||--o{ RUN_DIR : "has zero or more"
-    RUN_DIR ||--|| TASK_MD : "has exactly one"
-    RUN_DIR ||--|{ JOB_MD : "has one or more"
-    RUN_DIR ||--o{ LOG_JSONL : "has zero or more (external harnesses)"
+    PROJECT_DIR ||--o{ TASK_DIR : "has zero or more"
+    TASK_DIR ||--|| TASK_MD : "has exactly one"
+    TASK_DIR ||--|{ JOB_MD : "has one or more"
+    TASK_DIR ||--o{ LOG_JSONL : "has zero or more (external harnesses)"
 ```
 
-The cardinality that matters: **one run directory, many numbered output
+The cardinality that matters: **one task directory, many numbered output
 files** — and the numbering is the conversation. The example above shows both
 loops: implement↔review (01–04) and user↔implement (05–06), all inside one
-run.
+task directory.
 Revisions and retries never overwrite — attempt N's feedback produces report
-N+1 in the same run, so the directory is a complete, ordered record of how
-the work converged.
+N+1 in the same task directory, so the directory is a complete, ordered
+record of how the work converged.
 
 The numbered `NN-*.md` files hold **outputs** from anyone who contributes
-to the run — implementers and reviewers. A personal review by the user is
+to the task — implementers and reviewers. A personal review by the user is
 just another review: `NN-review.md` with frontmatter `author: user`, written
 up by the manager from the user's feedback, and — like any review — fed back
 to the implementer as the next attempt's input. New worker reports also carry
@@ -285,7 +285,7 @@ values:
   "route": "morph/fp4",
   "status": "pending",
   "session_id": "<harness-native identifier>",
-  "report_file": "runs/2026-09-06-0140-build-no-plan/01-implement.md"
+  "report_file": "tasks/2026-09-06--build-python-task-tracker-kimi-comparison/01-implement.md"
 }
 ```
 
@@ -305,7 +305,7 @@ the selector is used.
 2. Select and verify the exact workspace. When Git is present, verify both the
    worktree root and common Git directory; never silently substitute another
    checkout.
-3. Create the run directory and manager-owned `00-task.md` before launching
+3. Create the task directory and manager-owned `00-task.md` before launching
    a worker.
 4. Add the run and resolved jobs to `state.json`, then regenerate project and
    root indexes.
@@ -347,7 +347,7 @@ not copied file objects. The fields mean:
   into it first;
 - **Inputs:** the manager-owned `00-task.md` path and paths to required earlier job
   reports, never in-memory objects or unrelated run context;
-- **Output:** exactly one reserved `runs/<run-id>/<NN>-<job>.md` path;
+- **Output:** exactly one reserved `tasks/<date>--<slug>/<NN>-<job>.md` path;
 - **Authorization:** the exact install, dependency, generation, build, test,
   typecheck, migration, deployment, service, and Git-mutating commands allowed
   for that job; read-only discovery is allowed unless project policy says
@@ -413,9 +413,9 @@ written report.
 | project `TASKS.md` | Generated view of one project state | Manager |
 | root `TASKS.md` | Generated cross-project view | Manager |
 | `history.jsonl` | Append-only complete runs older than the latest 20 | Manager |
-| `runs/<run-id>/00-task.md` | Dated request and acceptance specification | Manager |
-| `runs/<run-id>/<NN>-<job>.md` | Authoritative result for one execution | Assigned worker |
-| `runs/<run-id>/logs/*.jsonl` | Durable external harness event stream | External harness via manager launcher |
+| `tasks/<date>--<slug>/00-task.md` | Dated request and acceptance specification | Manager |
+| `tasks/<date>--<slug>/<NN>-<job>.md` | Authoritative result for one execution | Assigned worker |
+| `tasks/<date>--<slug>/logs/*.jsonl` | Durable external harness event stream | External harness via manager launcher |
 | external workspace | Project implementation and tests | Authorized worker |
 
 Report numbers are global within a run and reflect actual execution order across
