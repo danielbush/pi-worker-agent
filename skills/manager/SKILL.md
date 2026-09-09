@@ -85,39 +85,34 @@ Do this once, on first use:
 
 ### Resolving an alias
 
-An alias in `models.toml` looks like this:
+`models.toml` is keyed by harness, then agent:
 
 ```toml
-[aliases.grok]
-harness = "cursor"          # the harness to use unless the request says otherwise
+[defaults]
+grok = "cursor"             # the harness grok uses unless the request says otherwise
 
-[aliases.grok.cursor]       # one block per harness this alias can run on
-model     = "cursor-grok-4.6-high"
-reasoning = "high"
-fast      = "cursor-grok-4.6-high-fast"   # optional
+[cursor.grok]
+default   = "high"          # the effort used unless the request names another
+high      = "cursor-grok-4.6-high"        # exact model string for this harness
+high-fast = "cursor-grok-4.6-high-fast"   # same effort on the fast tier
 ```
 
 Resolve in this order:
 
-1. **Pick the harness.** What the request names, otherwise `aliases.<name>.harness`.
-2. **Read `aliases.<name>.<harness>`.** That block holds the `model` and `reasoning`
-   for that harness and no other. A model name is never valid across harnesses — never
-   carry one from one block to another.
-3. **Apply a role override** from `aliases.<name>.<harness>.roles.<role>` if one exists
-   for the role this request falls under (`plan`, `implement`, `investigate`,
-   `review`).
-4. **Apply what the request says.** An explicit model or reasoning level in the user's
-   words wins over everything above. It applies to that request only — never write it
-   back to `models.toml`.
+1. **Harness** — what the request names, else `defaults.<agent>`.
+2. **Block** — `[<harness>.<agent>]`. If there is no such block, the agent cannot run
+   on that harness: say so and ask. Never substitute another model.
+3. **Effort** — what the request names, else the block's `default`.
+4. **Key** — `<effort>` normally, `<effort>-fast` when the request asks for fast.
 
-If the alias has no block for the requested harness, it is not available there: say so
-and ask whether to change the alias or the harness. Never substitute a different model.
+The value at that key is the model string, passed to the harness exactly as written. It
+is valid only for that harness — never carry one to another block.
 
-If the request asks for a **fast** worker and the resolved block has a `fast` model
-name, use that instead of `model`. If it has none, say the fast tier is not configured
-for that alias and harness, and ask — do not guess at a model name. A `fast` entry is
-valid only at the reasoning level of the `model` beside it; if the request also changes
-the reasoning level, the configured `fast` name no longer applies, so say so.
+A missing key means that combination is not configured, not that you should improvise
+one. "sol low" with no `low` key, or "grok fast" with no `high-fast` key, is a question
+for the user, not a name to assemble.
+
+`default` is a reserved key naming an effort; it is never itself an effort or a model.
 
 Change `models.toml` only when the user asks you to change their saved defaults.
 

@@ -44,26 +44,27 @@ down at the end of the turn, cancelling any worker mid-task.
 
 ## Configuring agents
 
-[models.toml](models.toml) is the only file you edit. Each name gives its default
-harness and one block per harness it can run on:
+[models.toml](models.toml) is the only file you edit. It is keyed by harness, then
+agent:
 
 ```toml
-[aliases.grok]
-harness = "cursor"
+[defaults]
+grok = "cursor"        # the harness grok uses unless you say otherwise
 
-[aliases.grok.cursor]
-model     = "cursor-grok-4.6-high"
-reasoning = "high"
-fast      = "cursor-grok-4.6-high-fast"   # used when you say "fast"
+[cursor.grok]
+default   = "high"     # the effort used unless you name another
+high      = "cursor-grok-4.6-high"
+high-fast = "cursor-grok-4.6-high-fast"   # used when you say "fast"
 
-[aliases.grok.native]
-model     = "openrouter/x-ai/grok-4.6"
-reasoning = "high"
+[codex.sol]
+default = "medium"
+medium  = "gpt-5.6-sol"
+high    = "gpt-5.6-sol"
 ```
 
-Ask for a harness by name to override the default ("get grok to review this with
-codex"). A harness with no block means that agent is not available there, and the
-manager will say so rather than substitute something else.
+Say a harness or an effort to override the default for one request — "get sol high to
+review this", "get grok to implement demo 2 with codex". Anything not listed is not
+configured: the manager says so rather than assembling a model name.
 
 ### The author's setup
 
@@ -71,13 +72,15 @@ The manager itself runs on **deepseek v4 flash 0731 at high** — a cheap, fast 
 because the manager only routes and records; it never does the work. That comes from
 Prime Agent's own default model, so nothing here sets it.
 
-Work is passed to three external harnesses:
+Work is passed out to external harnesses:
 
 | Say | Harness | Model |
 | --- | --- | --- |
-| `grok` | Cursor | `cursor-grok-4.6-high` |
+| `grok` | Cursor | `cursor-grok-4.6-high` (`grok fast` for the fast tier) |
 | `sol` | Codex | `gpt-5.6-sol` at medium |
+| `astra` | Codex | `gpt-6-astra` at low |
 | `opus` | Claude Code | `claude-opus-5` at high |
+| `fable` | Claude Code | `claude-fable-5-1` at high |
 
 Plus native workers for `kimi`, `deeppro`, `deepflash`, and `glm`, which run as Prime
 Agent children rather than a separate CLI.
