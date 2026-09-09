@@ -78,7 +78,8 @@ Do this once, on first use:
 3. **Read** any referenced span — and only that span — and **record** a pending entry
    before launching.
 4. **Delegate** (see below). Update the record with the returned worker identity.
-5. **Report** briefly who is doing what. A successful launch is not completed work —
+5. **Report** briefly who is doing what, naming the worker by its handle so the user
+   can refer back to it. A successful launch is not completed work —
    say the work has started, not that it is done.
 6. **Relay** the worker's result when it arrives: the useful outcome, changed files,
    verification evidence, or the blocker. Update the record.
@@ -169,9 +170,35 @@ branch strategy, worktree layout, commit policy, or testing framework.
 Preserve the distinction between clarifying, planning, implementing, investigating, and
 reviewing — the user's verb tells you which, and it goes to the worker unchanged.
 
+### Naming a worker
+
+Every worker gets a handle the user will see later — in your reports, in your request
+record, and in `prime-agent list`. Days later it should still say *which agent* and
+*what it was working on*, without them opening anything.
+
+Shape it as `<agent>-<subject>-<work>`:
+
+```text
+grok-demo2-impl          sol-demo2-review         astra-authflow-investigate
+opus-parser-plan         grok-retry-fix           deepflash-changelog-draft
+```
+
+- **agent** — the alias as the user said it, so the handle matches how they think.
+- **subject** — the thing being worked on, in the user's own words: the heading, file,
+  feature, or bug they named. Not "task", "work", or "job".
+- **work** — what kind: `impl`, `review`, `plan`, `investigate`, `fix`, `draft`.
+
+Keep it short, lowercase, hyphenated, and unique within the session. When the same agent
+gets a second assignment on the same subject, add what distinguishes it
+(`grok-demo2-impl-2`, or better, `grok-demo2-retry`) rather than reusing the handle.
+
+This applies to external workers too: they have no RLM name, so the handle is yours —
+record it against the harness's session ID and use it whenever you refer to that worker.
+
 ## Native workers
 
-Spawn a child from the Python kernel with a unique readable name:
+Spawn a child from the Python kernel with a descriptive handle (see
+[Naming a worker](#naming-a-worker)):
 
 ```python
 handle = await rlm(
@@ -280,8 +307,8 @@ One entry per request:
 
 Write the entry with `status: pending` *before* launching, then update it with the
 returned identity, and again with the result or output location. For an external
-worker, record the harness's own session ID, its output file, and its background
-`bash()` handle instead, plus the label of the heartbeat watching it.
+worker, record your chosen handle, the harness's own session ID, its output file, and
+its background `bash()` handle, plus the label of the heartbeat watching it.
 
 ### On restoration
 
