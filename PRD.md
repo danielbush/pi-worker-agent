@@ -1,0 +1,36 @@
+
+- prime-agent harness ("this harness") can launch codex, cursor, claude-code, rlm-based harnesses to do work
+- the "manager agent" runs in this harness
+- launch as a cli within another project to inherit that project's AGENTS.md
+- all work is done by rlm-based or external agents, usually not in this harness
+- favour AGENTS.md, skills, prompt templates over code in this harness
+  - eg a skill that specifies how to launch external harnesses like cursor, codex, claude-code etc
+- user writes what needs to be done in a markdown document within the other project
+  - example format
+    - h1 outlines the vision
+    - user might break the work up into a series of h2 demos
+    - h3 might be a series of refinements and refactors
+    - each h2 should be a small veritcal slice
+    - this harness does not care about how this is done
+- common types of work
+  - plan (optional):
+    - "get grok 4.6 high to clarify details for demo 2 in [file]"
+    - "get sol 5.6 high to write a plan for demo 2 in [file]"
+  - implement: "get grok 4.6 high to implement demo 2 in [file]"
+  - investigate: "get sol to explain how ... works"
+  - review: "get sol to review grok's work"
+  - COMMENT: the manager agent uses context to decide what needs to be done
+- track each work request and its session id
+  - COMMENT: for rlm agents, this is probably a python handle rather than a session id
+  - COMMENT: the manager agent can track in memory but should also persist; this might be automatic if we rely on prime-agent's persistence when restoring a session or this harness
+  - review: "get grok to process sol's review"
+    - COMMENT: implicit in this is that the manager agent can pass on the review to the original worker agent in its original session
+- config with defaults which we can override at prompt-time that reduce the need to specify agents beyond their names
+  - planning: grok: 4.6 high, sol: 5.6 medium
+    - "get sol to plan ... " -> use sol 5.6 medium by default
+  - implementation: grok 4.6 high, sol: 5.6 medium
+- ergonomics
+  - avoid ai generated plans; faithfully relay or expand the user's words
+  - the user's words are much easier for the user to understand
+  - the user is not good at reviewing long documents that have hidden catches or assumptions
+  - user should try to work in small iterations with immediate demonstrable feedback to keep any planning small
