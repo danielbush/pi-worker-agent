@@ -1,6 +1,7 @@
 # OpenAI Codex
 
-Verified against `codex-cli 0.153.4` on 2026-09-09.
+Behaviour last verified 2026-09-09 against `codex-cli 0.153.4`. Re-check with
+`codex --version` if something here does not match.
 
 - Executable: `codex`
 - Auth: `codex login` (checks with `codex doctor`). A launch fails loudly when
@@ -31,7 +32,8 @@ the kernel's `bash()` has no `input=` parameter.
 
 ## Session ID
 
-`--json` writes JSONL events to stdout. The first line is:
+`--json` writes JSONL events to stdout as the run proceeds, so a background launch can
+be inspected while it works. The first line is:
 
 ```json
 {"type":"thread.started","thread_id":"01a083a4-2964-7182-b315-2c2685a0e2fe"}
@@ -49,6 +51,11 @@ else.
   `item.type == "command_execution"` shows commands with their `exit_code`.
 - The process exit status is the launch outcome: `0` on success, non-zero on failure
   (stderr carries the reason).
+
+For an async run, redirect the stream to the worker's file and read it on later ticks:
+`item.completed` events with `item.type == "command_execution"` show each command and
+its `exit_code`, and `agent_message` items show what the worker said. A passing exit
+status is not proof the assignment was done — read those events and check the work.
 
 ## Resume
 

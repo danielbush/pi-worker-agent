@@ -120,8 +120,8 @@ still running.
 
 ## Verified
 
-Checked 2026-09-09 against `prime-agent 0.9.3`, `codex-cli 0.153.4`,
-`cursor-agent 2026.09.02-c22c1a3`, `claude 2.1.266`:
+Last checked 2026-09-10. Harness CLIs ship often, so treat these as "true when
+tested" rather than permanent, and re-verify anything that matters:
 
 - Skills load, the manager activates, and the project's own `AGENTS.md` still applies.
 - The full chain against a real checkout: implement, review by a second worker, then
@@ -130,6 +130,8 @@ Checked 2026-09-09 against `prime-agent 0.9.3`, `codex-cli 0.153.4`,
   and a failed worker is reported as failed rather than quietly relaunched.
 - Codex, Cursor, and Claude Code each launch, return a real session ID, and resume it
   with context intact.
+- Cursor takes its prompt positionally and has no stdin form; a stdin prompt is silently
+  never delivered and the run still reports success.
 
 Not yet exercised in a live session: the `models.toml` read, the one-minute heartbeat
 for external workers, and the interactive resident-worker path (demos ran over RPC).

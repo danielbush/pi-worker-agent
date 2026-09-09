@@ -1,6 +1,7 @@
 # Claude Code
 
-Verified against `claude 2.1.266` on 2026-09-09.
+Behaviour last verified 2026-09-09 against `claude 2.1.266`. Re-check with
+`claude --version` if something here does not match.
 
 - Executable: `claude`
 - Auth: `claude` interactively once, or `ANTHROPIC_API_KEY`.
@@ -42,6 +43,25 @@ Before anything else, read ./AGENTS.md and follow it for the whole session.
 
 `--append-system-prompt "..."` alone was **not** sufficient on a resumed session in
 testing. Use the prompt preamble.
+
+## Running it async
+
+Use `--output-format stream-json --verbose` for a background run. It emits JSONL as the
+work happens, and the first event carries the session ID:
+
+```json
+{"type":"system","subtype":"init","session_id":"b61d986e-...","...":"..."}
+```
+
+Later events are `assistant` (messages and tool calls) and `user` (tool results), ending
+with `result`. Plain `--output-format json` emits a single object only when the run
+finishes, so it cannot be used for an async launch.
+
+Redirect the stream to the worker's file in the manager's artifact directory, record the
+session ID from the first line, and inspect the file on later ticks.
+
+When passing the prompt positionally rather than on stdin, add `< /dev/null` — otherwise
+Claude Code waits ~3s for stdin and warns before proceeding.
 
 ## Session ID, result, and status
 

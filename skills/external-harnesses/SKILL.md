@@ -19,10 +19,19 @@ ID location, and the resume command for the version installed here.
 
 ## Rules that apply to all three
 
-**Pass the assignment on stdin, never inside the command string.** Assignments contain
+**Never interpolate the assignment into the command string.** Assignments contain
 quotes, backticks, newlines, and `$`. The kernel's `bash()` takes a command string and
-nothing else — there is no `input=` and no `cwd=` parameter — so write the assignment to
-a file and redirect it in:
+nothing else — there is no `input=` and no `cwd=` parameter.
+
+How the assignment is delivered differs by harness, and getting it wrong fails silently:
+
+| Harness | Delivery |
+| --- | --- |
+| Codex | stdin, with a trailing `-` |
+| Claude Code | stdin |
+| Cursor | **positional argument only** — it has no stdin form, and a trailing `-` is read as a literal message |
+
+For the two stdin harnesses, write the assignment to a file and redirect it in:
 
 ```python
 import os, pathlib, shlex
@@ -39,8 +48,37 @@ print(result.output)
 `os.chdir(...)` in the kernel applies to every later `bash()` call, which is how you set
 the working directory for a CLI that has no directory flag on resume.
 
-**Capture the harness's own session ID and persist it immediately**, before doing
-anything else with the result. A process ID, a log filename, or "the most recent
+**Always use the streaming output format.** All three harnesses emit JSONL where the
+first event carries the session ID and later events show the work as it happens. The
+non-streaming format emits one object only when the run *finishes*, so an async launch
+would have no session ID for its entire duration.
+
+| Harness | Streaming flag | First event | Progress events |
+| --- | --- | --- | --- |
+| Codex | `--json` | `thread.started` → `thread_id` | `item.started` / `item.completed` (`command_execution` with `exit_code`, `agent_message`) |
+| Cursor | `--output-format stream-json` | `system` → `session_id` | `thinking`, `assistant`, `tool_call` |
+| Claude Code | `--output-format stream-json --verbose` | `system`/`init` → `session_id` | `assistant`, `user` (tool results) |
+
+All three end with a terminal event carrying the result and usage: `turn.completed`
+(Codex) or `result` (Cursor, Claude Code).
+
+**Capture the session ID and persist it immediately**, from that first event, before
+doing anything else.
+
+Redirect each worker's stream to its own file in the manager's artifact directory, named
+after the worker's handle — never in the consumer's repository:
+
+```python
+import os, pathlib
+
+work = pathlib.Path(os.environ["RLM_SESSION_DIR"]) / "manager" / "workers"
+work.mkdir(parents=True, exist_ok=True)
+out = work / f"{worker_handle}.jsonl"
+err = work / f"{worker_handle}.err"
+```
+
+That file is how you inspect a running worker: read the events appended so far to see
+what it is doing, and read the terminal event once `handle.poll()` shows it exited. A process ID, a log filename, or "the most recent
 session" is not a session ID and must not be recorded as one. Store it in the manager's
 request record.
 
@@ -54,6 +92,12 @@ preamble.
 
 **Check the real outcome.** Read the exit status and the structured result, not just
 that the process returned. Report a non-zero exit or an error result as a failure.
+
+**And do not stop at the status flags.** A run whose assignment never arrived still
+reports success. Read the result text and confirm it addresses the assignment; when
+edits were expected, confirm the files changed. Token usage is the cheapest tell — a
+worker that received a real assignment consumes thousands of input tokens, not
+hundreds.
 
 **Never block the manager on an external worker.** An external CLI has no
 `agent_message`, so nothing pushes its result back to you — but that is not a reason to
