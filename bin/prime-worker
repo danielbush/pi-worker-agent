@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Launch Prime Agent as a manager agent in the current directory.
+#
+#   prime-worker                      # interactive; manager active; just talk to it
+#   prime-worker --resume             # any prime-agent flag passes through
+#   prime-worker -- "/skill:manager   # you supply the whole first message
+#
+#   get grok to implement demo 2 in notes.md"
+#
+# Runs in whatever directory you call it from, so the project's AGENTS.md and its
+# own skills load as usual. Every skill in this repo's skills/ is loaded by
+# absolute path, so skills added here are picked up with no further setup.
+#
+# Unless you pass `--` yourself, the first message sent is `/skill:manager`,
+# which activates the manager. Loading a skill does not activate it.
+
+set -euo pipefail
+
+# Resolve this script's real path, following symlinks, so it can be reached
+# through a symlink on PATH.
+script=${BASH_SOURCE[0]}
+while [[ -L $script ]]; do
+    dir=$(cd -P "$(dirname "$script")" && pwd)
+    script=$(readlink "$script")
+    [[ $script == /* ]] || script=$dir/$script
+done
+repo=$(cd -P "$(dirname "$script")/.." && pwd)
+
+skill_args=()
+for skill_md in "$repo"/skills/*/SKILL.md; do
+    [[ -f $skill_md ]] || continue
+    skill_args+=(--skill "$(dirname "$skill_md")")
+done
+
+if [[ ${#skill_args[@]} -eq 0 ]]; then
+    echo "prime-worker: no SKILL.md found under $repo/skills" >&2
+    exit 1
+fi
+
+# If the caller supplied their own `--` message, respect it verbatim.
+for arg in "$@"; do
+    if [[ $arg == "--" ]]; then
+        exec prime-agent "${skill_args[@]}" "$@"
+    fi
+done
+
+exec prime-agent "${skill_args[@]}" "$@" -- "/skill:manager"
