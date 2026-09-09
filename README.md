@@ -21,7 +21,7 @@ records the request and the worker's session identity, and relays the result bac
 | File | Purpose |
 | --- | --- |
 | [bin/prime-worker](bin/prime-worker) | The CLI: launches Prime Agent here with the manager active. |
-| [DEFAULTS.md](DEFAULTS.md) | Agent aliases, harness choices, exact model selectors, reasoning defaults. |
+| [models.toml](models.toml) | Agent aliases: model, reasoning, harness, and per-role overrides. The one file you edit. |
 | [skills/manager/SKILL.md](skills/manager/SKILL.md) | Interpret requests, delegate, track sessions, route follow-ups, report. |
 | [skills/external-harnesses/SKILL.md](skills/external-harnesses/SKILL.md) | Launch and resume Codex, Cursor, and Claude Code. |
 | [skills/external-harnesses/references/](skills/external-harnesses/references/) | One verified reference per external CLI. |
@@ -66,6 +66,15 @@ get grok to process sol's review
 Any `prime-agent` flag passes straight through — `prime-worker --resume`,
 `prime-worker --model ...`, and so on.
 
+To use a different alias configuration for a run:
+
+```bash
+prime-worker --models ./team-models.toml
+```
+
+`--models` is the script's own flag (it defaults to this repo's `models.toml`, and is
+handed to the manager as `$PRIME_WORKER_MODELS`); everything else is Prime Agent's.
+
 What the script does for you, and why each part matters:
 
 - **Loads every skill in this repo** by absolute path, one `--skill` per directory with
@@ -82,8 +91,8 @@ What the script does for you, and why each part matters:
   session gets a resident, daemon-backed worker that outlives the turn. This is
   verified behaviour — a delegated child killed this way reports `status='error'`.
 
-The manager reads `DEFAULTS.md` relative to its own location, so it does not care how
-your project is laid out.
+The manager reads `$PRIME_WORKER_MODELS`, falling back to this repo's `models.toml`,
+so it does not care how your project is laid out.
 
 Your work document can be called anything and structured however you like. "demo 2" is
 a reference the manager resolves inside the document you name; it is not a required
@@ -147,10 +156,12 @@ Checked on 2026-09-09 against `prime-agent 0.9.3`, `codex-cli 0.153.4`,
 `cursor-agent 2026.09.02-c22c1a3`, and `claude 2.1.266`:
 
 - Both skills load from absolute `--skill` paths into a session running in a separate
-  project; `/skill:manager` activates the manager, `DEFAULTS.md` resolves relative to
+  project; `/skill:manager` activates the manager, the config resolves relative to
   the skill, and the project's own `AGENTS.md` still applies.
 - Alias defaults resolve to real selectors via `rlm.find_models()`:
-  `openrouter/x-ai/grok-4.6` and `openai-codex/gpt-5.6-sol`.
+  `openrouter/x-ai/grok-4.6` and `openai-codex/gpt-5.6-sol`. (Verified while these lived
+  in `DEFAULTS.md`; the values are unchanged in `models.toml`, but the TOML path itself
+  has not been exercised in a live session.)
 - The manager writes and reads its `requests.md` record, reconciles it against
   `rlm.list_subagents()`, and reports a failed worker as failed instead of quietly
   relaunching it.

@@ -13,12 +13,48 @@ This role applies to the root session where the user invoked this skill. A worke
 never a manager. Native children inherit this skill, so every delegation prompt must
 say the worker is executing an assignment, not managing one.
 
+## Never block on a worker
+
+Assigning work is a fast action. Launch it, record it, tell the user who is doing what,
+and **end your turn**. The user must be able to keep talking to you while workers run.
+
+- Never wait for a worker to finish inside the turn that launched it.
+- Never sleep, poll in a loop, or re-check a worker "until it is done".
+- Never `await` an external CLI in the foreground. Start it as a background handle and
+  let a 1-minute `rlm_heartbeat` bring you back to check it — see
+  `../external-harnesses/SKILL.md`.
+- Launching several workers means several quick launches, not one long turn.
+
+Results arrive on their own: a native child replies with `agent_message`; an external
+worker has no such channel, so a 1-minute heartbeat checks its handle on later turns.
+
+Report a launch as a launch. "Started" is a complete and honest answer — a successful
+launch is not completed work, and neither is a blocked turn.
+
+Then stay quiet. A background check that finds nothing finished prints nothing: no
+"still running", no progress notes, no announcing that you looked. Speak when a worker
+finishes, fails, or needs a decision — or when the user asks.
+
 ## Setup for the session
 
 Do this once, on first use:
 
-1. Read `../../DEFAULTS.md` relative to this file. That is the alias, model, and
-   reasoning configuration. Do not guess at it.
+1. Read the alias configuration. `$PRIME_WORKER_MODELS` holds its path when the
+   `prime-worker` CLI launched the session; otherwise fall back to `models.toml` two
+   levels up from this file. It is the only place aliases, models, and reasoning levels
+   are defined — do not guess, and do not carry over values from an earlier session:
+
+   ```python
+   import os, pathlib, tomllib
+
+   models_path = pathlib.Path(
+       os.environ.get("PRIME_WORKER_MODELS") or (pathlib.Path(skill_dir) / ".." / ".." / "models.toml")
+   ).resolve()
+   config = tomllib.loads(models_path.read_text())
+   ```
+
+   Say which file you read if it is not this repo's own `models.toml`, so the user
+   knows which configuration is in play.
 2. Note the consumer working directory (the session's cwd). It is the default project
    path for every assignment.
 3. Read your request record if one exists (see [Request records](#request-records)).
@@ -27,8 +63,8 @@ Do this once, on first use:
 
 1. **Identify** the requested work, the agent alias, any explicit
    model/reasoning/harness override, and any referenced material.
-2. **Resolve** defaults from `DEFAULTS.md`. Then decide whether this is new work or a
-   continuation of an existing worker. If a reference such as "grok's work" could mean
+2. **Resolve** the harness, model, and reasoning (see [Resolving an alias](#resolving-an-alias)).
+   Then decide whether this is new work or a continuation of an existing worker. If a reference such as "grok's work" could mean
    more than one recorded assignment, ask which one.
 3. **Read** the referenced material and enough surrounding context to write a faithful
    assignment. A heading reference such as "demo 2" is a pointer to resolve inside the
@@ -40,6 +76,49 @@ Do this once, on first use:
    say the work has started, not that it is done.
 7. **Relay** the worker's result when it arrives: the useful outcome, changed files,
    verification evidence, or the blocker. Update the record.
+
+### Resolving an alias
+
+An alias in `models.toml` looks like this:
+
+```toml
+[aliases.grok]
+harness = "cursor"          # the harness to use unless the request says otherwise
+
+[aliases.grok.cursor]       # one block per harness this alias can run on
+model     = "cursor-grok-4.6-high"
+reasoning = "high"
+fast      = "cursor-grok-4.6-high-fast"   # optional
+```
+
+Resolve in this order:
+
+1. **Pick the harness.** What the request names, otherwise `aliases.<name>.harness`.
+2. **Read `aliases.<name>.<harness>`.** That block holds the `model` and `reasoning`
+   for that harness and no other. A model name is never valid across harnesses — never
+   carry one from one block to another.
+3. **Apply a role override** from `aliases.<name>.<harness>.roles.<role>` if one exists
+   for the role this request falls under (`plan`, `implement`, `investigate`,
+   `review`).
+4. **Apply what the request says.** An explicit model or reasoning level in the user's
+   words wins over everything above. It applies to that request only — never write it
+   back to `models.toml`.
+
+If the alias has no block for the requested harness, it is not available there: say so
+and ask whether to change the alias or the harness. Never substitute a different model.
+
+If the request asks for a **fast** worker and the resolved block has a `fast` model
+name, use that instead of `model`. If it has none, say the fast tier is not configured
+for that alias and harness, and ask — do not guess at a model name. A `fast` entry is
+valid only at the reasoning level of the `model` beside it; if the request also changes
+the reasoning level, the configured `fast` name no longer applies, so say so.
+
+Change `models.toml` only when the user asks you to change their saved defaults.
+
+If an alias is not in the file at all, say which aliases are defined and ask. If a
+configured selector turns out to be unavailable at spawn time, re-check with
+`await rlm.find_models("<query>")`, report the failure, and ask the user which model to
+use.
 
 ### Writing the assignment
 
@@ -77,8 +156,11 @@ print(handle.rlm_child_id, handle.name, handle.session_dir, handle.model)
 - Resolve exact selectors with `await rlm.find_models("<query>")`. If the requested
   model is unavailable the spawn fails; report that and ask the user. Never substitute
   another model.
-- The handle confirms admission only. It is never the answer. Do not poll for one and
-  do not build a waiting loop.
+- `rlm()` returns as soon as the child is admitted, which is the point: it never waits
+  for the child and never returns its answer. Print the handle, record it, and end the
+  turn.
+- Do not poll for a result, and do not build a waiting loop. The child's reply arrives
+  as an ordinary agent message on a later turn.
 - Record `rlm_child_id`, `name`, and `session_dir` immediately.
 
 End your assignment prompt with an instruction to report back, for example:
@@ -168,7 +250,8 @@ One entry per request:
 
 Write the entry with `status: pending` *before* launching, then update it with the
 returned identity, and again with the result or output location. For an external
-worker, record the harness's own session ID and its output file instead.
+worker, record the harness's own session ID, its output file, and its background
+`bash()` handle instead, plus the label of the heartbeat watching it.
 
 ### On restoration
 

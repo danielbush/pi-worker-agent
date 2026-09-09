@@ -55,9 +55,51 @@ preamble.
 **Check the real outcome.** Read the exit status and the structured result, not just
 that the process returned. Report a non-zero exit or an error result as a failure.
 
-**Foreground is enough.** If a job outlives the tool call, keep the execution handle
-and the output location and inspect its actual status before retrying. Do not add a
-background service for external workers.
+**Never block the manager on an external worker.** An external CLI has no
+`agent_message`, so nothing pushes its result back to you — but that is not a reason to
+sit in a foreground `await`. Start it as a background handle, end the turn, and let a
+heartbeat bring you back.
+
+```python
+handle = bash(command)          # no await
+handle.pid                      # touching the handle first makes it survive the turn
+```
+
+Record `handle` alongside the request. `await handle` only when `handle.poll()` already
+shows it finished; awaiting a running handle blocks the turn, which is the thing to
+avoid.
+
+**Poll with a 1-minute heartbeat, not a loop.** When you launch the first external
+worker, create one heartbeat for all of them:
+
+```python
+await rlm_heartbeat.create(
+    "Silently check every running external worker with handle.poll(). If none have "
+    "finished, say nothing at all and end the turn. For any that finished: read its "
+    "output file, relay the result, and update the request record. Delete this "
+    "heartbeat once no external worker is still running.",
+    interval="1m",
+    label="external-workers",
+    delivery_mode="follow_up",
+)
+```
+
+`follow_up` so the check waits for whatever you are doing rather than interrupting the
+user mid-turn. One heartbeat covers every external worker — do not create one per
+worker.
+
+**A tick with nothing to report prints nothing.** Do not announce that you checked, do
+not say "still running", do not summarise progress. The user is reading their terminal;
+a minute-by-minute status trickle is noise. Speak only when a worker has actually
+finished, failed, or needs a decision from the user — or when they ask.
+
+On each tick: check every recorded handle, relay anything that finished, and when none
+are still running, `await rlm_heartbeat.delete(<id>)` so it stops firing. Recover the id
+with `await rlm_heartbeat.list()` if you no longer have it. Leaving a heartbeat running
+with nothing to check wakes the session every minute for nothing.
+
+A worker that is still running is not a failure. Say it is still running and end the
+turn.
 
 ## Limitations to state plainly
 

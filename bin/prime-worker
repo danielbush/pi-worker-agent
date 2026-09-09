@@ -3,6 +3,7 @@
 #
 #   prime-worker                      # interactive; manager active; just talk to it
 #   prime-worker --resume             # any prime-agent flag passes through
+#   prime-worker --models ./team.toml # use a different models.toml
 #   prime-worker -- "/skill:manager   # you supply the whole first message
 #
 #   get grok to implement demo 2 in notes.md"
@@ -13,6 +14,9 @@
 #
 # Unless you pass `--` yourself, the first message sent is `/skill:manager`,
 # which activates the manager. Loading a skill does not activate it.
+#
+# --models <path> selects the alias configuration. It defaults to this repo's
+# models.toml and is passed to the manager as $PRIME_WORKER_MODELS.
 
 set -euo pipefail
 
@@ -25,6 +29,40 @@ while [[ -L $script ]]; do
     [[ $script == /* ]] || script=$dir/$script
 done
 repo=$(cd -P "$(dirname "$script")/.." && pwd)
+
+models=$repo/models.toml
+
+# Consume our own --models flag; everything else goes to prime-agent.
+passthrough=()
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --models)
+            [[ $# -ge 2 ]] || { echo "prime-worker: --models needs a path" >&2; exit 1; }
+            models=$2
+            shift 2
+            ;;
+        --models=*)
+            models=${1#--models=}
+            shift
+            ;;
+        --)
+            passthrough+=("$@")
+            break
+            ;;
+        *)
+            passthrough+=("$1")
+            shift
+            ;;
+    esac
+done
+set -- ${passthrough+"${passthrough[@]}"}
+
+if [[ ! -f $models ]]; then
+    echo "prime-worker: no models file at $models" >&2
+    exit 1
+fi
+models=$(cd -P "$(dirname "$models")" && pwd)/$(basename "$models")
+export PRIME_WORKER_MODELS=$models
 
 skill_args=()
 for skill_md in "$repo"/skills/*/SKILL.md; do
