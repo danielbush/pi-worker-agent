@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  BIN_DIR: '{{.BIN_DIR | default (printf "%s/.local/bin" .HOME)}}'
+  LINK: '{{.BIN_DIR}}/prime-worker'
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  install:
+    desc: Symlink bin/prime-worker into ~/.local/bin (override with BIN_DIR=...)
+    deps: [install-prime-agent]
+    status:
+      - test "$(readlink '{{.LINK}}')" = '{{.TASKFILE_DIR}}/bin/prime-worker'
+    cmds:
+      - mkdir -p '{{.BIN_DIR}}'
+      - ln -sfn '{{.TASKFILE_DIR}}/bin/prime-worker' '{{.LINK}}'
+      - echo "linked {{.LINK}} -> {{.TASKFILE_DIR}}/bin/prime-worker"
+    silent: true
+
+  uninstall:
+    desc: Remove the ~/.local/bin symlink
+    cmds:
+      - rm -f '{{.LINK}}'
+      - echo "removed {{.LINK}}"
+    silent: true
+
+  check:
+    desc: Verify the CLI is on PATH and models.toml parses
+    cmds:
+      - >-
+        command -v prime-agent
+        || (echo "prime-agent missing - run 'task install-prime-agent'" && exit 1)
+      - >-
+        command -v prime-worker
+        || (echo "not on PATH - run 'task install', and put {{.BIN_DIR}} on your PATH" && exit 1)
+      - >-
+        python3 -c "import tomllib; tomllib.load(open('{{.TASKFILE_DIR}}/models.toml','rb'));
+        print('models.toml ok')"
+    silent: true
+
+  install-prime-agent:
+    desc: Install Prime Agent (official install script); skipped if already present
+    status:
+      - command -v prime-agent
+    cmds:
+      - curl -fsSL https://app.primeintellect.ai/prime-agent/install.sh | sh
+    silent: true
+
+  update-prime-agent:
+    desc: Update Prime Agent to the latest release
+    cmds:
+      - prime-agent update
+    silent: true
