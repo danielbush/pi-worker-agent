@@ -84,8 +84,9 @@ finishes, fails, or needs a decision — or when the user asks.
 Do this once, on first use:
 
 1. Read the alias configuration. `$PRIME_WORKER_MODELS` holds its path when the
-   `prime-worker` CLI launched the session; otherwise fall back to `models.toml` two
-   levels up from this file. It is the only place aliases, models, and reasoning levels
+   `prime-worker` CLI launched the session — it may be this repo's `models.toml`, one in
+   the directory the user launched from, or one they named explicitly. Without that
+   variable, fall back to `models.toml` two levels up from this file. It is the only place aliases, models, and reasoning levels
    are defined — do not guess, and do not carry over values from an earlier session:
 
    ```python

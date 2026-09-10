@@ -62,7 +62,8 @@ The mode is decided by whether `workspaces.toml` is in the directory you launch 
 See [workspaces.example.toml](workspaces.example.toml).
 
 Prime Agent flags pass through (`prime-worker --resume`, `--model ...`). The script's
-own flag is `--models <path>` to use a different alias file.
+own flag is `--models <path>` to use a different alias file. Without it, a `models.toml`
+in the directory you launch from is used, else this repo's.
 
 Do not use `-p` / `--print` / `--mode json`: those are one-shot sessions that get torn
 down at the end of the turn, cancelling any worker mid-task.

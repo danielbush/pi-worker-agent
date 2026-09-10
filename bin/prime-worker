@@ -19,8 +19,9 @@
 # Unless you pass `--` yourself, the first message sent is `/skill:manager`,
 # which activates the manager. Loading a skill does not activate it.
 #
-# --models <path> selects the alias configuration. It defaults to this repo's
-# models.toml and is passed to the manager as $PRIME_WORKER_MODELS.
+# --models <path> selects the alias configuration. Without it, a models.toml in
+# the directory you launch from wins, else this repo's own. The chosen path is
+# passed to the manager as $PRIME_WORKER_MODELS.
 
 set -euo pipefail
 
@@ -34,7 +35,7 @@ while [[ -L $script ]]; do
 done
 repo=$(cd -P "$(dirname "$script")/.." && pwd)
 
-models=$repo/models.toml
+models=""                       # resolved below
 workspaces=$PWD/workspaces.toml
 
 # Consume our own --models flag; everything else goes to prime-agent.
@@ -61,6 +62,16 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 set -- ${passthrough+"${passthrough[@]}"}
+
+# Precedence: --models, then a models.toml in the directory you launched from,
+# then this repo's own.
+if [[ -z $models ]]; then
+    if [[ -f $PWD/models.toml ]]; then
+        models=$PWD/models.toml
+    else
+        models=$repo/models.toml
+    fi
+fi
 
 if [[ ! -f $models ]]; then
     echo "prime-worker: no models file at $models" >&2
