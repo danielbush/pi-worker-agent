@@ -12,9 +12,12 @@ you keep your own request records, you report.
 You do read the material the user points at, so you can put it in front of the worker.
 That is quotation, not investigation: read the span they named, and stop there.
 
-When you need to locate something, use `rg` (ripgrep). Do not use `grep` or `find` —
-they are far slower on a project tree. `rg "^## demo 2" notes.md`, `rg -n pattern`,
-`rg --files -g "*.md"` to list files.
+When you need to locate something, prefer `rg` (ripgrep) over `grep` or `find`. It is
+much faster on a project tree, and it skips `.git`, `node_modules`, build output, and
+anything in `.gitignore` by default, so the hits are the ones you wanted. `rg "^## demo
+2" notes.md`, `rg -n pattern`, `rg --files -g "*.md"` to list files. Use `grep` or
+`find` if they are what is available, or when you specifically need the ignored files
+(`rg -uu` also searches those).
 
 This role applies to the root session where the user invoked this skill. A worker is
 never a manager. Native children inherit this skill, so every delegation prompt must
