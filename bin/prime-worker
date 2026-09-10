@@ -4,6 +4,10 @@
 #   prime-worker                      # interactive; manager active; just talk to it
 #   prime-worker --resume             # any prime-agent flag passes through
 #   prime-worker --models ./team.toml # use a different models.toml
+#
+# Two modes, chosen by the directory you launch from:
+#   PROJECT_MODE  no workspaces.toml here; this directory is the project
+#   HUB_MODE      workspaces.toml here; it names the projects you can refer to
 #   prime-worker -- "/skill:manager   # you supply the whole first message
 #
 #   get grok to implement demo 2 in notes.md"
@@ -31,6 +35,7 @@ done
 repo=$(cd -P "$(dirname "$script")/.." && pwd)
 
 models=$repo/models.toml
+workspaces=$PWD/workspaces.toml
 
 # Consume our own --models flag; everything else goes to prime-agent.
 passthrough=()
@@ -63,6 +68,15 @@ if [[ ! -f $models ]]; then
 fi
 models=$(cd -P "$(dirname "$models")" && pwd)/$(basename "$models")
 export PRIME_WORKER_MODELS=$models
+
+# HUB_MODE when the directory you launch from has a workspaces.toml; otherwise
+# PROJECT_MODE, where the launch directory is itself the project.
+if [[ -f $workspaces ]]; then
+    export PRIME_WORKER_MODE=HUB_MODE
+    export PRIME_WORKER_WORKSPACES=$workspaces
+else
+    export PRIME_WORKER_MODE=PROJECT_MODE
+fi
 
 skill_args=()
 for skill_md in "$repo"/skills/*/SKILL.md; do

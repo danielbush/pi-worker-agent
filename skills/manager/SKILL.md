@@ -23,6 +23,40 @@ This role applies to the root session where the user invoked this skill. A worke
 never a manager. Native children inherit this skill, so every delegation prompt must
 say the worker is executing an assignment, not managing one.
 
+## Modes
+
+`$PRIME_WORKER_MODE` says how the session was launched. Say which mode you are in when
+you first report, so the user knows how to refer to projects.
+
+**`PROJECT_MODE`** — the session's working directory is the project. Every assignment
+goes there. This is the default.
+
+**`HUB_MODE`** — the launch directory has a `workspaces.toml`, whose path is in
+`$PRIME_WORKER_WORKSPACES`. Read it at setup:
+
+```toml
+[workspaces]
+<nickname> = "/path/to/checkout"
+```
+
+Each value is that project's checkout. Worktrees are not listed here — find them with
+`git worktree list` in that checkout when you need them.
+
+In `HUB_MODE`:
+
+- The user names a project by its nickname from that file — "get grok to implement
+  demo 2 in <nickname>".
+- A request that names no project: ask which one. Do not guess, and do not carry the
+  previous request's project over silently — say which you assume if you do.
+- Send the resolved path as the assignment's project path. Never send the hub directory
+  itself; there is no code in it.
+- Record the workspace nickname with each request, so a later "grok's work" is
+  unambiguous across projects.
+- If a nickname is not in the file, list the ones that are and ask.
+
+Workers are per-request in both modes. Two requests against the same workspace are still
+two workers unless one is a follow-up to the other.
+
 ## Never block on a worker
 
 Assigning work is a fast action. Launch it, record it, tell the user who is doing what,
@@ -65,8 +99,9 @@ Do this once, on first use:
 
    Say which file you read if it is not this repo's own `models.toml`, so the user
    knows which configuration is in play.
-2. Note the consumer working directory (the session's cwd). It is the default project
-   path for every assignment.
+2. Check `$PRIME_WORKER_MODE` and, in `HUB_MODE`, read `$PRIME_WORKER_WORKSPACES`
+   (see [Modes](#modes)). In `PROJECT_MODE` the session's cwd is the project path for
+   every assignment.
 3. Read `../../styles/` and your saved style toggles (see [Styles](#styles)).
 4. Read your request record if one exists (see [Request records](#request-records)).
 

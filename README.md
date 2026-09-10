@@ -36,6 +36,31 @@ prime-worker
 That opens the normal interactive Prime Agent UI with the manager active, in your
 project, so its `AGENTS.md` and skills load as usual. Then just talk to it.
 
+### Two modes
+
+**`PROJECT_MODE`** is the above: launch inside a project, and that project is where all
+the work happens.
+
+**`HUB_MODE`** lets one session drive several projects. Put a `workspaces.toml` in a
+folder and launch from there:
+
+```toml
+[workspaces]
+api = "/path/to/api"
+web = "/path/to/web"
+```
+
+```bash
+cd ~/work        # the folder holding workspaces.toml
+prime-worker
+```
+
+Now you name the project: "get grok to implement demo 2 in api". Worktrees are not
+configured here — they are discovered with `git worktree list` when needed.
+
+The mode is decided by whether `workspaces.toml` is in the directory you launch from.
+See [workspaces.example.toml](workspaces.example.toml).
+
 Prime Agent flags pass through (`prime-worker --resume`, `--model ...`). The script's
 own flag is `--models <path>` to use a different alias file.
 

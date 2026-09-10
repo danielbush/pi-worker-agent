@@ -1,0 +1,10 @@
+# Copy this to a folder you want to work from, as `workspaces.toml`.
+# Its presence there puts prime-worker in HUB_MODE: you refer to projects by
+# nickname instead of launching inside one.
+#
+# Without this file, prime-worker runs in PROJECT_MODE and the directory you
+# launched from is the project.
+
+[workspaces]
+api = "/path/to/api"
+web = "/path/to/web"
