@@ -67,7 +67,8 @@ Do this once, on first use:
    knows which configuration is in play.
 2. Note the consumer working directory (the session's cwd). It is the default project
    path for every assignment.
-3. Read your request record if one exists (see [Request records](#request-records)).
+3. Read `../../styles/` and your saved style toggles (see [Styles](#styles)).
+4. Read your request record if one exists (see [Request records](#request-records)).
 
 ## Handling a request
 
@@ -197,6 +198,45 @@ gets a second assignment on the same subject, add what distinguishes it
 
 This applies to external workers too: they have no RLM name, so the handle is yours —
 record it against the harness's session ID and use it whenever you refer to that worker.
+
+## Styles
+
+`../../styles/` holds instructions you can add to a worker's assignment, or send as a
+follow-up once it finishes. Read the directory at setup, alongside `models.toml`.
+
+Each file has `name`, `when` (`after-completion` or `with-assignment`), and an optional
+`applies-to` listing work types. The body is the text to send.
+
+**Every style is off by default.** Keep the on/off state in the kernel so it survives
+the turn, and write it next to your request record so a kernel restart does not lose it:
+
+```python
+import json, os, pathlib
+
+styles_state = pathlib.Path(os.environ["RLM_SESSION_DIR"]) / "manager" / "styles.json"
+active = json.loads(styles_state.read_text()) if styles_state.exists() else {}
+```
+
+The user turns one on or off by saying so — "walkthrough on", "turn off walkthrough".
+Update the variable, write the file, and confirm in one line.
+
+When you delegate, decide which styles apply:
+
+1. A style the user named in the request applies to that request, on or off.
+2. Otherwise a style applies only if it is on **and** the work type is in its
+   `applies-to`. A style with no `applies-to` never applies automatically.
+
+Then use it according to `when`:
+
+- `with-assignment` — add the body to the assignment you send.
+- `after-completion` — hold it. When the worker reports done, send the body to that same
+  worker in its own session, and relay what comes back with the result.
+
+Do not run an `after-completion` style if the work failed or the worker is blocked.
+Report the problem instead.
+
+If the user asks what is on, list the styles and their state. Do not turn styles on by
+yourself.
 
 ## Native workers
 
