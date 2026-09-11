@@ -21,6 +21,21 @@ can feed work to an existing worker eg to give feedback.
 
 Inspired by Kun Chen's [firstmate](https://github.com/kunchenguid/firstmate).
 
+## Example session
+
+![A prime-worker session](docs/example-session.png)
+
+What is happening there:
+
+- Feedback for an agent already working is routed to **that** worker, in its existing
+  Codex session — `sol-chat-focus-bug`, thread `01a08da6…` — rather than starting a new
+  one. Three turns of work, one session.
+- The launch does not block. The manager reports what it sent and ends the turn.
+- A one-minute heartbeat checks the external worker (external harness) until it exits, then reads its
+  output, relays the result, updates the record, and deletes itself.
+- Asking "what sol sessions do we have?" is answered from the request record: each
+  worker handle, its harness session ID, what it was asked, and its status.
+
 ### The author's note
 
 My thoughts and assumptions as at Aug-2026:
@@ -45,21 +60,6 @@ My thoughts and assumptions as at Aug-2026:
   - atm GLM 5.3 flash via openrouter is cheap as chips and quite solid if you can find a fast provider. deepseek v4 flash
     on high also cheap sometimes frustrating; both have large context. You can also use openai models (at
     the time, you can use openai subscription with pi / prime-agent harness).
-
-## Example session
-
-![A prime-worker session](docs/example-session.png)
-
-What is happening there:
-
-- Feedback for an agent already working is routed to **that** worker, in its existing
-  Codex session — `sol-chat-focus-bug`, thread `01a08da6…` — rather than starting a new
-  one. Three turns of work, one session.
-- The launch does not block. The manager reports what it sent and ends the turn.
-- A one-minute heartbeat checks the external worker (external harness) until it exits, then reads its
-  output, relays the result, updates the record, and deletes itself.
-- Asking "what sol sessions do we have?" is answered from the request record: each
-  worker handle, its harness session ID, what it was asked, and its status.
 
 ## Setup
 
