@@ -219,3 +219,7 @@ Known limitations:
   and use `-c sandbox_mode=`.
 - Cursor needs `--trust` for an unseen directory, and bakes the reasoning level and fast
   tier into the model name.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
