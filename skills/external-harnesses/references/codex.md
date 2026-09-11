@@ -76,3 +76,17 @@ recorded. Verified: a resumed session retained the previous turn's context.
 
 Note: the resumed turn does not necessarily re-apply `AGENTS.md` output conventions
 that were followed on the first turn. Restate anything that matters in the follow-up.
+
+## Interactive resume (handing the session to the user)
+
+```bash
+codex resume <thread_id>
+```
+
+`codex resume` (no `exec`) opens the TUI on that thread — same `thread_id`, same
+history, and the turns the user adds are in context on your next `codex exec resume`.
+Without a session ID it shows a picker instead; always pass the recorded ID.
+
+It takes neither `-s` nor `-m`: the sandbox and model come from the user's
+`~/.codex/config.toml`, not from the flags you launched with. Say so when you hand it
+over.

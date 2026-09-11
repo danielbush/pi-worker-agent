@@ -346,6 +346,113 @@ and session — never start a replacement because an alias's defaults changed. I
 requested model change cannot be applied to an existing session, explain that before
 replacing it.
 
+## Handing a worker to the user
+
+The user can take over a worker and talk to it directly, in that worker's own session,
+in a tmux window. "let me talk to grok about demo 2", "open sol's session", "I want to
+drive this one myself."
+
+You resolve the handle to its session, open the window, and step back. You do not
+attach — your `bash()` runs in the kernel, not on the user's terminal, so `tmux attach`
+from here attaches nothing. The user runs that themselves.
+
+### Before you open anything
+
+**The worker must not be running.** Two writers on one session diverge or clobber it.
+Check first — `handle.poll()` for an external worker, idle status for a native child. If
+it is still running, say so and offer to send it a message instead. Do not open the
+window anyway.
+
+**Say what changes.** An interactive resume uses the harness's own configuration, not
+the flags you launched with: a worker you started `-s read-only` may come back as
+whatever the user's `config.toml` says. Mention it in the same breath as the command.
+
+### Opening the window
+
+One tmux session, `prime-worker`, created if it is not there; one window per worker
+handle, reused if it already exists.
+
+```python
+import shlex
+
+h = shlex.quote(handle_name)
+result = await bash(
+    "tmux has-session -t prime-worker 2>/dev/null || tmux new-session -d -s prime-worker; "
+    f"tmux list-windows -t prime-worker -F '#W' | grep -qx {h} || "
+    f"tmux new-window -d -t prime-worker -n {h} -c {shlex.quote(project_path)} "
+    f"{shlex.quote(resume_command)}; "
+    "[ -z \"$(tmux list-clients -t prime-worker 2>/dev/null)\" ] && "
+    f"tmux select-window -t prime-worker:{h}; true"
+)
+print(result.output)
+```
+
+Shell logic, not Python branching: the session is created only if absent, and the window
+only if a window of that name is not already there. Running it twice is harmless, and it
+does not depend on reading an exit status back out of `bash()`.
+
+`-d` on `new-window` keeps it from yanking a user who is already attached and reading
+something else. But a freshly created session leaves an idle shell as window 0, and
+`tmux attach` lands on whatever window is current — so when nobody is attached, select
+the new window, and the user arrives looking at the worker instead of a bare prompt.
+Verified: without the `select-window`, attaching lands on window 0.
+
+The resume command is the **interactive** form for that harness — see its reference, and
+`prime-agent attach <handle>` for a native child. Never `-p` / `exec`: those are your
+forms, not the user's.
+
+Then give them one line to run and nothing else:
+
+```text
+grok-demo2-impl is open in tmux. Run:  tmux attach -t prime-worker
+It is window "grok-demo2-impl". prefix+d comes back here.
+```
+
+Never kill a window. The user closes it when they are done.
+
+The `prime-worker` session is shared by every manager session on the machine, so a
+window of that name may belong to a different manager. Handles are unique within your
+session, not across them — if you find a window you did not open, say so and ask rather
+than reusing it.
+
+**Without tmux**, the handoff still works; you just cannot stage it. Give the user the
+resume command and the directory, and let them run it in another terminal:
+
+```text
+grok-demo2-impl is a Cursor session. In another terminal:
+  cd /path/to/api && cursor-agent --resume 6aa03231-…
+```
+
+Everything under [While the user is driving](#while-the-user-is-driving) applies the
+same way — mark it `user-driving` before you hand over the command.
+
+### While the user is driving
+
+Mark the entry `status: user-driving` **before** you open the window, and from that
+moment treat the session as not yours:
+
+- Do not resume it. No follow-ups, no review routing, no `after-completion` style.
+- The external-worker heartbeat skips it.
+- Do not report on it. You cannot see those turns.
+
+The handoff ends when the user says so, or when the window is gone
+(`tmux list-windows -t prime-worker`). Then set the status back to what is true.
+
+### Catching up afterwards
+
+The turns are not lost. The harness persists them in the same session, so your next
+resume of that session already has them in context — the worker remembers the
+conversation even though you did not see it.
+
+What is stale is your record. Do not write a result you did not observe, and do not
+guess one from the files changed. Ask instead — the cheapest route works on all three
+harnesses: begin your next assignment to that worker with a line asking it to summarise
+what it and the user settled on. Or ask the user. Read the harness's own transcript only
+if that fails; Cursor does not keep a readable one.
+
+Record that a handoff happened, so a later "grok's work" is not read as your assignment
+alone.
+
 ## Concurrency
 
 Work usually happens one thing at a time, but multiple workers may run in the same
@@ -418,12 +525,18 @@ One entry per request:
 - status: running
 - result:
 - related: reviewed by R4
+- handoff: 2026-09-11T14:02 user drove this session — result below is theirs, not observed
 ```
 
 Write the entry with `status: pending` *before* launching, then update it with the
 returned identity, and again with the result or output location. For an external
 worker, record your chosen handle, the harness's own session ID, its output file, and
 its background `bash()` handle, plus the label of the heartbeat watching it.
+
+`status` is one of `pending`, `running`, `done`, `failed`, or `user-driving` — the last
+written *before* you open a tmux window and held until the handoff ends (see
+[Handing a worker to the user](#handing-a-worker-to-the-user)). Add a `handoff:` line
+each time one happens; without it a later reader cannot tell which turns you saw.
 
 ### On restoration
 

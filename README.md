@@ -68,7 +68,8 @@ My thoughts and assumptions as at Aug-2026:
 ## Setup
 
 You need Prime Agent installed and authenticated, plus the CLI of any external harness
-you use (`codex login`, `cursor-agent login`, `claude`).
+you use (`codex login`, `cursor-agent login`, `claude`). `tmux` is optional — it is only
+needed to [talk to a worker directly](#talking-to-a-worker-yourself).
 
 Put the CLI on your PATH:
 
@@ -180,6 +181,42 @@ want isolation — in HUB_MODE they are created with plain `git worktree` under
 records which worker owns which worktree, and never removes one; on restore it points
 out any whose worker is gone.
 
+## Talking to a worker yourself
+
+Sometimes relaying through the manager is the wrong shape — you want to argue with the
+worker directly. Ask for it:
+
+```text
+let me talk to grok about demo 2
+```
+
+The manager resolves the handle to that worker's recorded session, opens it in a tmux
+window with the harness's *interactive* resume (`codex resume`, `cursor-agent --resume`,
+`claude --resume`, or `prime-agent attach` for a native worker), and hands you one line:
+
+```bash
+tmux attach -t prime-worker
+```
+
+One tmux session named `prime-worker`, one window per worker handle. Your manager
+terminal is covered while you are attached; `prefix+d` detaches and you are back with
+the manager still running. The manager cannot attach for you — it has no terminal of its
+own — so that command is yours to run.
+
+It is the same session, not a copy. Whatever you say there is in the worker's context
+when the manager next resumes it. What the *manager* loses is sight of those turns, so
+it marks the request `user-driving`, stops resuming that session — no follow-ups, no
+review routing, and the heartbeat leaves it alone — and asks the worker what you settled
+rather than inventing a result it never saw.
+
+Two things worth knowing:
+
+- The worker has to be idle first. Two processes writing one session diverge, so the
+  manager refuses the handoff while the worker is mid-run and offers to send a message
+  instead.
+- An interactive resume uses *your* harness config, not the flags the manager launched
+  with. A worker started read-only may come back with your own sandbox settings.
+
 ## Resume
 
 Closing the terminal detaches the client; the worker and its children keep running.
@@ -210,7 +247,10 @@ tested" rather than permanent, and re-verify anything that matters:
   never delivered and the run still reports success.
 
 Not yet exercised in a live session: the `models.toml` read, the one-minute heartbeat
-for external workers, and the interactive resident-worker path (demos ran over RPC).
+for external workers, the interactive resident-worker path (demos ran over RPC), and the
+tmux handoff — the interactive resume commands are `--help`-verified against the CLIs
+installed here (`codex-cli 0.153.4`, `cursor-agent 2026.09.10`, `claude 2.1.268`), but
+no worker has actually been handed over mid-session yet.
 
 Known limitations:
 

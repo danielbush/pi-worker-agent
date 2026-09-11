@@ -137,6 +137,10 @@ not say "still running", do not summarise progress. The user is reading their te
 a minute-by-minute status trickle is noise. Speak only when a worker has actually
 finished, failed, or needs a decision from the user — or when they ask.
 
+Skip any worker whose request record says `status: user-driving` — the user is talking
+to that session in a tmux window, and it is not yours to resume or report on until the
+handoff ends.
+
 On each tick: check every recorded handle, relay anything that finished, and when none
 are still running, `await rlm_heartbeat.delete(<id>)` so it stops firing. Recover the id
 with `await rlm_heartbeat.list()` if you no longer have it. Leaving a heartbeat running
@@ -151,5 +155,7 @@ turn.
   `rlm.list_subagents()`, and it is resumed only through its own CLI.
 - If a harness cannot expose or resume an exact session, say so. Never present a fresh
   session as a continuation of an earlier one.
+- Each reference's **Interactive resume** section is the form to use when handing a
+  session to the user in tmux. It is never the form to use for your own follow-ups.
 - Each harness needs its own authentication. If a launch fails on auth, report it and
   let the user log in — do not attempt to authenticate on their behalf.

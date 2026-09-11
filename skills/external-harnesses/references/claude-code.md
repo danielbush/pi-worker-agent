@@ -86,3 +86,19 @@ context.
 
 Do not pass `--fork-session` for a continuation — it deliberately creates a new session
 ID, which breaks the recorded worker identity.
+
+## Interactive resume (handing the session to the user)
+
+```bash
+claude --resume <session_id>
+```
+
+No `-p`, no `--output-format`: this opens the interactive UI on that session, and the
+user's turns are in context on your next `claude -p --resume`. Same `--fork-session`
+rule — it would break the recorded identity.
+
+Permission mode comes from the user's own settings, not the `--permission-mode` you
+launched with. Say so when you hand it over.
+
+The transcript is on disk at `~/.claude/projects/<cwd-slug>/<session_id>.jsonl` if you
+need to reconstruct what happened, but asking the worker is cheaper.

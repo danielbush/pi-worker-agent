@@ -144,3 +144,19 @@ launches with the same assignment consumed 15-38k.
 Check `usage.inputTokens` on every resume. If it is in the hundreds, the assignment did
 not arrive — re-send it positionally, or start a fresh session and include the context
 the follow-up depended on.
+
+## Interactive resume (handing the session to the user)
+
+```bash
+cursor-agent --resume <session_id>
+```
+
+Dropping `-p` opens the TUI on that session. Run it with the project as the working
+directory, as on launch.
+
+The stdin/positional trap does not apply here — the user types their own prompt.
+`cursor-agent ls` also works in this window (it needs a real terminal, which a tmux
+window is), so the picker is a fallback if a session ID was lost.
+
+Cursor keeps no transcript you can read afterwards, so a conversation the user has here
+is recoverable only by asking the worker or the user what was settled.
