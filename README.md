@@ -53,8 +53,12 @@ My thoughts and assumptions as at Aug-2026:
   - excessive review not commensurate with the type/scope/intention of the task
   - all of which leads to "paperwork fatigue": too much ai generated verbiage: I'd spend time reading long ai-generated descriptions and plans and reviews
 - So my preferred approach is:
-  - short iterations with something demonstrable at the end of each iteration -- this is to avoid writing lots of code unanchored to some tangible outcome, which is very easy to do with agents.  (In other words, agile still wins and waterfall can be weirdly magnified via AI slop)
-  - Manager agent mostly passes my words to the implementing agent but may tidy up and resolve them
+  - avoid ai generated plans; faithfully relay or expand the user's words
+  - the user's words are much easier for the user to understand
+  - the user is not good at reviewing long documents that have hidden catches or assumptions
+  - user should try to work in small iterations with immediate demonstrable feedback to keep any planning small
+    - also avoids risk of generating lots of code unanchored to some tangible outcome, which is very easy to do with agents.
+    - (In other words, agile still wins and waterfall can be weirdly magnified via AI slop)
   - ambiguities and misunderstandings get hammered out in review or via investigative tasks issues before building anything
 - I've played with using various models to act as the managing agent
   - atm GLM 5.3 flash via openrouter is cheap as chips and quite solid if you can find a fast provider. deepseek v4 flash
