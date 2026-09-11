@@ -71,6 +71,10 @@ You need Prime Agent installed and authenticated, plus the CLI of any external h
 you use (`codex login`, `cursor-agent login`, `claude`). `tmux` is optional — it is only
 needed to [talk to a worker directly](#talking-to-a-worker-yourself).
 
+While a worker runs, the machine is kept awake with `caffeinate` (macOS) or
+`systemd-inhibit` (Linux), via [bin/keep-awake](./bin/keep-awake). If neither is
+usable, workers still run, just without the lock, and the manager tells you so once.
+
 Put the CLI on your PATH:
 
 ```bash

@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# Keep the machine from sleeping while a worker runs.
+#
+#   keep-awake --check                 # say which mechanism is in use
+#   keep-awake -- <command> [args...]  # run a command under a sleep lock
+#   keep-awake --hold                  # hold a sleep lock until killed
+#
+# macOS uses `caffeinate`, Linux uses `systemd-inhibit`. If neither is usable,
+# every form still works: the command runs without a lock, --hold returns at
+# once, and a warning goes to stderr. Use --check to find out up front.
+#
+# The command form is for external workers: the lock lasts exactly as long as
+# the CLI process. --hold is for native RLM workers, which run inside the
+# prime-agent daemon and have no process of their own: start it as a background
+# bash() handle when the worker starts, and kill that handle when its result
+# arrives. Keep it as a handle rather than backgrounding it with `&`: a lock
+# started that way outlives the call with nothing left to kill it by, and keeps
+# the machine awake until the kernel exits.
+
+set -euo pipefail
+
+me=keep-awake
+why="prime-worker agent running"
+
+mechanism() {
+    if command -v caffeinate >/dev/null 2>&1; then
+        echo caffeinate
+    elif command -v systemd-inhibit >/dev/null 2>&1 &&
+        systemd-inhibit --what=idle:sleep --who=prime-worker --why="$me check" true >/dev/null 2>&1; then
+        # Present is not enough: without logind, or without polkit permission
+        # (eg over ssh), systemd-inhibit refuses the lock.
+        echo systemd-inhibit
+    else
+        echo none
+    fi
+}
+
+warn_none() {
+    echo "$me: no caffeinate or usable systemd-inhibit; $1 without a sleep lock" >&2
+}
+
+usage() {
+    sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//' >&2
+    exit 2
+}
+
+[[ $# -gt 0 ]] || usage
+
+case $1 in
+    --check)
+        m=$(mechanism)
+        echo "$m"
+        [[ $m != none ]]
+        ;;
+
+    --)
+        shift
+        [[ $# -gt 0 ]] || usage
+        case $(mechanism) in
+            caffeinate)
+                # -i idle sleep, -s system sleep while on AC power.
+                exec caffeinate -is "$@"
+                ;;
+            systemd-inhibit)
+                exec systemd-inhibit --what=idle:sleep --who=prime-worker --why="$why" "$@"
+                ;;
+            none)
+                warn_none "running"
+                exec "$@"
+                ;;
+        esac
+        ;;
+
+    --hold)
+        [[ $# -eq 1 ]] || usage
+        case $(mechanism) in
+            caffeinate)
+                # With no command, caffeinate holds until it is killed.
+                exec caffeinate -is
+                ;;
+            systemd-inhibit)
+                exec systemd-inhibit --what=idle:sleep --who=prime-worker --why="$why" \
+                    sleep infinity
+                ;;
+            none)
+                warn_none "continuing"
+                ;;
+        esac
+        ;;
+
+    *)
+        usage
+        ;;
+esac

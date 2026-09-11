@@ -106,6 +106,7 @@ Do this once, on first use:
    every assignment.
 3. Read `../../styles/` and your saved style toggles (see [Styles](#styles)).
 4. Read your request record if one exists (see [Request records](#request-records)).
+5. Check the sleep lock (see [Keeping the machine awake](#keeping-the-machine-awake)).
 
 ## Handling a request
 
@@ -275,10 +276,43 @@ Report the problem instead.
 If the user asks what is on, list the styles and their state. Do not turn styles on by
 yourself.
 
+## Keeping the machine awake
+
+Workers run for a long time with nobody touching the keyboard, and a machine that
+idle-sleeps mid-run stalls them. Every worker you start holds a sleep lock for as long as
+it runs: `caffeinate` on macOS, `systemd-inhibit` on Linux, through one helper,
+`$PRIME_WORKER_KEEP_AWAKE` (falling back to `../../bin/keep-awake` from this file).
+
+```python
+import os, pathlib, shlex
+
+keep_awake = os.environ.get("PRIME_WORKER_KEEP_AWAKE") or str(
+    (pathlib.Path(skill_dir) / ".." / ".." / "bin" / "keep-awake").resolve()
+)
+awake_locks = {}      # native worker name -> its --hold handle
+check = await bash(f"{shlex.quote(keep_awake)} --check")
+print(check.output)   # caffeinate | systemd-inhibit | none
+```
+
+If it prints `none`, say so once in your first report — "no caffeinate or usable
+systemd-inhibit here, so workers run without a sleep lock; the machine may sleep
+mid-run" — and carry on. Every form of the helper still works without a lock; do not
+refuse or delay work over it, and do not repeat the warning on each launch.
+
+How the lock is held differs by worker:
+
+- **External** — the lock wraps the CLI command itself and ends when it exits. See
+  `../external-harnesses/SKILL.md`.
+- **Native** — a child runs inside the prime-agent daemon and has no process of its own
+  to wrap, so hold the lock as a separate background handle and kill it when the child's
+  result arrives. See [Native workers](#native-workers).
+
+The handoff to the user in tmux takes no lock — someone is at the keyboard.
+
 ## Native workers
 
 Spawn a child from the Python kernel with a descriptive handle (see
-[Naming a worker](#naming-a-worker)):
+[Naming a worker](#naming-a-worker)), and start its sleep lock alongside it:
 
 ```python
 handle = await rlm(
@@ -288,7 +322,16 @@ handle = await rlm(
     thinking="high",
 )
 print(handle.rlm_child_id, handle.name, handle.session_dir, handle.model)
+
+awake = bash(f"{shlex.quote(keep_awake)} --hold")   # no await: it runs until killed
+awake.pid                                            # touch it so it survives the turn
+awake_locks[handle.name] = awake                     # dict kept in the kernel
 ```
+
+When that child's result arrives — or it fails, or you hand it to the user — release its
+lock with `awake_locks.pop(name).kill()`. Resuming a child with a follow-up takes a new
+lock the same way. Never start the hold with `await`, which blocks forever, and never as
+`bash("... --hold &")`, which leaves a lock with no handle to kill it by.
 
 - Resolve exact selectors with `await rlm.find_models("<query>")`. If the requested
   model is unavailable the spawn fails; report that and ask the user. Never substitute
@@ -522,6 +565,7 @@ One entry per request:
 - worktree: <path> (branch <name>) — only if one was created
 - harness: native · model: openrouter/x-ai/grok-4.6 · thinking: high
 - worker: name=grok-demo2-impl id=<rlm_child_id> dir=<session_dir>
+- awake: held (awake_locks["grok-demo2-impl"]) — or released, or none
 - status: running
 - result:
 - related: reviewed by R4
@@ -547,6 +591,9 @@ Read the record and reconcile it before claiming anything about a worker's state
 
 If a launch was interrupted and its outcome is uncertain, inspect the available session
 records before launching anything that might duplicate it.
+
+Sleep locks do not survive a kernel restart — `awake_locks` is gone with it. Take a fresh
+`--hold` for each native child that is still running.
 
 Resume the original manager session for continuity — an unrelated new manager session
 does not inherit its children. Do not build cross-session discovery. If a recorded

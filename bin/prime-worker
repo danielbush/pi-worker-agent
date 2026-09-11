@@ -80,6 +80,10 @@ fi
 models=$(cd -P "$(dirname "$models")" && pwd)/$(basename "$models")
 export PRIME_WORKER_MODELS=$models
 
+# Wraps worker launches in caffeinate / systemd-inhibit so the machine stays
+# awake while they run. See bin/keep-awake.
+export PRIME_WORKER_KEEP_AWAKE=$repo/bin/keep-awake
+
 # HUB_MODE when the directory you launch from has a workspaces.toml; otherwise
 # PROJECT_MODE, where the launch directory is itself the project.
 if [[ -f $workspaces ]]; then

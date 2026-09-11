@@ -48,6 +48,22 @@ print(result.output)
 `os.chdir(...)` in the kernel applies to every later `bash()` call, which is how you set
 the working directory for a CLI that has no directory flag on resume.
 
+**Run every launch and resume under the sleep lock.** Prefix the CLI with the
+`keep-awake` helper (`keep_awake` from the manager's setup) and `--`. It runs the command
+under `caffeinate` on macOS or `systemd-inhibit` on Linux, so the machine stays awake
+exactly as long as the worker runs, and passes stdin, output, and the exit status
+through unchanged:
+
+```python
+cli = f"{shlex.quote(keep_awake)} -- {cli_command}"
+handle = bash(f"{cli} < {shlex.quote(str(prompt_file))} > {shlex.quote(str(out))} 2> {shlex.quote(str(err))}")
+```
+
+Nothing to release afterwards. Where neither is available the helper runs the CLI
+without a lock and writes one warning line to the worker's `.err` file; that is not a
+failure. The manager has already told the user once. Interactive resumes for the user
+in tmux go without it.
+
 **Always use the streaming output format.** All three harnesses emit JSONL where the
 first event carries the session ID and later events show the work as it happens. The
 non-streaming format emits one object only when the run *finishes*, so an async launch
