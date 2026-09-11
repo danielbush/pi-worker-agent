@@ -128,7 +128,10 @@ agent message; external workers are checked by a single one-minute heartbeat tha
 silent until something finishes.
 
 Several workers can run in the same checkout, with no locking. Ask for a worktree if you
-want isolation.
+want isolation — in HUB_MODE they are created with plain `git worktree` under
+`<hub>/worktrees/<workspace>/<worker-handle>`, on a branch of the same name. The manager
+records which worker owns which worktree, and never removes one; on restore it points
+out any whose worker is gone.
 
 ## Resume
 

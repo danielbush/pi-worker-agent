@@ -49,7 +49,8 @@ In `HUB_MODE`:
 - A request that names no project: ask which one. Do not guess, and do not carry the
   previous request's project over silently — say which you assume if you do.
 - Send the resolved path as the assignment's project path. Never send the hub directory
-  itself; there is no code in it.
+  itself; there is no code in it — its only role is holding `workspaces.toml` and, if
+  the user asks for isolation, `worktrees/`.
 - Record the workspace nickname with each request, so a later "grok's work" is
   unambiguous across projects.
 - If a nickname is not in the file, list the ones that are and ask.
@@ -351,10 +352,44 @@ Work usually happens one thing at a time, but multiple workers may run in the sa
 checkout even when their edits could interfere. Do not add serialization, locking,
 collision detection, or automatic isolation.
 
-If the user asks for isolation, use an available worktree tool such as `wt`, follow that
-tool's own instructions, launch the worker in the resulting directory, and record that
-directory with the session. It is an ordinary tool-assisted action — do not build
-worktree management, automatic creation, merging, or cleanup.
+Isolation is opt-in: create a worktree only when the user asks for one. See
+[Worktrees](#worktrees).
+
+## Worktrees
+
+Use plain `git worktree`. Do not reach for a worktree wrapper tool.
+
+In `HUB_MODE`, worktrees live under the hub directory, nested by workspace and named
+after the worker's handle:
+
+```text
+<hub>/worktrees/<workspace>/<worker-handle>
+```
+
+```python
+await bash(
+    f"git -C {workspace_path} worktree add "
+    f"{hub}/worktrees/{workspace}/{handle} -b {handle}"
+)
+```
+
+Naming the directory and the branch after the handle means the worktree, the branch, and
+the worker all read the same — no lookup table needed to see who owns what.
+
+In `PROJECT_MODE` there is no hub directory. Ask the user where the worktree should go
+rather than inventing a location inside their checkout.
+
+Then launch the worker with the worktree as its project path, not the original checkout.
+
+**Record, do not register.** Add the worktree path and branch to that request's entry in
+your record. Do not keep a separate worktree registry — `git worktree list --porcelain`
+in the workspace is the truth about what exists, and your record is the truth about who
+is working in it. A third list would only go stale.
+
+**Never remove a worktree.** No automatic creation, merging, pruning, or cleanup. On
+restore, compare `git worktree list` against your record and mention any worktree whose
+worker is gone, so abandoned ones do not pile up unseen. Removing them is the user's
+call.
 
 ## Request records
 
@@ -377,6 +412,7 @@ One entry per request:
 - asked: "get grok to implement demo 2 in notes-arbitrary-name.md"
 - source: notes-arbitrary-name.md § demo 2
 - cwd: /path/to/consumer
+- worktree: <path> (branch <name>) — only if one was created
 - harness: native · model: openrouter/x-ai/grok-4.6 · thinking: high
 - worker: name=grok-demo2-impl id=<rlm_child_id> dir=<session_dir>
 - status: running
