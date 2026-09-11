@@ -44,6 +44,14 @@ My thoughts and assumptions as at Aug-2026:
 - I'm juggling between very modest codex, curosr, claude subscriptions and trying to take advantage of cheap but powerful open weight models via openrouter or similar
 - I'm working on slightly novel non-trivial projects, and I'm just not comfortable blackboxing them, I need to understand the code at least as a well-structured system and my obervation is that agents can write great code but architecture is not quite there (this is changing all the time)
 - I have various directives for the coding agent to encourage it to structure code so it's not just a bag of functions and to encourage it to focus on entities and data modelling and testable code (eg dependency injection, nulled instances). This is not included here, it's something you put in or link to from your AGENTS.md for the project the coding agent is working on
+- My preferred approach is:
+  - avoid ai generated plans; faithfully relay or expand the user's words
+  - the user's words are much easier for the user to understand
+  - the user is not good at reviewing long documents that have hidden catches or assumptions
+  - user should try to work in small iterations with immediate demonstrable feedback to keep any planning small
+    - also avoids risk of generating lots of code unanchored to some tangible outcome, which is very easy to do with agents.
+    - (In other words, agile still wins and waterfall can be weirdly magnified via AI slop)
+  - ambiguities and misunderstandings get hammered out in review or via investigative tasks issues before building anything
 - Earlier attempts at a managing agent in pi or prime-agent harness didn't work for me
   - they had project management structures and workflows which I could not decide on
   - it led to a weird combination of scripting and deterministic code mixed with agent discretion
@@ -52,14 +60,6 @@ My thoughts and assumptions as at Aug-2026:
   - "game of telephone" effect: things would get put into the plan that I didn't expect and then were faithfully executed by the coding agent,
   - excessive review not commensurate with the type/scope/intention of the task
   - all of which leads to "paperwork fatigue": too much ai generated verbiage: I'd spend time reading long ai-generated descriptions and plans and reviews
-- So my preferred approach is:
-  - avoid ai generated plans; faithfully relay or expand the user's words
-  - the user's words are much easier for the user to understand
-  - the user is not good at reviewing long documents that have hidden catches or assumptions
-  - user should try to work in small iterations with immediate demonstrable feedback to keep any planning small
-    - also avoids risk of generating lots of code unanchored to some tangible outcome, which is very easy to do with agents.
-    - (In other words, agile still wins and waterfall can be weirdly magnified via AI slop)
-  - ambiguities and misunderstandings get hammered out in review or via investigative tasks issues before building anything
 - I've played with using various models to act as the managing agent
   - atm GLM 5.3 flash via openrouter is cheap as chips and quite solid if you can find a fast provider. deepseek v4 flash
     on high also cheap sometimes frustrating; both have large context. You can also use openai models (at
